@@ -24,7 +24,8 @@ async def test_refund_requests():
             reference=expected_keyword,
             scores={
                 "key": "keyword_match",
-                "passed": expected_keyword in output.lower()
+                "passed": expected_keyword in output.lower(),
+                "notes": f"Expected keyword '{expected_keyword}' not found in output" if expected_keyword not in output.lower() else None
             },
             latency=0.1  # Override latency for testing
         ))
@@ -67,6 +68,22 @@ def test_greeting_responses():
 def test_single_case():
     input = "Hi there"
     output = "Hello! How can I help you today?"
+    
+    return EvalResult(
+        input=input,
+        output=output,
+    )
+
+
+# Test assertion handling
+@eval(labels=["assert"])
+def test_single_case():
+    input = "Hi there"
+    output = "Hello! How can I help you today?"
+
+    # Test assertion handling
+    # Should result in an errored test with the error message
+    assert output == input, "Output does not match input" 
     
     return EvalResult(
         input=input,
