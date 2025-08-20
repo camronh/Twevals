@@ -50,6 +50,14 @@ def format_results_table(results: List[Dict[str, Any]]) -> Table:
                 elif score.get("passed") is not None:
                     passed_str = "✓" if score["passed"] else "✗"
                     scores_text += f"{key}: {passed_str}\n"
+                
+                # Add notes if present
+                if score.get("notes"):
+                    notes = score["notes"]
+                    # Truncate long notes
+                    if len(notes) > 25:
+                        notes = notes[:22] + "..."
+                    scores_text += f"  ({notes})\n"
         
         # Format latency
         latency_text = ""
