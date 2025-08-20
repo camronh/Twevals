@@ -4,9 +4,8 @@ from rich.text import Text
 
 
 def format_results_table(results: List[Dict[str, Any]]) -> Table:
-    table = Table(title="Evaluation Results", show_header=True, header_style="bold magenta")
+    table = Table(title="Evaluation Results", show_header=True, header_style="bold magenta", show_lines=True)
     
-    table.add_column("Function", style="cyan", no_wrap=True)
     table.add_column("Dataset", style="green")
     table.add_column("Input", max_width=30)
     table.add_column("Output", max_width=30)
@@ -65,7 +64,6 @@ def format_results_table(results: List[Dict[str, Any]]) -> Table:
             output_str = f"Error: {result['error'][:40]}"
         
         table.add_row(
-            item["function"],
             item["dataset"],
             input_str,
             output_str,

@@ -1,6 +1,7 @@
 import asyncio
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import io
+from contextlib import redirect_stdout, nullcontext
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -10,13 +11,16 @@ from evalkit.schemas import EvalResult
 
 
 class EvalRunner:
-    def __init__(self, concurrency: int = 0):
+    def __init__(self, concurrency: int = 0, verbose: bool = False):
         self.concurrency = concurrency  # 0 means sequential
+        self.verbose = verbose
         self.results: List[Dict] = []
         
     async def run_async_eval(self, func: EvalFunction) -> List[EvalResult]:
+        stdout_capture = io.StringIO() if not self.verbose else None
         try:
-            result = await func.call_async()
+            with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
+                result = await func.call_async()
             if isinstance(result, EvalResult):
                 return [result]
             return result
@@ -28,8 +32,10 @@ class EvalRunner:
             )]
     
     def run_sync_eval(self, func: EvalFunction) -> List[EvalResult]:
+        stdout_capture = io.StringIO() if not self.verbose else None
         try:
-            result = func()
+            with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
+                result = func()
             if isinstance(result, EvalResult):
                 return [result]
             return result

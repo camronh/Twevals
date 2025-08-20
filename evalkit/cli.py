@@ -1,11 +1,8 @@
 import click
 import sys
 from typing import Optional
-from pathlib import Path
 
 from rich.console import Console
-from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from evalkit.runner import EvalRunner
 from evalkit.formatters import format_results_table
@@ -41,7 +38,7 @@ def run(
     labels = list(label) if label else None
     
     # Create runner
-    runner = EvalRunner(concurrency=concurrency)
+    runner = EvalRunner(concurrency=concurrency, verbose=verbose)
     
     # Run evaluations with progress indicator
     with console.status("[bold green]Running evaluations...", spinner="dots") as status:
@@ -62,7 +59,12 @@ def run(
         console.print("[yellow]No evaluations found matching the criteria[/yellow]")
         return
     
-    # Print summary
+    # Show results table (always, not just with verbose)
+    if summary['results']:
+        table = format_results_table(summary['results'])
+        console.print(table)
+    
+    # Print summary below table
     console.print("\n[bold]Evaluation Summary[/bold]")
     console.print(f"Total Functions: {summary['total_functions']}")
     console.print(f"Total Evaluations: {summary['total_evaluations']}")
@@ -73,12 +75,6 @@ def run(
     
     if summary['average_latency'] > 0:
         console.print(f"Average Latency: {summary['average_latency']:.3f}s")
-    
-    # Show results table
-    if verbose and summary['results']:
-        console.print("\n[bold]Detailed Results[/bold]")
-        table = format_results_table(summary['results'])
-        console.print(table)
     
     # Output file notification
     if output:

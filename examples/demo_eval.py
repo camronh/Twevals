@@ -5,6 +5,7 @@ from evalkit import eval, EvalResult
 # Includes a single score for multiple test cases
 @eval(dataset="customer_service", labels=["production"])
 async def test_refund_requests():
+    print("Testing refund request handling...")
     test_cases = [
         ("I want a refund", "refund"),
         ("Money back please", "refund"),
@@ -13,6 +14,7 @@ async def test_refund_requests():
     
     results = []
     for prompt, expected_keyword in test_cases:
+        print(f"  Processing: {prompt}")
         # Simulate agent response
         output = f"Processing {expected_keyword} request for: {prompt}"
         
@@ -23,7 +25,8 @@ async def test_refund_requests():
             scores={
                 "key": "keyword_match",
                 "passed": expected_keyword in output.lower()
-            }
+            },
+            latency=0.1  # Override latency for testing
         ))
     
     return results
@@ -33,10 +36,12 @@ async def test_refund_requests():
 # No reference
 @eval(labels=["test"])
 def test_greeting_responses():
+    print("Testing greeting responses...")
     greetings = ["Hello", "Hi there", "Good morning"]
     
     results = []
     for greeting in greetings:
+        print(f"  Greeting: {greeting}")
         # Simulate agent response
         response = f"Hello! How can I help you today?"
         
@@ -47,7 +52,8 @@ def test_greeting_responses():
                 {"key": "politeness", "value": 0.95},
                 {"key": "response_time", "passed": True}
             ],
-            metadata={"model": "gpt-4", "temperature": 0.7}
+            metadata={"model": "gpt-4", "temperature": 0.7},
+            latency=0.05  # Override latency for testing
         ))
     
     return results

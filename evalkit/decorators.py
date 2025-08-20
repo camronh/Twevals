@@ -15,7 +15,7 @@ class EvalFunction:
         labels: Optional[List[str]] = None
     ):
         self.func = func
-        self.dataset = dataset or self._infer_dataset_from_name(func)
+        self.dataset = dataset if dataset is not None else self._infer_dataset_from_name(func)
         self.labels = labels or []
         self.is_async = asyncio.iscoroutinefunction(func)
         functools.update_wrapper(self, func)
@@ -92,7 +92,13 @@ class EvalFunction:
 def eval(
     dataset: Optional[str] = None,
     labels: Optional[List[str]] = None
-) -> Callable:
+):
+    # Support both @eval and @eval()
+    if callable(dataset) and labels is None:
+        # Called as @eval without parentheses
+        func = dataset
+        return EvalFunction(func, None, None)
+    # Called as @eval() or @eval(dataset=..., labels=...)
     def decorator(func: Callable) -> EvalFunction:
         return EvalFunction(func, dataset, labels)
     return decorator

@@ -59,11 +59,15 @@ class EvalDiscovery:
             )
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
+                module.__file__ = str(file_path)  # Ensure __file__ is set
                 spec.loader.exec_module(module)
                 
                 # Find all EvalFunction instances
                 for name, obj in inspect.getmembers(module):
                     if isinstance(obj, EvalFunction):
+                        # If dataset is still default, use the filename
+                        if obj.dataset == 'default':
+                            obj.dataset = file_path.stem
                         self.discovered_functions.append(obj)
         except Exception as e:
             # Log or handle import errors gracefully

@@ -145,20 +145,23 @@ def test_json():
     
     def test_run_with_verbose(self):
         with self.runner.isolated_filesystem():
-            # Create test file
+            # Create test file with print statements
             with open('test_verbose.py', 'w') as f:
                 f.write("""
 from evalkit import eval, EvalResult
 
 @eval()
 def test_verbose():
+    print("This should show with verbose")
     return EvalResult(input="v", output="verbose", scores={"key": "test", "passed": True})
 """)
             
             result = self.runner.invoke(cli, ['run', 'test_verbose.py', '--verbose'])
             assert result.exit_code == 0
-            assert 'Detailed Results' in result.output
-            # Rich table output would be included
+            # Verbose shows print statements
+            assert 'This should show with verbose' in result.output
+            # Table is always shown now
+            assert 'Evaluation Results' in result.output
     
     def test_run_with_concurrency(self):
         with self.runner.isolated_filesystem():
