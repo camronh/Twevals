@@ -4,14 +4,14 @@ from rich.text import Text
 
 
 def format_results_table(results: List[Dict[str, Any]]) -> Table:
-    table = Table(title="Evaluation Results", show_header=True, header_style="bold magenta", show_lines=True)
+    table = Table(title="Evaluation Results", show_header=True, header_style="bold magenta", show_lines=True, expand=True)
     
-    table.add_column("Dataset", style="green")
-    table.add_column("Input", max_width=30)
-    table.add_column("Output", max_width=30)
-    table.add_column("Status", style="bold")
-    table.add_column("Scores", max_width=20)
-    table.add_column("Latency", justify="right")
+    table.add_column("Dataset", style="green", width=20)
+    table.add_column("Input", max_width=40)
+    table.add_column("Output", max_width=40)
+    table.add_column("Status", style="bold", width=10)
+    table.add_column("Scores", max_width=30)
+    table.add_column("Latency", justify="right", width=12)
     
     for item in results:
         result = item["result"]
