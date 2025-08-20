@@ -63,8 +63,18 @@ class EvalDiscovery:
                 spec.loader.exec_module(module)
                 
                 # Find all EvalFunction instances
+                from evalkit.parametrize import ParametrizedEvalFunction
+                
                 for name, obj in inspect.getmembers(module):
-                    if isinstance(obj, EvalFunction):
+                    if isinstance(obj, ParametrizedEvalFunction):
+                        # Handle parametrized functions - generate individual functions
+                        generated_funcs = obj.generate_eval_functions()
+                        for func in generated_funcs:
+                            # If dataset is still default, use the filename
+                            if func.dataset == 'default':
+                                func.dataset = file_path.stem
+                            self.discovered_functions.append(func)
+                    elif isinstance(obj, EvalFunction):
                         # If dataset is still default, use the filename
                         if obj.dataset == 'default':
                             obj.dataset = file_path.stem

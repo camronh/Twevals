@@ -2,6 +2,15 @@
 
 A lightweight, code-first evaluation framework for testing AI agents and LLM applications.
 
+## Key Features
+
+- 🎯 **Pytest-style decorators** - Familiar `@eval` and `@parametrize` decorators
+- 📊 **Beautiful output** - Rich tables with automatic score tracking
+- 🔄 **Parametrization** - Run the same test with multiple inputs
+- 🏷️ **Flexible organization** - Group by datasets and labels
+- 📁 **File-based** - Everything in version control
+- ⚡ **Async support** - Works with async functions
+
 ## Installation
 
 ```bash
@@ -11,108 +20,95 @@ pip install evalkit
 ## Quick Start
 
 ```python
-from evalkit import eval, EvalResult
+from evalkit import eval, EvalResult, parametrize
 
+# Simple evaluation
 @eval(dataset="my_tests")
-def test_example():
+def test_simple():
     return EvalResult(
         input="test input",
         output="test output",
         scores={"key": "accuracy", "value": 0.95}
     )
+
+# With parametrization
+@eval(dataset="my_tests")
+@parametrize("input,expected", [
+    ("hello", "HELLO"),
+    ("world", "WORLD"),
+])
+def test_uppercase(input, expected):
+    output = input.upper()
+    return EvalResult(
+        input=input,
+        output=output,
+        reference=expected,
+        scores={"key": "match", "passed": output == expected}
+    )
 ```
 
-Run evaluations:
-
-```bash
-evalkit run tests/
-```
+Run: `evalkit run tests/`
 
 ## CLI Commands
 
-### Basic Usage
-
 ```bash
-# Run evaluations in a specific directory
-evalkit run path/to/evals/
+# Run evaluations
+evalkit run path/to/tests/
+evalkit run test_file.py
 
-# Run evaluations in a specific file
-evalkit run path/to/eval_file.py
-
-# Get help
-evalkit --help
-evalkit run --help
-```
-
-### Filtering Options
-
-```bash
-# Filter by dataset name (comma-separated for multiple)
+# Filter by dataset or labels
 evalkit run tests/ --dataset my_dataset
-evalkit run tests/ --dataset dataset1,dataset2
-
-# Filter by labels (can specify multiple)
 evalkit run tests/ --label production
-evalkit run tests/ --label test --label staging
-```
 
-### Output Options
-
-```bash
-# Save results to JSON file
+# Save results and options
 evalkit run tests/ --output results.json
-
-# Run with verbose output (shows print statements from eval functions)
-evalkit run tests/ --verbose
+evalkit run tests/ --verbose  # Show print statements
+evalkit run tests/ --concurrency 4  # Parallel execution
 ```
 
-### Concurrency
+## Decorators
 
-```bash
-# Run evaluations concurrently (default is sequential)
-evalkit run tests/ --concurrency 4
-```
-
-### Combined Examples
-
-```bash
-# Run production evals with JSON output
-evalkit run examples/ --label production --output prod_results.json
-
-# Run specific dataset with verbose logging
-evalkit run tests/ --dataset customer_service --verbose
-
-# Run with concurrency and save results
-evalkit run evals/ --concurrency 8 --output results.json
-```
-
-## Decorator Options
+### @eval
 
 ```python
-# Basic decorator (dataset inferred from filename)
-@eval
-def test_simple():
-    return EvalResult(input="in", output="out")
-
-# With dataset
+@eval  # Dataset inferred from filename
 @eval(dataset="my_dataset")
-def test_with_dataset():
-    return EvalResult(input="in", output="out")
-
-# With labels
 @eval(labels=["production", "critical"])
-def test_with_labels():
-    return EvalResult(input="in", output="out")
-
-# With both dataset and labels
-@eval(dataset="customer_service", labels=["production"])
-def test_full():
-    return EvalResult(input="in", output="out")
+@eval(dataset="service", labels=["prod"])
 ```
 
-## Output Format
+### @parametrize
 
-The CLI displays:
-- A detailed results table with dataset, input, output, status, scores, and latency
-- Summary statistics including total functions, evaluations, errors, and pass rates
-- JSON export option for programmatic analysis
+```python
+# Simple parameters
+@parametrize("x,y", [(1, 2), (3, 4)])
+
+# Named test cases
+@parametrize("input,expected", 
+    [("test1", "out1"), ("test2", "out2")],
+    ids=["first", "second"]
+)
+
+# Cartesian product
+@parametrize("model", ["gpt-3.5", "gpt-4"])
+@parametrize("temperature", [0.0, 1.0])
+# Creates 4 tests (2 models × 2 temperatures)
+```
+
+## EvalResult Schema
+
+```python
+EvalResult(
+    input=Any,           # Required: test input
+    output=Any,          # Required: model output
+    reference=Any,       # Optional: expected output
+    scores={             # Optional: metrics
+        "key": str,
+        "value": float,  # Numeric score
+        "passed": bool,  # Pass/fail
+    },
+    error=str,           # Optional: error message
+    latency=float,       # Optional: override auto timing
+    metadata=dict,       # Optional: extra data
+)
+```

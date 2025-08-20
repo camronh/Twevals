@@ -93,12 +93,23 @@ def eval(
     dataset: Optional[str] = None,
     labels: Optional[List[str]] = None
 ):
+    from evalkit.parametrize import ParametrizedEvalFunction
+    
     # Support both @eval and @eval()
     if callable(dataset) and labels is None:
         # Called as @eval without parentheses
         func = dataset
+        if isinstance(func, ParametrizedEvalFunction):
+            # Handle parametrized function
+            func.eval_func = EvalFunction(func.base_func, None, None)
+            return func
         return EvalFunction(func, None, None)
+    
     # Called as @eval() or @eval(dataset=..., labels=...)
-    def decorator(func: Callable) -> EvalFunction:
+    def decorator(func: Union[Callable, ParametrizedEvalFunction]):
+        if isinstance(func, ParametrizedEvalFunction):
+            # Handle parametrized function
+            func.eval_func = EvalFunction(func.base_func, dataset, labels)
+            return func
         return EvalFunction(func, dataset, labels)
     return decorator
