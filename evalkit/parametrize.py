@@ -54,10 +54,11 @@ class ParametrizedEvalFunction:
                 eval_func = EvalFunction(
                     wrapper,
                     dataset=self.eval_func.dataset,
-                    labels=self.eval_func.labels
+                    labels=self.eval_func.labels,
+                    evaluators=self.eval_func.evaluators
                 )
             else:
-                eval_func = EvalFunction(wrapper, None, None)
+                eval_func = EvalFunction(wrapper, None, None, None)
             
             # Store parameter info for reporting
             eval_func.parameters = params

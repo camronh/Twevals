@@ -1,8 +1,16 @@
 from evalkit import eval, EvalResult, parametrize
 
+def custom_evaluator(result: EvalResult):
+    """Custom evaluator to check if the reference output is in the output"""
+    if result.reference in result.output.lower():
+        return {"key": "reference_match", "passed": True}
+    else:
+        return {"key": "reference_match", "passed": False, "notes": f"Expected reference '{result.reference}' not found in output"}
+
+
 # Example 1: Simple parametrization with multiple test cases
 # Each tuple becomes a separate evaluation
-@eval(dataset="sentiment_analysis")
+@eval(dataset="sentiment_analysis", evaluators=[custom_evaluator])
 @parametrize("text,expected_sentiment", [
     ("I love this product!", "positive"),
     ("This is terrible", "negative"),
