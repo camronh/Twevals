@@ -1,6 +1,8 @@
 from evalkit import eval, EvalResult
 
-
+# Includes dataset and labels
+# Includes reference
+# Includes a single score for multiple test cases
 @eval(dataset="customer_service", labels=["production"])
 async def test_refund_requests():
     test_cases = [
@@ -17,6 +19,7 @@ async def test_refund_requests():
         results.append(EvalResult(
             input=prompt,
             output=output,
+            reference=expected_keyword,
             scores={
                 "key": "keyword_match",
                 "passed": expected_keyword in output.lower()
@@ -25,8 +28,10 @@ async def test_refund_requests():
     
     return results
 
-
-@eval(dataset="customer_service", labels=["test"])
+# Includes metadata
+# includes a list of scores for multiple test cases
+# No reference
+@eval(labels=["test"])
 def test_greeting_responses():
     greetings = ["Hello", "Hi there", "Good morning"]
     
@@ -40,9 +45,24 @@ def test_greeting_responses():
             output=response,
             scores=[
                 {"key": "politeness", "value": 0.95},
-                {"key": "response_time", "value": 0.1}
+                {"key": "response_time", "passed": True}
             ],
             metadata={"model": "gpt-4", "temperature": 0.7}
         ))
     
     return results
+
+
+
+# Single eval result
+# No scoring
+# No explicit dataset or labels (should be inferred from filename)
+@eval
+def test_single_case():
+    input = "Hi there"
+    output = "Hello! How can I help you today?"
+    
+    return EvalResult(
+        input=input,
+        output=output,
+    )
