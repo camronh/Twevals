@@ -1,8 +1,30 @@
+import time
+import asyncio
 from evalkit import eval, EvalResult
+import random
+
+async def run_agent(prompt):
+    """Target function to run the agent/model and track latency"""
+    start_time = time.time()
+    # Here is where we would run the actual agent/model
+    # Track the latency here
+    # Random latency
+    latency = random.uniform(0.1, 1.0)
+    await asyncio.sleep(latency)
+    end_time = time.time()
+    response = f"Processing {prompt} request in {latency} seconds"
+    
+    return {
+        "input": prompt,
+        "output": response,
+        "latency": end_time - start_time
+    }
+
 
 # Includes dataset and labels
 # Includes reference
 # Includes a single score for multiple test cases
+# Track latency in target function
 @eval(dataset="customer_service", labels=["production"])
 async def test_refund_requests():
     print("Testing refund request handling...")
@@ -16,18 +38,15 @@ async def test_refund_requests():
     for prompt, expected_keyword in test_cases:
         print(f"  Processing: {prompt}")
         # Simulate agent response
-        output = f"Processing {expected_keyword} request for: {prompt}"
-        
+        result = await run_agent(prompt)
         results.append(EvalResult(
-            input=prompt,
-            output=output,
+            **result, # Populate input, output, and latency
             reference=expected_keyword,
             scores={
                 "key": "keyword_match",
-                "passed": expected_keyword in output.lower(),
-                "notes": f"Expected keyword '{expected_keyword}' not found in output" if expected_keyword not in output.lower() else None
+                "passed": expected_keyword in result["output"].lower(),
+                "notes": f"Expected keyword '{expected_keyword}' not found in output" if expected_keyword not in result["output"].lower() else None
             },
-            latency=0.1  # Override latency for testing
         ))
     
     return results
