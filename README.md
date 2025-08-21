@@ -1,114 +1,275 @@
 # EvalKit
 
-A lightweight, code-first evaluation framework for testing AI agents and LLM applications.
+Code‑first evaluation for AI agents and LLM apps. This README focuses on concrete, copy‑pasteable examples and CLI usage. See `examples/` for runnable demos.
 
-## Key Features
+![image.png](assets/image.png)
 
-- 🎯 **Pytest-style decorators** - Familiar `@eval` and `@parametrize` decorators
-- 📊 **Beautiful output** - Rich tables with automatic score tracking
-- 🔄 **Parametrization** - Run the same test with multiple inputs
-- 🏷️ **Flexible organization** - Group by datasets and labels
-- 📁 **File-based** - Everything in version control
-- ⚡ **Async support** - Works with async functions
+## Install
 
-## Installation
+- Poetry (developing this repo):
+  ```bash
+  poetry install  # Python 3.10+
+  ```
+
+## Run The Demos
+
+Run all demo evals in `examples/` with summary + table:
 
 ```bash
-pip install evalkit
+poetry run evalkit run examples
 ```
 
-## Quick Start
+Filter by dataset or labels:
+
+```bash
+poetry run evalkit run examples --dataset customer_service
+poetry run evalkit run examples --label production --label test
+```
+
+Control output and speed:
+
+```bash
+poetry run evalkit run examples -c 4 -o results.json -v
+# -c/--concurrency: parallelism, -o: save JSON, -v: print user output
+```
+
+## Minimal Eval (sync)
+
+Create any `.py` file and decorate a function. Dataset defaults to the filename; labels are optional.
+
+```python
+from evalkit import eval, EvalResult
+
+@eval  # dataset inferred from file name
+def test_single_case():
+    return EvalResult(
+        input="Hi there",
+        output="Hello! How can I help you today?",
+    )
+```
+
+Run it:
+
+```bash
+poetry run evalkit run path/to/that_file.py
+```
+
+## Returning Many Results From One Function
+
+Return a list of `EvalResult` if you want to iterate your own test cases inside a single eval (good for small, hand‑rolled suites).
+
+```python
+from evalkit import eval, EvalResult
+
+@eval(dataset="customer_service", labels=["production"])
+def test_refund_requests():
+    test_cases = [
+        ("I want a refund", "refund"),
+        ("Money back please", "refund"),
+        ("Cancel and refund", "refund"),
+    ]
+
+    results = []
+    for prompt, expected_keyword in test_cases:
+        output = f"Processing {prompt} …"
+        results.append(
+            EvalResult(
+                input=prompt,
+                output=output,
+                reference=expected_keyword,
+                scores={"key": "keyword_match", "passed": expected_keyword in output.lower()},
+            )
+        )
+    return results
+```
+
+See: `examples/demo_eval.py` (also shows async + custom latency).
+
+## Parametrized Evals (pytest‑style)
+
+Use `@parametrize` to automatically generate one eval per case (helps with reporting and filters). Stack `@parametrize` decorators for a cartesian product.
 
 ```python
 from evalkit import eval, EvalResult, parametrize
 
-# Simple evaluation
-@eval(dataset="my_tests")
-def test_simple():
-    return EvalResult(
-        input="test input",
-        output="test output",
-        scores={"key": "accuracy", "value": 0.95}
-    )
-
-# With parametrization
-@eval(dataset="my_tests")
-@parametrize("input,expected", [
-    ("hello", "HELLO"),
-    ("world", "WORLD"),
+@eval(dataset="sentiment_analysis")
+@parametrize("text,expected", [
+    ("I love this product!", "positive"),
+    ("This is terrible", "negative"),
 ])
-def test_uppercase(input, expected):
-    output = input.upper()
+def test_sentiment(text, expected):
+    detected = "positive" if "love" in text.lower() else "negative"
     return EvalResult(
-        input=input,
-        output=output,
+        input=text,
+        output=detected,
         reference=expected,
-        scores={"key": "match", "passed": output == expected}
+        scores={"key": "accuracy", "passed": detected == expected},
     )
 ```
 
-Run: `evalkit run tests/`
+Use dicts and IDs:
 
-## CLI Commands
+```python
+@eval(dataset="math_operations", labels=["unit_test"])
+@parametrize("operation,a,b,expected", [
+    {"operation": "add", "a": 2, "b": 3, "expected": 5},
+    {"operation": "multiply", "a": 4, "b": 7, "expected": 28},
+])
+def test_calculator(operation, a, b, expected):
+    ops = {"add": lambda x,y: x+y, "multiply": lambda x,y: x*y}
+    result = ops[operation](a, b)
+    return EvalResult(
+        input={"operation": operation, "a": a, "b": b},
+        output=result,
+        reference=expected,
+        scores={"key": "correctness", "passed": result == expected},
+    )
+
+@eval(dataset="qa_system")
+@parametrize(
+    "question,context,expected",
+    [
+        ("What is the capital of France?", "France …", "Paris"),
+        ("Who wrote Romeo and Juliet?", "Shakespeare …", "Shakespeare"),
+    ],
+    ids=["geography", "literature"],
+)
+def test_qa(question, context, expected):
+    # …
+    return EvalResult(input={"q": question, "ctx": context}, output="Paris", reference=expected)
+```
+
+Cartesian product and async:
+
+```python
+@eval(dataset="model_comparison")
+@parametrize("model", ["gpt-3.5", "gpt-4"]) 
+@parametrize("temperature", [0.0, 1.0])
+async def test_model_temperatures(model, temperature):
+    return EvalResult(
+        input={"model": model, "temperature": temperature},
+        output=f"Response from {model} at {temperature}",
+        scores={"key": "creativity", "value": min(temperature * 0.8 + 0.2, 1.0)},
+        metadata={"model": model, "temperature": temperature},
+    )
+```
+
+See: `examples/demo_eval_paramatrize.py`.
+
+## Async Evals and Latency
+
+`@eval` works with sync and async functions. The decorator measures function execution time and fills `latency` if you don’t set it. If you measure just your model/agent call, set `latency` on each `EvalResult` yourself.
+
+```python
+import asyncio, time
+from evalkit import eval, EvalResult
+
+async def run_agent(prompt: str):
+    start = time.time()
+    await asyncio.sleep(0.2)  # simulate call
+    return EvalResult(input=prompt, output="ok", latency=time.time() - start)
+
+@eval(dataset="customer_service")
+async def test_refund_requests():
+    return [await run_agent("I want a refund")]  # list of EvalResult
+```
+
+## Custom Evaluators (attach scores programmatically)
+
+You can provide `evaluators=[...]` to `@eval(...)`. Each evaluator receives an `EvalResult` and can return a `Score`-like dict, a list of scores, or a new `EvalResult`. Returned scores are appended to the result.
+
+```python
+from evalkit import eval, EvalResult
+
+def reference_match(result: EvalResult):
+    ok = result.reference and str(result.reference).lower() in str(result.output).lower()
+    return {"key": "reference_match", "passed": bool(ok)}
+
+@eval(dataset="sentiment_analysis", evaluators=[reference_match])
+def test_case():
+    return EvalResult(input="I love it", output="positive", reference="positive")
+```
+
+See: `examples/demo_eval_paramatrize.py` (first example).
+
+## Organizing and Discovering Evals
+
+- Put evals in `.py` files; discovery ignores files starting with `_`.
+- If you don’t pass `dataset=...`, it defaults to the filename.
+- Use short, lowercase labels (e.g., `prod`, `smoke`) for filtering.
+
+Run by path or file:
 
 ```bash
-# Run evaluations
-evalkit run path/to/tests/
-evalkit run test_file.py
-
-# Filter by dataset or labels
-evalkit run tests/ --dataset my_dataset
-evalkit run tests/ --label production
-
-# Save results and options
-evalkit run tests/ --output results.json
-evalkit run tests/ --verbose  # Show print statements
-evalkit run tests/ --concurrency 4  # Parallel execution
+poetry run evalkit run tests/
+poetry run evalkit run examples/demo_eval.py
 ```
 
-## Decorators
+Filter by dataset/label:
 
-### @eval
-
-```python
-@eval  # Dataset inferred from filename
-@eval(dataset="my_dataset")
-@eval(labels=["production", "critical"])
-@eval(dataset="service", labels=["prod"])
+```bash
+poetry run evalkit run tests/ --dataset my_dataset
+poetry run evalkit run tests/ --label prod --label smoke
 ```
 
-### @parametrize
+Save results and inspect:
 
-```python
-# Simple parameters
-@parametrize("x,y", [(1, 2), (3, 4)])
-
-# Named test cases
-@parametrize("input,expected", 
-    [("test1", "out1"), ("test2", "out2")],
-    ids=["first", "second"]
-)
-
-# Cartesian product
-@parametrize("model", ["gpt-3.5", "gpt-4"])
-@parametrize("temperature", [0.0, 1.0])
-# Creates 4 tests (2 models × 2 temperatures)
+```bash
+poetry run evalkit run tests/ -o results.json
+cat results.json  # contains summary + all results
 ```
 
-## EvalResult Schema
+## Result Shape (EvalResult)
+
+`EvalResult` is Pydantic‑validated. Scores can be a single score (dict) or a list of scores.
 
 ```python
+from evalkit import EvalResult
+
 EvalResult(
-    input=Any,           # Required: test input
-    output=Any,          # Required: model output
-    reference=Any,       # Optional: expected output
-    scores={             # Optional: metrics
-        "key": str,
-        "value": float,  # Numeric score
-        "passed": bool,  # Pass/fail
-    },
-    error=str,           # Optional: error message
-    latency=float,       # Optional: override auto timing
-    metadata=dict,       # Optional: extra data
+    input="...",          # required: Input that was used to generate the output
+    output="...",         # required: Output that was generated
+    reference="...",      # optional: Expected output
+    scores=[               # optional (dict or list of dicts): Evaluation results
+        {"key": "accuracy", "value": 0.93},
+        {"key": "pass", "passed": True},
+    ],
+    error=None,            # optional: Error message (string)
+    latency=0.123,         # optional: Execution time in seconds
+    metadata={"model": "gpt-4"},  # optional: Additional custom data
 )
 ```
+
+## CLI Reference (common)
+
+```bash
+# Run a directory or file
+evalkit run path/or/file.py
+
+# Filter
+evalkit run tests/ --dataset my_dataset
+evalkit run tests/ --label prod --label smoke
+
+# Concurrency, verbose, save JSON
+evalkit run tests/ -c 4 -v -o results.json
+```
+
+## Developing
+
+```bash
+poetry install
+poetry run pytest -q
+poetry run pytest --cov=evalkit  # coverage
+poetry run ruff check evalkit tests
+poetry run black .
+```
+
+Helpful demo entry-point:
+
+```bash
+poetry run evalkit run examples
+```
+
+---
+
+For deeper module internals, see `evalkit/README.md`. The tests under `tests/` demonstrate discovery, filtering, CLI options, async handling, and formatting.
