@@ -426,6 +426,7 @@
             initResizableColumns(table);
           }
           initExpandHandlers();
+          initInlineEditing();
         }
       });
 
@@ -483,6 +484,160 @@
             }
           });
         });
+      }
+
+      // Inline editing logic
+      function initInlineEditing() {
+        const container = document.getElementById('results');
+        const table = document.getElementById('results-table');
+        if (!container || !table) return;
+        const runId = table.getAttribute('data-run-id') || 'latest';
+
+        container.querySelectorAll('.edit-btn').forEach((btn) => {
+          const rowId = btn.getAttribute('data-row-id');
+          const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
+          const saveBtn = container.querySelector(`.save-btn[data-row-id='${rowId}']`);
+          const cancelBtn = container.querySelector(`.cancel-btn[data-row-id='${rowId}']`);
+          if (!detail || !saveBtn || !cancelBtn) return;
+
+          btn.addEventListener('click', () => enterEdit(rowId));
+          cancelBtn.addEventListener('click', () => exitEdit(rowId, true));
+          saveBtn.addEventListener('click', () => saveEdit(rowId, runId));
+        });
+
+        function toggleEditUI(detail, editing) {
+          detail.querySelectorAll('.view-section').forEach((el) => el.classList.toggle('hidden', editing));
+          detail.querySelectorAll('.edit-section').forEach((el) => el.classList.toggle('hidden', !editing));
+          const rowId = detail.getAttribute('data-row-id');
+          const editBtn = container.querySelector(`.edit-btn[data-row-id='${rowId}']`);
+          const saveBtn = container.querySelector(`.save-btn[data-row-id='${rowId}']`);
+          const cancelBtn = container.querySelector(`.cancel-btn[data-row-id='${rowId}']`);
+          if (editBtn && saveBtn && cancelBtn) {
+            editBtn.classList.toggle('hidden', editing);
+            saveBtn.classList.toggle('hidden', !editing);
+            cancelBtn.classList.toggle('hidden', !editing);
+          }
+        }
+
+        function enterEdit(rowId) {
+          const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
+          if (!detail) return;
+          toggleEditUI(detail, true);
+          // Initialize inputs from original data attributes if needed
+          const ds = detail.getAttribute('data-original-dataset') || '';
+          const lbls = JSON.parse(detail.getAttribute('data-original-labels') || '[]');
+          const md = JSON.parse(detail.getAttribute('data-original-metadata') || 'null');
+          const dsInput = detail.querySelector(`#dataset-input-${rowId}`);
+          const lbInput = detail.querySelector(`#labels-input-${rowId}`);
+          const mdInput = detail.querySelector(`#metadata-input-${rowId}`);
+          if (dsInput) dsInput.value = ds;
+          if (lbInput) lbInput.value = (lbls || []).join(', ');
+          if (mdInput) mdInput.value = md ? JSON.stringify(md, null, 2) : '';
+        }
+
+        function exitEdit(rowId, resetValues) {
+          const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
+          if (!detail) return;
+          if (resetValues) {
+            const ds = detail.getAttribute('data-original-dataset') || '';
+            const lbls = JSON.parse(detail.getAttribute('data-original-labels') || '[]');
+            const md = JSON.parse(detail.getAttribute('data-original-metadata') || 'null');
+            const dsInput = detail.querySelector(`#dataset-input-${rowId}`);
+            const lbInput = detail.querySelector(`#labels-input-${rowId}`);
+            const mdInput = detail.querySelector(`#metadata-input-${rowId}`);
+            if (dsInput) dsInput.value = ds;
+            if (lbInput) lbInput.value = (lbls || []).join(', ');
+            if (mdInput) mdInput.value = md ? JSON.stringify(md, null, 2) : '';
+            // reset scores inputs
+            const scores = JSON.parse(detail.getAttribute('data-original-scores') || '[]');
+            const editor = detail.querySelector(`#scores-editor-${rowId}`);
+            if (editor) {
+              const cards = editor.querySelectorAll('.border.rounded.p-2.bg-gray-50');
+              cards.forEach((card, i) => {
+                const s = scores[i];
+                if (!s) return;
+                const k = card.querySelector('[name="score-key"]');
+                const v = card.querySelector('[name="score-value"]');
+                const p = card.querySelector('[name="score-passed"]');
+                const n = card.querySelector('[name="score-notes"]');
+                if (k) k.value = s.key || '';
+                if (v) v.value = (s.value ?? '');
+                if (p) p.value = (s.passed === true ? 'true' : s.passed === false ? 'false' : '');
+                if (n) n.value = (s.notes ?? '');
+              });
+            }
+          }
+          toggleEditUI(detail, false);
+        }
+
+        async function saveEdit(rowId, runId) {
+          const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
+          if (!detail) return;
+          const dsInput = detail.querySelector(`#dataset-input-${rowId}`);
+          const lbInput = detail.querySelector(`#labels-input-${rowId}`);
+          const mdInput = detail.querySelector(`#metadata-input-${rowId}`);
+          const editor = detail.querySelector(`#scores-editor-${rowId}`);
+
+          let metadata = null;
+          const mdRaw = (mdInput && mdInput.value.trim()) || '';
+          if (mdRaw) {
+            try { metadata = JSON.parse(mdRaw); }
+            catch (e) { alert('Invalid metadata JSON'); return; }
+          }
+
+          // Build scores payload
+          const scorePayload = [];
+          if (editor) {
+            editor.querySelectorAll('.border.rounded.p-2.bg-gray-50').forEach((card) => {
+              const k = card.querySelector('[name="score-key"]').value.trim();
+              const vRaw = card.querySelector('[name="score-value"]').value.trim();
+              const pVal = card.querySelector('[name="score-passed"]').value;
+              const nVal = card.querySelector('[name="score-notes"]').value.trim();
+              const s = { key: k };
+              if (vRaw !== '') {
+                const num = Number(vRaw);
+                if (!Number.isNaN(num)) s.value = num;
+              }
+              if (pVal === 'true') s.passed = true;
+              else if (pVal === 'false') s.passed = false;
+              if (nVal !== '') s.notes = nVal;
+              // only include if has key and at least value/passed/notes
+              if (s.key && (s.value !== undefined || s.passed !== undefined || s.notes !== undefined)) {
+                scorePayload.push(s);
+              }
+            });
+          }
+
+          const payload = {
+            dataset: dsInput ? dsInput.value.trim() : undefined,
+            labels: lbInput ? lbInput.value.split(',').map(x => x.trim()).filter(Boolean) : undefined,
+            result: {
+              metadata: metadata,
+              scores: scorePayload
+            }
+          };
+
+          try {
+            const resp = await fetch(`/api/runs/${runId}/results/${rowId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            if (!resp.ok) {
+              const t = await resp.text();
+              throw new Error(t || 'Failed to save');
+            }
+          } catch (e) {
+            alert(`Save failed: ${e}`);
+            return;
+          }
+
+          // Refresh the results panel to reflect changes
+          const results = document.getElementById('results');
+          if (results) {
+            htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+          }
+        }
       }
     </script>
   </body>

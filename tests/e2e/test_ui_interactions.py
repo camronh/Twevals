@@ -108,3 +108,32 @@ def test_expand_sort_and_toggle_columns(tmp_path):
             hidden_outputs = page.locator("tbody td[data-col='output'].hidden")
             assert hidden_outputs.count() > 0
             browser.close()
+
+
+def test_inline_edit_and_save(tmp_path):
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
+            page.wait_for_selector("#results-table")
+
+            # Expand first row
+            page.locator(".expand-btn").nth(0).click()
+            # Enter edit mode
+            page.locator(".edit-btn").nth(0).click()
+            ds_input = page.locator("#dataset-input-0")
+            ds_input.fill("ds_edited")
+            # Save
+            page.locator(".save-btn").nth(0).click()
+            # Wait for refresh and verify dataset for function 'a'
+            page.wait_for_selector("#results-table")
+            row = page.locator("tr[data-row='main']").filter(
+                has=page.locator("td[data-col='function']"), has_text="a"
+            )
+            expect(row.locator("td[data-col='dataset']").first).to_have_text("ds_edited")
+            browser.close()

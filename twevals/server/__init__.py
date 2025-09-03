@@ -39,7 +39,7 @@ def create_app(
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Active run not found")
         return templates.TemplateResponse(
-            "results.html", {"request": request, "summary": summary}
+            "results.html", {"request": request, "summary": summary, "run_id": app.state.active_run_id}
         )
 
     @app.patch("/api/runs/{run_id}/results/{index}")
