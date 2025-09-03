@@ -86,6 +86,54 @@ def run(
         console.print(f"[green]Results saved to: {csv}[/green]")
 
 
+@cli.command()
+@click.argument('path', type=click.Path(exists=True))
+@click.option('--dataset', '-d', help='Run evaluations for specific dataset(s), comma-separated')
+@click.option('--label', '-l', multiple=True, help='Run evaluations with specific label(s)')
+@click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
+@click.option('--host', default='127.0.0.1', help='Host interface for the web server')
+@click.option('--port', default=8000, type=int, help='Port for the web server')
+@click.option('--verbose', '-v', is_flag=True, help='Show detailed server logs')
+@click.option('--quiet', '-q', is_flag=True, help='Reduce logging; hide access logs')
+def serve(
+    path: str,
+    dataset: str | None,
+    label: tuple,
+    concurrency: int,
+    host: str,
+    port: int,
+    verbose: bool,
+    quiet: bool,
+):
+    """Serve a web UI to browse results."""
+
+    labels = list(label) if label else None
+
+    try:
+        from twevals.server import create_app
+        import uvicorn
+    except Exception as e:
+        console.print("[red]Missing server dependencies. Install with:[/red] \n  poetry add fastapi uvicorn jinja2")
+        raise
+
+    app = create_app(
+        path=path,
+        dataset=dataset,
+        labels=labels,
+        concurrency=concurrency,
+        verbose=verbose,
+    )
+    # Friendly startup message
+    url = f"http://{host}:{port}"
+    console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
+    console.print("Press Ctrl+C to stop\n")
+
+    # Control logging verbosity
+    log_level = "warning" if quiet and not verbose else ("info" if not verbose else "debug")
+    access_log = False if quiet else True
+    uvicorn.run(app, host=host, port=port, log_level=log_level, access_log=access_log)
+
+
 def main():
     cli()
 

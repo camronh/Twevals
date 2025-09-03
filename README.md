@@ -36,6 +36,29 @@ poetry run twevals run examples -c 4 -o results.json --csv results.csv -v
 # -v: print user output
 ```
 
+## Browse Results in a Web UI
+
+Launch a lightweight FastAPI app to view results in your browser:
+
+```bash
+poetry run twevals serve examples
+# Options:
+#   -d, --dataset TEXT      Filter by dataset(s) (comma-separated)
+#   -l, --label TEXT        Filter by label(s) (repeatable)
+#   -c, --concurrency INT   Number of concurrent evals (0 = sequential)
+#       --host TEXT         Host interface (default 127.0.0.1)
+#       --port INT          Port (default 8000)
+#   -v, --verbose           Verbose server logs
+#   -q, --quiet             Reduce logs; hide access logs
+```
+
+UI features:
+
+- Sortable headers: click to sort; Shift+click to multi-sort.
+- Column toggles: Columns ▾ → show/hide; persists via localStorage.
+- Reset controls: Columns ▾ → Reset Columns / Reset Sorting.
+- Styling: colored latency pills (2 decimals), label chips, error highlighting.
+
 ## Minimal Eval (sync)
 
 Create any `.py` file and decorate a function. Dataset defaults to the filename; labels are optional.
@@ -255,6 +278,13 @@ twevals run tests/ --label prod --label smoke
 
 # Concurrency, verbose, save JSON
 twevals run tests/ -c 4 -v -o results.json
+```
+
+Serve the web UI:
+
+```bash
+twevals serve examples --quiet
+# Open http://127.0.0.1:8000
 ```
 
 ## Developing

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Twevals Results</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Visual indicators for sort direction on headers */
+      #results-table thead th[aria-sort="ascending"]::after {
+        content: " ▲";
+        font-size: 0.75rem; /* text-sm */
+        color: #6b7280; /* gray-500 */
+      }
+      #results-table thead th[aria-sort="descending"]::after {
+        content: " ▼";
+        font-size: 0.75rem; /* text-sm */
+        color: #6b7280; /* gray-500 */
+      }
+    </style>
+  </head>
+  <body class="p-4">
+    <div class="flex items-center gap-2 mb-4">
+      <h1 class="text-2xl font-bold mr-auto">Twevals Results</h1>
+      <button
+        class="px-4 py-2 bg-blue-500 text-white rounded"
+        hx-get="/results"
+        hx-target="#results"
+        hx-swap="innerHTML"
+      >
+        Refresh
+      </button>
+      <div class="relative">
+        <button id="columns-toggle" class="px-3 py-2 bg-gray-100 border rounded">
+          Columns ▾
+        </button>
+        <div
+          id="columns-menu"
+          class="hidden absolute right-0 mt-2 w-56 bg-white border rounded shadow z-10 p-3"
+        >
+          <p class="text-sm font-semibold mb-2">Toggle columns</p>
+          <div class="space-y-1 text-sm">
+            <label class="flex items-center gap-2">
+              <input type="checkbox" data-col="function" checked /> Function
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" data-col="dataset" checked /> Dataset
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" data-col="labels" checked /> Labels
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" data-col="input" checked /> Input
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" data-col="output" checked /> Output
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" data-col="error" checked /> Error
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" data-col="status" checked /> Pass
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" data-col="latency" checked /> Latency
+            </label>
+          </div>
+          <div class="mt-3 border-t pt-3 flex items-center gap-2">
+            <button id="reset-columns" class="text-xs px-2 py-1 border rounded">
+              Reset Columns
+            </button>
+            <button id="reset-sorting" class="text-xs px-2 py-1 border rounded">
+              Reset Sorting
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="results"
+      hx-get="/results"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+    ></div>
+
+    <script>
+      // Dropdown toggle
+      const toggleBtn = document.getElementById("columns-toggle");
+      const menuEl = document.getElementById("columns-menu");
+      toggleBtn.addEventListener("click", () => {
+        menuEl.classList.toggle("hidden");
+      });
+      document.addEventListener("click", (e) => {
+        if (!menuEl.contains(e.target) && e.target !== toggleBtn) {
+          menuEl.classList.add("hidden");
+        }
+      });
+
+      const STORAGE_KEY = "twevals:hidden_columns";
+      const SORT_STORAGE_KEY = "twevals:sort_state";
+      function getHiddenCols() {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        } catch {
+          return [];
+        }
+      }
+      function setHiddenCols(cols) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+      }
+      function getSortState() {
+        try {
+          return JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) || "[]");
+        } catch {
+          return [];
+        }
+      }
+      function setSortState(state) {
+        localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(state));
+      }
+      function applyColumnVisibility() {
+        const hidden = new Set(getHiddenCols());
+        const resultsTable = document.getElementById("results-table");
+        if (!resultsTable) return;
+        const allCols = [
+          "function",
+          "dataset",
+          "labels",
+          "input",
+          "output",
+          "error",
+          "status",
+          "latency",
+        ];
+        for (const col of allCols) {
+          const isHidden = hidden.has(col);
+          const selector = `[data-col="${col}"]`;
+          document
+            .querySelectorAll(`#results-table thead th${selector}, #results-table tbody td${selector}`)
+            .forEach((el) => {
+              if (isHidden) el.classList.add("hidden");
+              else el.classList.remove("hidden");
+            });
+        }
+        // Sync checkboxes
+        document
+          .querySelectorAll('#columns-menu input[type="checkbox"][data-col]')
+          .forEach((cb) => {
+            cb.checked = !hidden.has(cb.getAttribute("data-col"));
+          });
+      }
+
+      function onToggleCheckbox(e) {
+        const col = e.target.getAttribute("data-col");
+        const hidden = new Set(getHiddenCols());
+        if (e.target.checked) hidden.delete(col);
+        else hidden.add(col);
+        setHiddenCols([...hidden]);
+        applyColumnVisibility();
+      }
+
+      // Attach listeners for checkboxes
+      document
+        .querySelectorAll('#columns-menu input[type="checkbox"][data-col]')
+        .forEach((cb) => cb.addEventListener("change", onToggleCheckbox));
+
+      // Reset buttons
+      document.getElementById("reset-columns").addEventListener("click", () => {
+        setHiddenCols([]);
+        applyColumnVisibility();
+        menuEl.classList.add("hidden");
+      });
+      document.getElementById("reset-sorting").addEventListener("click", () => {
+        setSortState([]);
+        const table = document.getElementById("results-table");
+        if (table) applySortState(table);
+        menuEl.classList.add("hidden");
+      });
+
+      // Multi-column sorting
+      const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+      function getCellValue(tr, col) {
+        const td = tr.querySelector(`td[data-col="${col}"]`);
+        if (!td) return "";
+        const dv = td.getAttribute("data-value");
+        return dv !== null ? dv : td.textContent.trim();
+      }
+      function parseValue(value, type) {
+        if (type === "number") {
+          const num = parseFloat(value);
+          return isNaN(num) ? Number.POSITIVE_INFINITY : num;
+        }
+        return value;
+      }
+      function compareValues(a, b, type) {
+        if (type === "number") {
+          return a - b;
+        }
+        return collator.compare(a, b);
+      }
+      function applySortState(table) {
+        const state = getSortState();
+        const headers = table.querySelectorAll("thead th[data-col]");
+        headers.forEach((th) => th.setAttribute("aria-sort", "none"));
+        const tbody = table.querySelector("tbody");
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        // store original index for stable sort (only once)
+        rows.forEach((tr, i) => {
+          if (!tr.hasAttribute("data-orig-index")) {
+            tr.setAttribute("data-orig-index", String(i));
+          }
+        });
+
+        if (!state.length) {
+          // Reset to original order
+          rows
+            .slice()
+            .sort(
+              (a, b) =>
+                Number(a.getAttribute("data-orig-index")) -
+                Number(b.getAttribute("data-orig-index"))
+            )
+            .forEach((tr) => tbody.appendChild(tr));
+          return;
+        }
+
+        // Update header aria-sort
+        state.forEach((s) => {
+          const th = table.querySelector(`thead th[data-col="${s.col}"]`);
+          if (th) th.setAttribute("aria-sort", s.dir === "asc" ? "ascending" : "descending");
+        });
+
+        rows
+          .slice()
+          .sort((ra, rb) => {
+            for (const s of state) {
+              const type = s.type || "string";
+              const va = parseValue(getCellValue(ra, s.col), type);
+              const vb = parseValue(getCellValue(rb, s.col), type);
+              const cmp = compareValues(va, vb, type);
+              if (cmp !== 0) return s.dir === "asc" ? cmp : -cmp;
+            }
+            return (
+              Number(ra.getAttribute("data-orig-index")) -
+              Number(rb.getAttribute("data-orig-index"))
+            );
+          })
+          .forEach((tr) => tbody.appendChild(tr));
+      }
+
+      function toggleSort(table, col, type, multi) {
+        let state = getSortState();
+        const idx = state.findIndex((s) => s.col === col);
+        if (multi) {
+          if (idx === -1) state.push({ col, dir: "asc", type });
+          else if (state[idx].dir === "asc") state[idx].dir = "desc";
+          else state.splice(idx, 1); // remove if toggled past desc
+        } else {
+          if (idx === 0 && state[0].dir === "asc") state = [{ col, dir: "desc", type }];
+          else if (idx === 0 && state[0].dir === "desc") state = [];
+          else state = [{ col, dir: "asc", type }];
+        }
+        setSortState(state);
+        applySortState(table);
+      }
+
+      // Wire header clicks and initialize after results load/swap
+      document.addEventListener("htmx:afterSwap", function (e) {
+        if (e.target.id === "results") {
+          const table = document.getElementById("results-table");
+          if (table) applySortState(table);
+          applyColumnVisibility();
+        }
+      });
+
+      // Delegate click on table headers for sorting (supports Shift+click)
+      document.addEventListener("click", function (e) {
+        const th = e.target.closest("#results thead th[data-col]");
+        if (!th) return;
+        const table = document.getElementById("results-table");
+        if (!table) return;
+        const col = th.getAttribute("data-col");
+        const type = th.getAttribute("data-type") || "string";
+        toggleSort(table, col, type, e.shiftKey);
+      });
+    </script>
+  </body>
+  </html>
