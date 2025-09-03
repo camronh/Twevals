@@ -119,7 +119,44 @@ class EvalRunner:
             }
         
         # Run evaluations
-        all_results = asyncio.run(self.run_all_async(functions))
+        # If we're inside a running event loop (e.g., under certain test runners),
+        # run the coroutine in a dedicated thread with its own loop.
+        try:
+            asyncio.get_running_loop()
+            in_loop = True
+        except RuntimeError:
+            in_loop = False
+
+        if not in_loop:
+            all_results = asyncio.run(self.run_all_async(functions))
+        else:
+            # Execute in a separate thread with a fresh loop
+            from threading import Thread
+
+            result_holder: Dict[str, List[Dict]] = {}
+            error_holder: Dict[str, BaseException] = {}
+
+            def _runner():
+                loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(loop)
+                    res = loop.run_until_complete(self.run_all_async(functions))
+                    result_holder["res"] = res
+                except BaseException as e:
+                    error_holder["err"] = e
+                finally:
+                    try:
+                        loop.close()
+                    except Exception:
+                        pass
+
+            t = Thread(target=_runner, daemon=True)
+            t.start()
+            t.join()
+
+            if "err" in error_holder:
+                raise error_holder["err"]
+            all_results = result_holder.get("res", [])
         
         # Calculate summary statistics
         summary = self._calculate_summary(all_results)

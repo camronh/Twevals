@@ -153,7 +153,42 @@ class EvalFunction:
 
     def __call__(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
         if self.is_async:
-            return asyncio.run(self._execute_async(*args, **kwargs))
+            try:
+                asyncio.get_running_loop()
+                in_loop = True
+            except RuntimeError:
+                in_loop = False
+
+            if not in_loop:
+                return asyncio.run(self._execute_async(*args, **kwargs))
+            else:
+                # Run in a separate thread with its own loop
+                from threading import Thread
+
+                result_holder = {}
+                error_holder = {}
+
+                def _runner():
+                    loop = asyncio.new_event_loop()
+                    try:
+                        asyncio.set_event_loop(loop)
+                        res = loop.run_until_complete(self._execute_async(*args, **kwargs))
+                        result_holder["res"] = res
+                    except BaseException as e:
+                        error_holder["err"] = e
+                    finally:
+                        try:
+                            loop.close()
+                        except Exception:
+                            pass
+
+                t = Thread(target=_runner, daemon=True)
+                t.start()
+                t.join()
+
+                if "err" in error_holder:
+                    raise error_holder["err"]
+                return result_holder.get("res")
         else:
             return self._execute_sync(*args, **kwargs)
 
