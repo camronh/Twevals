@@ -1,31 +1,32 @@
-<table id="results-table" class="min-w-full divide-y divide-gray-200 shadow ring-1 ring-black ring-opacity-5 rounded-lg overflow-hidden">
+<div class="overflow-x-auto">
+<table id="results-table" class="w-full table-fixed divide-y divide-gray-200 shadow ring-1 ring-black ring-opacity-5 rounded-lg">
   <thead>
     <tr class="bg-gray-50">
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none" data-col="function">Function</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none" data-col="dataset">Dataset</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none" data-col="labels">Labels</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none" data-col="input">Input</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none" data-col="output">Output</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none" data-col="error">Error</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none" data-col="status" data-type="number">Pass</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none" data-col="latency" data-type="number">Latency</th>
+      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="function">Function</th>
+      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="dataset">Dataset</th>
+      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="labels">Labels</th>
+      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="input">Input</th>
+      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="output">Output</th>
+      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="error">Error</th>
+      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="status" data-type="number">Pass</th>
+      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="latency" data-type="number">Latency</th>
     </tr>
   </thead>
   <tbody class="bg-white divide-y divide-gray-100">
     {% for r in summary.results %}
     <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50">
-      <td class="px-4 py-2 text-sm font-mono text-sky-700" data-col="function">{{ r.function }}</td>
-      <td class="px-4 py-2 text-sm text-gray-700" data-col="dataset">{{ r.dataset }}</td>
-      <td class="px-4 py-2 text-sm text-gray-800" data-col="labels">
+      <td class="px-4 py-2 text-sm font-mono text-sky-700 truncate" data-col="function">{{ r.function }}</td>
+      <td class="px-4 py-2 text-sm text-gray-700 truncate" data-col="dataset">{{ r.dataset }}</td>
+      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="labels">
         {% if r.labels %}
           {% for la in r.labels %}
             <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs mr-1">{{ la }}</span>
           {% endfor %}
         {% endif %}
       </td>
-      <td class="px-4 py-2 text-sm text-gray-800 max-w-[36ch] whitespace-nowrap overflow-hidden text-ellipsis" data-col="input">{{ r.result.input }}</td>
-      <td class="px-4 py-2 text-sm text-gray-800 max-w-[36ch] whitespace-nowrap overflow-hidden text-ellipsis" data-col="output">{{ r.result.output }}</td>
-      <td class="px-4 py-2 text-sm" data-col="error">
+      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="input">{{ r.result.input }}</td>
+      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="output">{{ r.result.output }}</td>
+      <td class="px-4 py-2 text-sm truncate" data-col="error">
         {% if r.result.error %}
           <span class="text-red-600">{{ r.result.error }}</span>
         {% else %}
@@ -71,3 +72,4 @@
     {% endfor %}
   </tbody>
 </table>
+</div>

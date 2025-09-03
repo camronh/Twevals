@@ -17,6 +17,22 @@
         font-size: 0.75rem; /* text-sm */
         color: #6b7280; /* gray-500 */
       }
+      /* Column resizer handle */
+      #results-table thead th .col-resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        user-select: none;
+      }
+      #results-table thead th .col-resizer:hover {
+        background: linear-gradient(to right, transparent, rgba(0,0,0,0.05));
+      }
+      body.twevals-col-resize {
+        cursor: col-resize !important;
+      }
     </style>
   </head>
   <body class="p-4">
@@ -72,6 +88,9 @@
             <button id="reset-sorting" class="text-xs px-2 py-1 border rounded">
               Reset Sorting
             </button>
+            <button id="reset-widths" class="text-xs px-2 py-1 border rounded">
+              Reset Widths
+            </button>
           </div>
         </div>
       </div>
@@ -99,6 +118,7 @@
 
       const STORAGE_KEY = "twevals:hidden_columns";
       const SORT_STORAGE_KEY = "twevals:sort_state";
+      const WIDTHS_STORAGE_KEY = "twevals:col_widths";
       function getHiddenCols() {
         try {
           return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -118,6 +138,16 @@
       }
       function setSortState(state) {
         localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(state));
+      }
+      function getColWidths() {
+        try {
+          return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}");
+        } catch {
+          return {};
+        }
+      }
+      function setColWidths(map) {
+        localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map));
       }
       function applyColumnVisibility() {
         const hidden = new Set(getHiddenCols());
@@ -160,6 +190,104 @@
         applyColumnVisibility();
       }
 
+      // Apply stored column widths
+      function applyColumnWidths(table) {
+        if (!table) return;
+        const widths = getColWidths();
+        Object.keys(widths).forEach((col) => {
+          const w = widths[col];
+          if (!w) return;
+          const selector = `[data-col="${col}"]`;
+          table
+            .querySelectorAll(`thead th${selector}, tbody td${selector}`)
+            .forEach((el) => {
+              el.style.width = `${w}px`;
+              el.style.minWidth = `${w}px`;
+              el.style.maxWidth = `${w}px`;
+            });
+        });
+      }
+
+      // Initialize resizers on table headers
+      function initResizableColumns(table) {
+        if (!table) return;
+        const widths = getColWidths();
+        const ths = table.querySelectorAll('thead th[data-col]');
+        ths.forEach((th) => {
+          // Ensure relative positioning for the handle
+          if (getComputedStyle(th).position === 'static') {
+            th.style.position = 'relative';
+          }
+          // Avoid duplicating handles if re-initialized
+          if (th.querySelector('.col-resizer')) return;
+
+          const handle = document.createElement('div');
+          handle.className = 'col-resizer';
+          handle.setAttribute('aria-hidden', 'true');
+          th.appendChild(handle);
+
+          let startX = 0;
+          let startWidth = 0;
+          let colKey = th.getAttribute('data-col');
+
+          const minWidth = 60; // px
+          const maxWidth = 1000; // px
+
+          function onMouseMove(e) {
+            const dx = e.clientX - startX;
+            let newW = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+            const selector = `[data-col="${colKey}"]`;
+            table
+              .querySelectorAll(`thead th${selector}, tbody td${selector}`)
+              .forEach((el) => {
+                el.style.width = `${newW}px`;
+                el.style.minWidth = `${newW}px`;
+                el.style.maxWidth = `${newW}px`;
+              });
+          }
+
+          function onMouseUp(e) {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.body.classList.remove('twevals-col-resize');
+            // Persist final width
+            const currentWidth = th.getBoundingClientRect().width;
+            const map = getColWidths();
+            map[colKey] = Math.round(currentWidth);
+            setColWidths(map);
+          }
+
+          handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // don't trigger sort
+            startX = e.clientX;
+            startWidth = th.getBoundingClientRect().width;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            document.body.classList.add('twevals-col-resize');
+          });
+
+          // Prevent stray click event triggering sort
+          handle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          });
+
+          // Apply stored width initially
+          const saved = widths[colKey];
+          if (saved) {
+            const selector = `[data-col="${colKey}"]`;
+            table
+              .querySelectorAll(`thead th${selector}, tbody td${selector}`)
+              .forEach((el) => {
+                el.style.width = `${saved}px`;
+                el.style.minWidth = `${saved}px`;
+                el.style.maxWidth = `${saved}px`;
+              });
+          }
+        });
+      }
+
       // Attach listeners for checkboxes
       document
         .querySelectorAll('#columns-menu input[type="checkbox"][data-col]')
@@ -175,6 +303,18 @@
         setSortState([]);
         const table = document.getElementById("results-table");
         if (table) applySortState(table);
+        menuEl.classList.add("hidden");
+      });
+      document.getElementById("reset-widths").addEventListener("click", () => {
+        setColWidths({});
+        const table = document.getElementById("results-table");
+        if (!table) return;
+        // Remove inline widths
+        table.querySelectorAll('th[data-col], td[data-col]').forEach((el) => {
+          el.style.width = '';
+          el.style.minWidth = '';
+          el.style.maxWidth = '';
+        });
         menuEl.classList.add("hidden");
       });
 
@@ -271,6 +411,10 @@
           const table = document.getElementById("results-table");
           if (table) applySortState(table);
           applyColumnVisibility();
+          if (table) {
+            applyColumnWidths(table);
+            initResizableColumns(table);
+          }
         }
       });
 
