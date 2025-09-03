@@ -344,24 +344,29 @@
         const headers = table.querySelectorAll("thead th[data-col]");
         headers.forEach((th) => th.setAttribute("aria-sort", "none"));
         const tbody = table.querySelector("tbody");
-        const rows = Array.from(tbody.querySelectorAll("tr"));
-        // store original index for stable sort (only once)
-        rows.forEach((tr, i) => {
+        const mainRows = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
+        // store original index for stable sort (only once) on main rows only
+        mainRows.forEach((tr, i) => {
           if (!tr.hasAttribute("data-orig-index")) {
             tr.setAttribute("data-orig-index", String(i));
           }
         });
 
         if (!state.length) {
-          // Reset to original order
-          rows
+          // Reset to original order: append main rows with their detail rows
+          mainRows
             .slice()
             .sort(
               (a, b) =>
                 Number(a.getAttribute("data-orig-index")) -
                 Number(b.getAttribute("data-orig-index"))
             )
-            .forEach((tr) => tbody.appendChild(tr));
+            .forEach((tr) => {
+              const id = tr.getAttribute('data-row-id');
+              const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
+              tbody.appendChild(tr);
+              if (detail) tbody.appendChild(detail);
+            });
           return;
         }
 
@@ -371,7 +376,7 @@
           if (th) th.setAttribute("aria-sort", s.dir === "asc" ? "ascending" : "descending");
         });
 
-        rows
+        mainRows
           .slice()
           .sort((ra, rb) => {
             for (const s of state) {
@@ -386,7 +391,12 @@
               Number(rb.getAttribute("data-orig-index"))
             );
           })
-          .forEach((tr) => tbody.appendChild(tr));
+          .forEach((tr) => {
+            const id = tr.getAttribute('data-row-id');
+            const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
+            tbody.appendChild(tr);
+            if (detail) tbody.appendChild(detail);
+          });
       }
 
       function toggleSort(table, col, type, multi) {
@@ -415,6 +425,7 @@
             applyColumnWidths(table);
             initResizableColumns(table);
           }
+          initExpandHandlers();
         }
       });
 
@@ -428,6 +439,51 @@
         const type = th.getAttribute("data-type") || "string";
         toggleSort(table, col, type, e.shiftKey);
       });
+
+      // Expand/collapse logic
+      function initExpandHandlers() {
+        const container = document.getElementById('results');
+        if (!container) return;
+        container.querySelectorAll('.expand-btn').forEach((btn) => {
+          // Remove previous listener by cloning
+          const clone = btn.cloneNode(true);
+          btn.parentNode.replaceChild(clone, btn);
+          clone.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const rowId = clone.getAttribute('data-row-id');
+            const tbody = document.querySelector('#results-table tbody');
+            if (!tbody) return;
+            const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
+            const isOpen = detail && !detail.hasAttribute('hidden');
+
+            // Close any open detail rows and reset icons
+            tbody.querySelectorAll("tr[data-row='detail']").forEach((tr) => {
+              tr.setAttribute('hidden', '');
+            });
+            container.querySelectorAll('.expand-btn[aria-expanded="true"]').forEach((b) => {
+              b.setAttribute('aria-expanded', 'false');
+              const icon = b.querySelector('.icon');
+              if (icon) icon.textContent = '▸';
+            });
+
+            // Toggle this one
+            if (detail) {
+              if (!isOpen) {
+                detail.removeAttribute('hidden');
+                clone.setAttribute('aria-expanded', 'true');
+                const icon = clone.querySelector('.icon');
+                if (icon) icon.textContent = '▾';
+              } else {
+                detail.setAttribute('hidden', '');
+                clone.setAttribute('aria-expanded', 'false');
+                const icon = clone.querySelector('.icon');
+                if (icon) icon.textContent = '▸';
+              }
+            }
+          });
+        });
+      }
     </script>
   </body>
   </html>

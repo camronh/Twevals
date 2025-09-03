@@ -62,6 +62,9 @@ def test_results_template_reads_from_json(tmp_path: Path):
     # Function names and datasets should appear in the rendered table
     assert "f1" in html and "ds1" in html
     assert "f2" in html and "ds2" in html
+    # Expand controls and hidden detail rows should be present
+    assert "expand-btn" in html
+    assert 'data-row="detail"' in html
 
 
 def test_patch_endpoint_updates_json(tmp_path: Path):
@@ -90,4 +93,3 @@ def test_patch_endpoint_updates_json(tmp_path: Path):
     r = client.get("/results")
     assert r.status_code == 200
     assert "new_ds" in r.text
-
