@@ -113,6 +113,40 @@ def test_export():
         assert result["result"]["output"] == {"result": "data"}
         assert result["result"]["metadata"] == {"model": "test"}
 
+    def test_csv_export(self, tmp_path):
+        # Create test file
+        test_file = tmp_path / "test_export.py"
+        test_file.write_text("""
+from twevals import eval, EvalResult
+
+@eval()
+def test_export():
+    return EvalResult(
+        input={"key": "value"},
+        output={"result": "data"},
+        scores={"key": "metric", "value": 0.8},
+        metadata={"model": "test"}
+    )
+""")
+
+        # Run with CSV export
+        csv_file = tmp_path / "results.csv"
+        runner = EvalRunner()
+        summary = runner.run(
+            str(test_file),
+            csv_file=str(csv_file)
+        )
+
+        # Verify CSV file was created
+        assert csv_file.exists()
+
+        # Load and verify CSV content
+        with open(csv_file) as f:
+            lines = f.read().strip().splitlines()
+
+        # Header + one result row
+        assert len(lines) == 2
+
     def test_error_handling(self, tmp_path):
         # Create test file with error
         test_file = tmp_path / "test_errors.py"

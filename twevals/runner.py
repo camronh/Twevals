@@ -1,5 +1,6 @@
 import asyncio
 import json
+import csv
 import io
 from contextlib import redirect_stdout, nullcontext
 from pathlib import Path
@@ -103,6 +104,7 @@ class EvalRunner:
         dataset: Optional[str] = None,
         labels: Optional[List[str]] = None,
         output_file: Optional[str] = None,
+        csv_file: Optional[str] = None,
         verbose: bool = False
     ) -> Dict:
         # Discover functions
@@ -125,6 +127,8 @@ class EvalRunner:
         # Save to file if requested
         if output_file:
             self._save_results(summary, output_file)
+        if csv_file:
+            self._save_results_csv(summary, csv_file)
         
         return summary
     
@@ -167,6 +171,41 @@ class EvalRunner:
     def _save_results(self, summary: Dict, output_file: str):
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(output_path, 'w') as f:
             json.dump(summary, f, indent=2, default=str)
+
+    def _save_results_csv(self, summary: Dict, csv_file: str):
+        csv_path = Path(csv_file)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+        fieldnames = [
+            "function",
+            "dataset",
+            "labels",
+            "input",
+            "output",
+            "reference",
+            "scores",
+            "error",
+            "latency",
+            "metadata",
+        ]
+
+        with open(csv_path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for r in summary.get("results", []):
+                result = r["result"]
+                writer.writerow({
+                    "function": r.get("function"),
+                    "dataset": r.get("dataset"),
+                    "labels": ";".join(r.get("labels") or []),
+                    "input": json.dumps(result.get("input")),
+                    "output": json.dumps(result.get("output")),
+                    "reference": json.dumps(result.get("reference")),
+                    "scores": json.dumps(result.get("scores")),
+                    "error": result.get("error"),
+                    "latency": result.get("latency"),
+                    "metadata": json.dumps(result.get("metadata")),
+                })

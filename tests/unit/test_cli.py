@@ -23,7 +23,8 @@ class TestCLI:
         assert result.exit_code == 0
         assert '--dataset' in result.output
         assert '--label' in result.output
-        assert '--output' in result.output
+        assert '--output FILE' in result.output
+        assert '--csv FILE' in result.output
         assert '--concurrency' in result.output
         assert '--verbose' in result.output
     
@@ -142,6 +143,55 @@ def test_json():
                 data = json.load(f)
             assert data['total_evaluations'] == 1
             assert data['total_functions'] == 1
+
+    def test_run_with_csv_output(self):
+        with self.runner.isolated_filesystem():
+            # Create test file
+            with open('test_csv.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval()
+def test_csv():
+    return EvalResult(input="test", output="result")
+""")
+
+            result = self.runner.invoke(cli, [
+                'run', 'test_csv.py',
+                '--csv', 'results.csv'
+            ])
+            assert result.exit_code == 0
+            assert 'Results saved to: results.csv' in result.output
+
+            # Verify CSV file
+            assert Path('results.csv').exists()
+            with open('results.csv') as f:
+                lines = f.read().strip().splitlines()
+            assert len(lines) == 2  # header + one result
+
+    def test_run_with_json_and_csv_output(self):
+        with self.runner.isolated_filesystem():
+            # Create test file
+            with open('test_both.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval()
+def test_both():
+    return EvalResult(input="test", output="result")
+""")
+
+            result = self.runner.invoke(cli, [
+                'run', 'test_both.py',
+                '--output', 'results.json',
+                '--csv', 'results.csv'
+            ])
+            assert result.exit_code == 0
+            assert 'Results saved to: results.json' in result.output
+            assert 'Results saved to: results.csv' in result.output
+
+            assert Path('results.json').exists()
+            assert Path('results.csv').exists()
     
     def test_run_with_verbose(self):
         with self.runner.isolated_filesystem():
