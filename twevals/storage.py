@@ -76,6 +76,7 @@ class ResultsStore:
         - result.metadata
         - result.error
         - result.reference
+        - result.annotations (full replace)
         """
         lock = self._get_lock(run_id)
         with lock:
@@ -95,7 +96,7 @@ class ResultsStore:
             result_updates = updates.get("result") or {}
             if result_updates:
                 result_entry = entry.setdefault("result", {})
-                for key in ("scores", "metadata", "error", "reference"):
+                for key in ("scores", "metadata", "error", "reference", "annotations"):
                     if key in result_updates:
                         result_entry[key] = result_updates[key]
 
@@ -105,3 +106,58 @@ class ResultsStore:
             shutil.copyfile(self.run_path(run_id), self.latest_path())
             return entry
 
+    def add_annotation(self, run_id: str, index: int, text: str) -> Dict[str, Any]:
+        lock = self._get_lock(run_id)
+        with lock:
+            summary = self.load_run(run_id)
+            results = summary.get("results", [])
+            if index < 0 or index >= len(results):
+                raise IndexError("result index out of range")
+            entry = results[index]
+            res = entry.setdefault("result", {})
+            annotations = res.setdefault("annotations", [])
+            ann = {
+                "text": text,
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+            annotations.append(ann)
+            _atomic_write_json(self.run_path(run_id), summary)
+            shutil.copyfile(self.run_path(run_id), self.latest_path())
+            return ann
+
+    def update_annotation(self, run_id: str, index: int, ann_index: int, updates: Dict[str, Any]) -> Dict[str, Any]:
+        lock = self._get_lock(run_id)
+        with lock:
+            summary = self.load_run(run_id)
+            results = summary.get("results", [])
+            if index < 0 or index >= len(results):
+                raise IndexError("result index out of range")
+            entry = results[index]
+            res = entry.setdefault("result", {})
+            annotations = res.setdefault("annotations", [])
+            if ann_index < 0 or ann_index >= len(annotations):
+                raise IndexError("annotation index out of range")
+            ann = annotations[ann_index]
+            if "text" in updates:
+                ann["text"] = updates["text"]
+            # Update timestamp to reflect modification
+            ann["timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            _atomic_write_json(self.run_path(run_id), summary)
+            shutil.copyfile(self.run_path(run_id), self.latest_path())
+            return ann
+
+    def delete_annotation(self, run_id: str, index: int, ann_index: int) -> None:
+        lock = self._get_lock(run_id)
+        with lock:
+            summary = self.load_run(run_id)
+            results = summary.get("results", [])
+            if index < 0 or index >= len(results):
+                raise IndexError("result index out of range")
+            entry = results[index]
+            res = entry.setdefault("result", {})
+            annotations = res.setdefault("annotations", [])
+            if ann_index < 0 or ann_index >= len(annotations):
+                raise IndexError("annotation index out of range")
+            annotations.pop(ann_index)
+            _atomic_write_json(self.run_path(run_id), summary)
+            shutil.copyfile(self.run_path(run_id), self.latest_path())

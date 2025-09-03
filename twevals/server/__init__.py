@@ -55,4 +55,40 @@ def create_app(
             raise HTTPException(status_code=404, detail="Run not found")
         return {"ok": True, "result": updated}
 
+    class AnnotationCreateBody(BaseModel):
+        text: str
+
+    class AnnotationUpdateBody(BaseModel):
+        text: Optional[str] = None
+
+    @app.post("/api/runs/{run_id}/results/{index}/annotations")
+    def create_annotation(run_id: str, index: int, body: AnnotationCreateBody):
+        if run_id not in (app.state.active_run_id, "latest"):
+            raise HTTPException(status_code=400, detail="Only active or latest run can be updated")
+        try:
+            ann = store.add_annotation(app.state.active_run_id, index, body.text)
+        except IndexError:
+            raise HTTPException(status_code=404, detail="Result index out of range")
+        return {"ok": True, "annotation": ann}
+
+    @app.patch("/api/runs/{run_id}/results/{index}/annotations/{ann_index}")
+    def update_annotation(run_id: str, index: int, ann_index: int, body: AnnotationUpdateBody):
+        if run_id not in (app.state.active_run_id, "latest"):
+            raise HTTPException(status_code=400, detail="Only active or latest run can be updated")
+        try:
+            ann = store.update_annotation(app.state.active_run_id, index, ann_index, body.model_dump(exclude_none=True))
+        except IndexError:
+            raise HTTPException(status_code=404, detail="Index out of range")
+        return {"ok": True, "annotation": ann}
+
+    @app.delete("/api/runs/{run_id}/results/{index}/annotations/{ann_index}")
+    def delete_annotation(run_id: str, index: int, ann_index: int):
+        if run_id not in (app.state.active_run_id, "latest"):
+            raise HTTPException(status_code=400, detail="Only active or latest run can be updated")
+        try:
+            store.delete_annotation(app.state.active_run_id, index, ann_index)
+        except IndexError:
+            raise HTTPException(status_code=404, detail="Index out of range")
+        return {"ok": True}
+
     return app

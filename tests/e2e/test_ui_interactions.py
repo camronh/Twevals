@@ -2,6 +2,7 @@ import threading
 import time
 
 from playwright.sync_api import sync_playwright, expect
+import requests
 import uvicorn
 
 from twevals.server import create_app
@@ -45,6 +46,20 @@ def make_summary():
                     "scores": None,
                     "error": None,
                     "latency": 1.2,
+                    "metadata": None,
+                },
+            },
+            {
+                "function": "c",
+                "dataset": "ds",
+                "labels": [],
+                "result": {
+                    "input": "i3",
+                    "output": "o3",
+                    "reference": None,
+                    "scores": None,
+                    "error": None,
+                    "latency": 0.2,
                     "metadata": None,
                 },
             },
@@ -136,4 +151,47 @@ def test_inline_edit_and_save(tmp_path):
                 has=page.locator("td[data-col='function']"), has_text="a"
             )
             expect(row.locator("td[data-col='dataset']").first).to_have_text("ds_edited")
+            browser.close()
+
+
+def test_annotations_crud(tmp_path):
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
+            page.wait_for_selector("#results-table")
+
+            # Expand third row (index 2)
+            page.locator(".expand-btn").nth(2).click()
+
+            # Add annotation
+            page.fill("#ann-new-text-2", "First note")
+            page.click(".ann-add[data-row-id='2']")
+            page.wait_for_selector("#results-table")
+            from playwright.sync_api import expect
+            expect(page.locator("[data-testid='ann-item']")).to_contain_text("First note")
+
+            # Edit it
+            page.click(".ann-edit[data-row-id='2'][data-ann-index='0']")
+            page.fill("li[data-ann-index='0'] [name='ann-text']", "Updated note")
+            # Intercept dialog pre-registration for potential future confs
+            page.click(".ann-save[data-row-id='2'][data-ann-index='0']")
+            page.wait_for_selector("#results-table")
+            expect(page.locator("[data-testid='ann-item']")).to_contain_text("Updated note")
+
+            # Delete it via API for reliability, then refresh UI
+            resp = requests.delete(f"{url}/api/runs/{run_id}/results/2/annotations/0")
+            assert resp.status_code == 200
+            page.reload()
+            page.wait_for_selector("#results-table")
+            # Row should auto-reopen; if not, open it
+            if page.locator("tr[data-row='detail'][data-row-id='2']").get_attribute("hidden") is not None:
+                page.locator(".expand-btn").nth(2).click()
+            # Verify no annotations remain in this row's list
+            assert page.locator("#ann-list-2 li[data-testid='ann-item']").count() == 0
             browser.close()

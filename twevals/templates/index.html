@@ -119,6 +119,7 @@
       const STORAGE_KEY = "twevals:hidden_columns";
       const SORT_STORAGE_KEY = "twevals:sort_state";
       const WIDTHS_STORAGE_KEY = "twevals:col_widths";
+      const EXPANDED_ROW_KEY = "twevals:expanded_row";
       function getHiddenCols() {
         try {
           return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -427,6 +428,7 @@
           }
           initExpandHandlers();
           initInlineEditing();
+          restoreExpandedRow();
         }
       });
 
@@ -445,6 +447,30 @@
       function initExpandHandlers() {
         const container = document.getElementById('results');
         if (!container) return;
+        const tbody = document.querySelector('#results-table tbody');
+        if (!tbody) return;
+
+        function closeAll() {
+          tbody.querySelectorAll("tr[data-row='detail']").forEach((tr) => tr.setAttribute('hidden', ''));
+          container.querySelectorAll('.expand-btn[aria-expanded="true"]').forEach((b) => {
+            b.setAttribute('aria-expanded', 'false');
+            const icon = b.querySelector('.icon');
+            if (icon) icon.textContent = '▸';
+          });
+        }
+
+        function openRow(rowId) {
+          const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
+          const btn = container.querySelector(`.expand-btn[data-row-id='${rowId}']`);
+          if (!detail || !btn) return;
+          closeAll();
+          detail.removeAttribute('hidden');
+          btn.setAttribute('aria-expanded', 'true');
+          const icon = btn.querySelector('.icon');
+          if (icon) icon.textContent = '▾';
+          try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
+        }
+
         container.querySelectorAll('.expand-btn').forEach((btn) => {
           // Remove previous listener by cloning
           const clone = btn.cloneNode(true);
@@ -453,37 +479,23 @@
             e.preventDefault();
             e.stopPropagation();
             const rowId = clone.getAttribute('data-row-id');
-            const tbody = document.querySelector('#results-table tbody');
-            if (!tbody) return;
             const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
             const isOpen = detail && !detail.hasAttribute('hidden');
-
-            // Close any open detail rows and reset icons
-            tbody.querySelectorAll("tr[data-row='detail']").forEach((tr) => {
-              tr.setAttribute('hidden', '');
-            });
-            container.querySelectorAll('.expand-btn[aria-expanded="true"]').forEach((b) => {
-              b.setAttribute('aria-expanded', 'false');
-              const icon = b.querySelector('.icon');
-              if (icon) icon.textContent = '▸';
-            });
-
-            // Toggle this one
-            if (detail) {
-              if (!isOpen) {
-                detail.removeAttribute('hidden');
-                clone.setAttribute('aria-expanded', 'true');
-                const icon = clone.querySelector('.icon');
-                if (icon) icon.textContent = '▾';
-              } else {
-                detail.setAttribute('hidden', '');
-                clone.setAttribute('aria-expanded', 'false');
-                const icon = clone.querySelector('.icon');
-                if (icon) icon.textContent = '▸';
-              }
+            if (isOpen) {
+              closeAll();
+              try { localStorage.removeItem(EXPANDED_ROW_KEY); } catch {}
+            } else {
+              openRow(rowId);
             }
           });
         });
+
+        // helper to restore after refresh
+        window.restoreExpandedRow = function restoreExpandedRow() {
+          let rowId = null;
+          try { rowId = localStorage.getItem(EXPANDED_ROW_KEY); } catch {}
+          if (rowId) openRow(rowId);
+        }
       }
 
       // Inline editing logic
@@ -635,10 +647,109 @@
           // Refresh the results panel to reflect changes
           const results = document.getElementById('results');
           if (results) {
+            try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
             htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
           }
         }
       }
+
+      // Annotation handlers
+      document.addEventListener('click', async (e) => {
+        const btnAdd = e.target.closest('.ann-add');
+        if (btnAdd) {
+          const rowId = btnAdd.getAttribute('data-row-id');
+          const table = document.getElementById('results-table');
+          const runId = table.getAttribute('data-run-id') || 'latest';
+          const text = document.getElementById(`ann-new-text-${rowId}`).value.trim();
+          if (!text) return;
+          try {
+            const resp = await fetch(`/api/runs/${runId}/results/${rowId}/annotations`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            });
+            if (!resp.ok) throw new Error(await resp.text());
+          } catch (err) {
+            alert(`Add annotation failed: ${err}`);
+            return;
+          }
+          try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
+          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+          return;
+        }
+
+        const btnEdit = e.target.closest('.ann-edit');
+        if (btnEdit) {
+          const rowId = btnEdit.getAttribute('data-row-id');
+          const idx = btnEdit.getAttribute('data-ann-index');
+          const li = document.querySelector(`tr[data-row='detail'][data-row-id='${rowId}'] li[data-ann-index='${idx}']`);
+          if (!li) return;
+          li.querySelector('.view-ann')?.classList.add('hidden');
+          li.querySelector('.edit-ann')?.classList.remove('hidden');
+          btnEdit.classList.add('hidden');
+          li.querySelector('.ann-save')?.classList.remove('hidden');
+          li.querySelector('.ann-cancel')?.classList.remove('hidden');
+          return;
+        }
+
+        const btnCancel = e.target.closest('.ann-cancel');
+        if (btnCancel) {
+          const rowId = btnCancel.getAttribute('data-row-id');
+          const idx = btnCancel.getAttribute('data-ann-index');
+          const li = document.querySelector(`tr[data-row='detail'][data-row-id='${rowId}'] li[data-ann-index='${idx}']`);
+          if (!li) return;
+          li.querySelector('.view-ann')?.classList.remove('hidden');
+          li.querySelector('.edit-ann')?.classList.add('hidden');
+          li.querySelector('.ann-edit')?.classList.remove('hidden');
+          li.querySelector('.ann-save')?.classList.add('hidden');
+          btnCancel.classList.add('hidden');
+          return;
+        }
+
+        const btnSave = e.target.closest('.ann-save');
+        if (btnSave) {
+          const rowId = btnSave.getAttribute('data-row-id');
+          const idx = btnSave.getAttribute('data-ann-index');
+          const table = document.getElementById('results-table');
+          const runId = table.getAttribute('data-run-id') || 'latest';
+          const li = document.querySelector(`tr[data-row='detail'][data-row-id='${rowId}'] li[data-ann-index='${idx}']`);
+          const text = li.querySelector('[name="ann-text"]').value.trim();
+          try {
+            const resp = await fetch(`/api/runs/${runId}/results/${rowId}/annotations/${idx}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            });
+            if (!resp.ok) throw new Error(await resp.text());
+          } catch (err) {
+            alert(`Update annotation failed: ${err}`);
+            return;
+          }
+          try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
+          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+          return;
+        }
+
+        const btnDelete = e.target.closest('.ann-delete');
+        if (btnDelete) {
+          const rowId = btnDelete.getAttribute('data-row-id');
+          const idx = btnDelete.getAttribute('data-ann-index');
+          const table = document.getElementById('results-table');
+          const runId = table.getAttribute('data-run-id') || 'latest';
+          try {
+            const resp = await fetch(`/api/runs/${runId}/results/${rowId}/annotations/${idx}`, {
+              method: 'DELETE'
+            });
+            if (!resp.ok) throw new Error(await resp.text());
+          } catch (err) {
+            alert(`Delete annotation failed: ${err}`);
+            return;
+          }
+          try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
+          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+          return;
+        }
+      });
     </script>
   </body>
   </html>
