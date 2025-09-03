@@ -91,6 +91,7 @@ def run(
 @click.option('--dataset', '-d', help='Run evaluations for specific dataset(s), comma-separated')
 @click.option('--label', '-l', multiple=True, help='Run evaluations with specific label(s)')
 @click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
+@click.option('--results-dir', default='.twevals/runs', help='Directory for JSON results storage')
 @click.option('--host', default='127.0.0.1', help='Host interface for the web server')
 @click.option('--port', default=8000, type=int, help='Port for the web server')
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed server logs')
@@ -100,6 +101,7 @@ def serve(
     dataset: str | None,
     label: tuple,
     concurrency: int,
+    results_dir: str,
     host: str,
     port: int,
     verbose: bool,
@@ -116,12 +118,34 @@ def serve(
         console.print("[red]Missing server dependencies. Install with:[/red] \n  poetry add fastapi uvicorn jinja2")
         raise
 
+    # Always create a fresh run on startup
+    from twevals.storage import ResultsStore
+
+    store = ResultsStore(results_dir)
+    run_id = store.generate_run_id()
+    run_path = store.run_path(run_id)
+
+    # Create runner and execute evaluations, writing to JSON
+    runner = EvalRunner(concurrency=concurrency, verbose=verbose)
+    with console.status("[bold green]Running evaluations...", spinner="dots") as status:
+        try:
+            summary = runner.run(
+                path=path,
+                dataset=dataset,
+                labels=labels,
+                output_file=str(run_path),
+                verbose=verbose,
+            )
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/red]")
+            sys.exit(1)
+
+    # Update latest.json portable copy
+    store.save_run(summary, run_id)
+
     app = create_app(
-        path=path,
-        dataset=dataset,
-        labels=labels,
-        concurrency=concurrency,
-        verbose=verbose,
+        results_dir=results_dir,
+        active_run_id=run_id,
     )
     # Friendly startup message
     url = f"http://{host}:{port}"

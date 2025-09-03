@@ -38,7 +38,7 @@ poetry run twevals run examples -c 4 -o results.json --csv results.csv -v
 
 ## Browse Results in a Web UI
 
-Launch a lightweight FastAPI app to view results in your browser:
+Launch a lightweight FastAPI app to view results in your browser. Each `serve` run executes evals once, saves a fresh JSON under `.twevals/runs/`, and the UI reads from that file on refresh:
 
 ```bash
 poetry run twevals serve examples
@@ -51,6 +51,11 @@ poetry run twevals serve examples
 #   -v, --verbose           Verbose server logs
 #   -q, --quiet             Reduce logs; hide access logs
 ```
+
+Results storage and UI:
+- Saves to `.twevals/runs/<YYYY-MM-DDTHH-MM-SSZ>.json` and a portable copy at `.twevals/runs/latest.json`.
+- UI loads results from JSON on every refresh; external edits are reflected.
+- API endpoint for edits (for future inline editing): `PATCH /api/runs/{run_id}/results/{index}` with fields `dataset`, `labels`, and `result.{scores,metadata,error,reference}`.
 
 UI features:
 

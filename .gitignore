@@ -47,6 +47,7 @@ Thumbs.db
 *.json
 !tests/fixtures/*.json
 results/
+.twevals/
 
 # Agents
 *.local.md
