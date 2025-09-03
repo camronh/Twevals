@@ -1,4 +1,4 @@
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 
 @eval(dataset="fixture_dataset", labels=["test", "fixture"])

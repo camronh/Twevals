@@ -48,6 +48,7 @@ Thumbs.db
 !tests/fixtures/*.json
 results/
 
-# Claude
+# Agents
 *.local.md
 PRD.md
+AGENTS.md

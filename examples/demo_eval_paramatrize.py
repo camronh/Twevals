@@ -1,4 +1,4 @@
-from evalkit import eval, EvalResult, parametrize
+from twevals import eval, EvalResult, parametrize
 
 def custom_evaluator(result: EvalResult):
     """Custom evaluator to check if the reference output is in the output"""

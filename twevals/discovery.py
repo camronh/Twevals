@@ -4,7 +4,7 @@ import inspect
 from pathlib import Path
 from typing import List, Optional, Set
 
-from evalkit.decorators import EvalFunction
+from twevals.decorators import EvalFunction
 
 
 class EvalDiscovery:
@@ -63,7 +63,7 @@ class EvalDiscovery:
                 spec.loader.exec_module(module)
                 
                 # Find all EvalFunction instances
-                from evalkit.parametrize import ParametrizedEvalFunction
+                from twevals.parametrize import ParametrizedEvalFunction
                 
                 for name, obj in inspect.getmembers(module):
                     if isinstance(obj, ParametrizedEvalFunction):

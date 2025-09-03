@@ -1,11 +1,11 @@
-# EvalKit Core Module Documentation
+# Twevals Core Module Documentation
 
-This directory contains the core implementation of the EvalKit evaluation framework.
+This directory contains the core implementation of the Twevals evaluation framework.
 
 ## File Structure
 
 ### `__init__.py`
-Entry point for the evalkit package. Exports the main public API:
+Entry point for the twevals package. Exports the main public API:
 - `eval` decorator for marking evaluation functions
 - `EvalResult` class for structured evaluation results
 
@@ -49,4 +49,3 @@ Output formatting utilities:
 - Handles truncation of long strings
 - Color-coded status indicators (PASS/FAIL/ERROR/OK)
 - Score formatting with support for different score types
-

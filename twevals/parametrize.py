@@ -3,7 +3,7 @@ import itertools
 import functools
 import inspect
 
-from evalkit.decorators import EvalFunction
+from twevals.decorators import EvalFunction
 
 
 class ParametrizedEvalFunction:

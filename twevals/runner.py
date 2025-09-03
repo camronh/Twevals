@@ -5,9 +5,9 @@ from contextlib import redirect_stdout, nullcontext
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from evalkit.decorators import EvalFunction
-from evalkit.discovery import EvalDiscovery
-from evalkit.schemas import EvalResult
+from twevals.decorators import EvalFunction
+from twevals.discovery import EvalDiscovery
+from twevals.schemas import EvalResult
 
 
 class EvalRunner:

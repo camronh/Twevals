@@ -1,4 +1,4 @@
-# EvalKit
+# Twevals
 
 Code‑first evaluation for AI agents and LLM apps. This README focuses on concrete, copy‑pasteable examples and CLI usage. See `examples/` for runnable demos.
 
@@ -16,20 +16,20 @@ Code‑first evaluation for AI agents and LLM apps. This README focuses on concr
 Run all demo evals in `examples/` with summary + table:
 
 ```bash
-poetry run evalkit run examples
+poetry run twevals run examples
 ```
 
 Filter by dataset or labels:
 
 ```bash
-poetry run evalkit run examples --dataset customer_service
-poetry run evalkit run examples --label production --label test
+poetry run twevals run examples --dataset customer_service
+poetry run twevals run examples --label production --label test
 ```
 
 Control output and speed:
 
 ```bash
-poetry run evalkit run examples -c 4 -o results.json -v
+poetry run twevals run examples -c 4 -o results.json -v
 # -c/--concurrency: parallelism, -o: save JSON, -v: print user output
 ```
 
@@ -38,7 +38,7 @@ poetry run evalkit run examples -c 4 -o results.json -v
 Create any `.py` file and decorate a function. Dataset defaults to the filename; labels are optional.
 
 ```python
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval  # dataset inferred from file name
 def test_single_case():
@@ -51,7 +51,7 @@ def test_single_case():
 Run it:
 
 ```bash
-poetry run evalkit run path/to/that_file.py
+poetry run twevals run path/to/that_file.py
 ```
 
 ## Returning Many Results From One Function
@@ -59,7 +59,7 @@ poetry run evalkit run path/to/that_file.py
 Return a list of `EvalResult` if you want to iterate your own test cases inside a single eval (good for small, hand‑rolled suites).
 
 ```python
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval(dataset="customer_service", labels=["production"])
 def test_refund_requests():
@@ -90,7 +90,7 @@ See: `examples/demo_eval.py` (also shows async + custom latency).
 Use `@parametrize` to automatically generate one eval per case (helps with reporting and filters). Stack `@parametrize` decorators for a cartesian product.
 
 ```python
-from evalkit import eval, EvalResult, parametrize
+from twevals import eval, EvalResult, parametrize
 
 @eval(dataset="sentiment_analysis")
 @parametrize("text,expected", [
@@ -162,7 +162,7 @@ See: `examples/demo_eval_paramatrize.py`.
 
 ```python
 import asyncio, time
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 async def run_agent(prompt: str):
     start = time.time()
@@ -179,7 +179,7 @@ async def test_refund_requests():
 You can provide `evaluators=[...]` to `@eval(...)`. Each evaluator receives an `EvalResult` and can return a `Score`-like dict, a list of scores, or a new `EvalResult`. Returned scores are appended to the result.
 
 ```python
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 def reference_match(result: EvalResult):
     ok = result.reference and str(result.reference).lower() in str(result.output).lower()
@@ -201,21 +201,21 @@ See: `examples/demo_eval_paramatrize.py` (first example).
 Run by path or file:
 
 ```bash
-poetry run evalkit run tests/
-poetry run evalkit run examples/demo_eval.py
+poetry run twevals run tests/
+poetry run twevals run examples/demo_eval.py
 ```
 
 Filter by dataset/label:
 
 ```bash
-poetry run evalkit run tests/ --dataset my_dataset
-poetry run evalkit run tests/ --label prod --label smoke
+poetry run twevals run tests/ --dataset my_dataset
+poetry run twevals run tests/ --label prod --label smoke
 ```
 
 Save results and inspect:
 
 ```bash
-poetry run evalkit run tests/ -o results.json
+poetry run twevals run tests/ -o results.json
 cat results.json  # contains summary + all results
 ```
 
@@ -224,7 +224,7 @@ cat results.json  # contains summary + all results
 `EvalResult` is Pydantic‑validated. Scores can be a single score (dict) or a list of scores.
 
 ```python
-from evalkit import EvalResult
+from twevals import EvalResult
 
 EvalResult(
     input="...",          # required: Input that was used to generate the output
@@ -244,14 +244,14 @@ EvalResult(
 
 ```bash
 # Run a directory or file
-evalkit run path/or/file.py
+twevals run path/or/file.py
 
 # Filter
-evalkit run tests/ --dataset my_dataset
-evalkit run tests/ --label prod --label smoke
+twevals run tests/ --dataset my_dataset
+twevals run tests/ --label prod --label smoke
 
 # Concurrency, verbose, save JSON
-evalkit run tests/ -c 4 -v -o results.json
+twevals run tests/ -c 4 -v -o results.json
 ```
 
 ## Developing
@@ -259,17 +259,17 @@ evalkit run tests/ -c 4 -v -o results.json
 ```bash
 poetry install
 poetry run pytest -q
-poetry run pytest --cov=evalkit  # coverage
-poetry run ruff check evalkit tests
+poetry run pytest --cov=twevals  # coverage
+poetry run ruff check twevals tests
 poetry run black .
 ```
 
 Helpful demo entry-point:
 
 ```bash
-poetry run evalkit run examples
+poetry run twevals run examples
 ```
 
 ---
 
-For deeper module internals, see `evalkit/README.md`. The tests under `tests/` demonstrate discovery, filtering, CLI options, async handling, and formatting.
+For deeper module internals, see `twevals/README.md`. The tests under `tests/` demonstrate discovery, filtering, CLI options, async handling, and formatting.

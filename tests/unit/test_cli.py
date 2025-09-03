@@ -4,7 +4,7 @@ import tempfile
 import json
 from pathlib import Path
 
-from evalkit.cli import cli
+from twevals.cli import cli
 
 
 class TestCLI:
@@ -15,7 +15,7 @@ class TestCLI:
     def test_cli_help(self):
         result = self.runner.invoke(cli, ['--help'])
         assert result.exit_code == 0
-        assert 'EvalKit' in result.output
+        assert 'Twevals' in result.output
         assert 'lightweight evaluation framework' in result.output
     
     def test_run_command_help(self):
@@ -32,7 +32,7 @@ class TestCLI:
             # Create test file
             with open('test_eval.py', 'w') as f:
                 f.write("""
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval()
 def test_cli():
@@ -49,7 +49,7 @@ def test_cli():
             # Create test file
             with open('test_dataset.py', 'w') as f:
                 f.write("""
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval(dataset="dataset1")
 def test_one():
@@ -70,7 +70,7 @@ def test_two():
             # Create test file
             with open('test_labels.py', 'w') as f:
                 f.write("""
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval(labels=["prod"])
 def test_prod():
@@ -90,7 +90,7 @@ def test_dev():
             # Create test file
             with open('test_multi_labels.py', 'w') as f:
                 f.write("""
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval(labels=["a"])
 def test_a():
@@ -118,7 +118,7 @@ def test_c():
             # Create test file
             with open('test_json.py', 'w') as f:
                 f.write("""
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval()
 def test_json():
@@ -148,7 +148,7 @@ def test_json():
             # Create test file with print statements
             with open('test_verbose.py', 'w') as f:
                 f.write("""
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval()
 def test_verbose():
@@ -168,7 +168,7 @@ def test_verbose():
             # Create test file
             with open('test_concurrent.py', 'w') as f:
                 f.write("""
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval()
 def test_1():
@@ -205,7 +205,7 @@ def regular_function():
             # Create test file with error
             with open('test_error.py', 'w') as f:
                 f.write("""
-from evalkit import eval, EvalResult
+from twevals import eval, EvalResult
 
 @eval()
 def test_error():

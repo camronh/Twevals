@@ -4,8 +4,8 @@ from typing import Optional
 
 from rich.console import Console
 
-from evalkit.runner import EvalRunner
-from evalkit.formatters import format_results_table
+from twevals.runner import EvalRunner
+from twevals.formatters import format_results_table
 
 
 console = Console()
@@ -13,7 +13,7 @@ console = Console()
 
 @click.group()
 def cli():
-    """EvalKit - A lightweight evaluation framework for AI/LLM testing"""
+    """Twevals - A lightweight evaluation framework for AI/LLM testing"""
     pass
 
 

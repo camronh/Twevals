@@ -1,9 +1,27 @@
 [tool.poetry]
-name = "evalkit"
-version = "0.1.0"
+name = "twevals"
+version = "0.0.1a0"
 description = "A lightweight, code-first evaluation framework for testing AI agents and LLM applications"
-authors = ["EvalKit Team"]
+authors = ["Twevals Team"]
 readme = "README.md"
+packages = [{ include = "twevals" }]
+
+# Optional but recommended metadata for PyPI
+homepage = "https://github.com/camronh/Twevals"
+repository = "https://github.com/camronh/Twevals"
+documentation = "https://github.com/camronh/Twevals#readme"
+keywords = ["evaluation", "llm", "agents", "testing", "benchmark", "cli"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Testing",
+  "Environment :: Console",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "License :: OSI Approved :: MIT License",
+]
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -19,7 +37,7 @@ black = "^25.1.0"
 ruff = "^0.12.9"
 
 [tool.poetry.scripts]
-evalkit = "evalkit.cli:main"
+twevals = "twevals.cli:main"
 
 [build-system]
 requires = ["poetry-core"]

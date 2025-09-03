@@ -4,7 +4,7 @@ import time
 import asyncio
 import inspect
 
-from evalkit.schemas import EvalResult, Score
+from twevals.schemas import EvalResult, Score
 
 
 class EvalFunction:
@@ -169,7 +169,7 @@ def eval(
     labels: Optional[List[str]] = None,
     evaluators: Optional[List[Callable]] = None
 ):
-    from evalkit.parametrize import ParametrizedEvalFunction
+    from twevals.parametrize import ParametrizedEvalFunction
     
     # Support both @eval and @eval()
     if callable(dataset) and labels is None and evaluators is None:

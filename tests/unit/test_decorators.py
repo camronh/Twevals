@@ -2,8 +2,8 @@ import pytest
 import asyncio
 import time
 
-from evalkit.decorators import eval, EvalFunction
-from evalkit.schemas import EvalResult
+from twevals.decorators import eval, EvalFunction
+from twevals.schemas import EvalResult
 
 
 class TestEvalDecorator:

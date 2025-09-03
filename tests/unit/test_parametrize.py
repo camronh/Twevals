@@ -1,8 +1,8 @@
 """Tests for the parametrize decorator functionality"""
 import pytest
-from evalkit import eval, EvalResult, parametrize
-from evalkit.discovery import EvalDiscovery
-from evalkit.parametrize import ParametrizedEvalFunction
+from twevals import eval, EvalResult, parametrize
+from twevals.discovery import EvalDiscovery
+from twevals.parametrize import ParametrizedEvalFunction
 
 
 class TestParametrize:
@@ -158,7 +158,7 @@ class TestParametrize:
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
             f.write("""
-from evalkit import eval, EvalResult, parametrize
+from twevals import eval, EvalResult, parametrize
 
 @eval(dataset="test_discovery")
 @parametrize("x", [1, 2, 3])
