@@ -21,7 +21,8 @@ def cli():
 @click.argument('path', type=click.Path(exists=True))
 @click.option('--dataset', '-d', help='Run evaluations for specific dataset(s), comma-separated')
 @click.option('--label', '-l', multiple=True, help='Run evaluations with specific label(s)')
-@click.option('--output', '-o', help='Save results to JSON file')
+@click.option('--output', '-o', type=click.Path(dir_okay=False), help='Path to JSON file for results')
+@click.option('--csv', '-s', type=click.Path(dir_okay=False), help='Path to CSV file for results (include filename)')
 @click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
 def run(
@@ -29,6 +30,7 @@ def run(
     dataset: Optional[str],
     label: tuple,
     output: Optional[str],
+    csv: Optional[str],
     concurrency: int,
     verbose: bool
 ):
@@ -48,6 +50,7 @@ def run(
                 dataset=dataset,
                 labels=labels,
                 output_file=output,
+                csv_file=csv,
                 verbose=verbose
             )
         except Exception as e:
@@ -79,6 +82,8 @@ def run(
     # Output file notification
     if output:
         console.print(f"\n[green]Results saved to: {output}[/green]")
+    if csv:
+        console.print(f"[green]Results saved to: {csv}[/green]")
 
 
 def main():

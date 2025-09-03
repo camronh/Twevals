@@ -34,12 +34,12 @@ Evaluation execution engine:
 - Support for sequential and concurrent execution
 - Async/sync function handling
 - Result aggregation and summary statistics
-- JSON export functionality
+- JSON and CSV export functionality
 
 ### `cli.py`
 Command-line interface:
 - Main CLI entry point using Click framework
-- `run` command with options for filtering, output, and concurrency
+- `run` command with options for filtering, output (JSON/CSV), and concurrency
 - Progress indicators and status reporting
 - Integration with Rich for beautiful console output
 

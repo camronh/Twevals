@@ -29,8 +29,11 @@ poetry run twevals run examples --label production --label test
 Control output and speed:
 
 ```bash
-poetry run twevals run examples -c 4 -o results.json -v
-# -c/--concurrency: parallelism, -o: save JSON, -v: print user output
+poetry run twevals run examples -c 4 -o results.json --csv results.csv -v
+# -c/--concurrency: parallelism
+# -o: path to JSON output file
+# --csv/-s: path to CSV output file (include filename)
+# -v: print user output
 ```
 
 ## Minimal Eval (sync)
