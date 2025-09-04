@@ -2,7 +2,7 @@
 
 Code‑first evaluation for AI agents and LLM apps. This README focuses on concrete, copy‑pasteable examples and CLI usage. See `examples/` for runnable demos.
 
-![image.png](assets/image.png)
+![twevals serve UI](assets/ui.png)
 
 ## Install
 
@@ -11,30 +11,29 @@ Code‑first evaluation for AI agents and LLM apps. This README focuses on concr
   poetry install  # Python 3.10+
   ```
 
-## Run The Demos
+## Quick Start: Serve the Web UI (recommended)
 
-Run all demo evals in `examples/` with summary + table:
-
-```bash
-poetry run twevals run examples
-```
-
-Filter by dataset or labels:
+Spin up the UI, run evals once, and browse the results:
 
 ```bash
-poetry run twevals run examples --dataset customer_service
-poetry run twevals run examples --label production --label test
+poetry run twevals serve examples
 ```
 
-Control output and speed:
+Useful options:
 
 ```bash
-poetry run twevals run examples -c 4 -o results.json --csv results.csv -v
-# -c/--concurrency: parallelism
-# -o: path to JSON output file
-# --csv/-s: path to CSV output file (include filename)
-# -v: print user output
+# Filter by dataset/labels
+poetry run twevals serve examples --dataset customer_service
+poetry run twevals serve examples --label production --label test
+
+# Concurrency and dev hot‑reload
+poetry run twevals serve examples -c 4 --dev
+
+# Quiet logs (access logs off)
+poetry run twevals serve examples --quiet
 ```
+
+Tip: Use the in‑UI Actions ▾ menu to Refresh, Rerun the full suite, and Export JSON/CSV.
 
 ## Browse Results in a Web UI
 
@@ -46,6 +45,7 @@ poetry run twevals serve examples
 #   -d, --dataset TEXT      Filter by dataset(s) (comma-separated)
 #   -l, --label TEXT        Filter by label(s) (repeatable)
 #   -c, --concurrency INT   Number of concurrent evals (0 = sequential)
+#       --dev               Enable hot‑reload (dev UX; watches repo)
 #       --host TEXT         Host interface (default 127.0.0.1)
 #       --port INT          Port (default 8000)
 #   -v, --verbose           Verbose server logs
@@ -55,14 +55,20 @@ poetry run twevals serve examples
 Results storage and UI:
 - Saves to `.twevals/runs/<YYYY-MM-DDTHH-MM-SSZ>.json` and a portable copy at `.twevals/runs/latest.json`.
 - UI loads results from JSON on every refresh; external edits are reflected.
-- API endpoint for edits (for future inline editing): `PATCH /api/runs/{run_id}/results/{index}` with fields `dataset`, `labels`, and `result.{scores,metadata,error,reference}`.
+- Inline editing via API: `PATCH /api/runs/{run_id}/results/{index}` for `dataset`, `labels`, and `result.{scores,metadata,error,reference,annotation}`.
 
 UI features:
 
-- Sortable headers: click to sort; Shift+click to multi-sort.
-- Column toggles: Columns ▾ → show/hide; persists via localStorage.
-- Reset controls: Columns ▾ → Reset Columns / Reset Sorting.
-- Styling: colored latency pills (2 decimals), label chips, error highlighting.
+- Expandable rows with rich detail panels (input/output/reference, metadata JSON, run data, scores, annotation).
+- Inline editing: edit dataset, labels, metadata JSON, scores (key/value/passed/notes), and a free‑form annotation; changes persist to JSON.
+- Actions menu: Refresh, Rerun full suite, Export JSON, Export CSV.
+- Sortable headers: click to sort; Shift+click to multi‑sort.
+- Column toggles + resizable columns; choices and widths persist via localStorage; quick reset controls for columns/sorting/widths.
+- Polished table styling with latency badges and label chips.
+
+Dev mode:
+
+- `poetry run twevals serve examples --dev` enables hot‑reload for code/templates; useful while iterating on evals or the UI.
 
 ## Minimal Eval (sync)
 
@@ -83,6 +89,12 @@ Run it:
 
 ```bash
 poetry run twevals run path/to/that_file.py
+```
+
+Or browse it in the UI:
+
+```bash
+poetry run twevals serve path/to/that_file.py
 ```
 
 ## Returning Many Results From One Function
@@ -263,33 +275,35 @@ EvalResult(
     reference="...",      # optional: Expected output
     scores=[               # optional (dict or list of dicts): Evaluation results
         {"key": "accuracy", "value": 0.93},
-        {"key": "pass", "passed": True},
+        {"key": "pass", "passed": True, "notes": "ok"},
     ],
     error=None,            # optional: Error message (string)
     latency=0.123,         # optional: Execution time in seconds
     metadata={"model": "gpt-4"},  # optional: Additional custom data
+    run_data={"attempts": 3},     # optional: Extra run‑specific JSON stored and shown in UI
 )
 ```
+
+Notes:
+- Each score must include either `value` (numeric) or `passed` (boolean). `notes` is optional and shown in the UI.
+- The UI also supports saving a single free‑form `annotation` per result via the web editor/API; this is persisted in the JSON results.
 
 ## CLI Reference (common)
 
 ```bash
-# Run a directory or file
+# Serve and browse (recommended)
+twevals serve examples --quiet
+# Open http://127.0.0.1:8000
+
+# Headless run (save to files, no UI)
 twevals run path/or/file.py
 
 # Filter
 twevals run tests/ --dataset my_dataset
 twevals run tests/ --label prod --label smoke
 
-# Concurrency, verbose, save JSON
-twevals run tests/ -c 4 -v -o results.json
-```
-
-Serve the web UI:
-
-```bash
-twevals serve examples --quiet
-# Open http://127.0.0.1:8000
+# Concurrency, verbose, save JSON/CSV
+twevals run tests/ -c 4 -v -o results.json --csv results.csv
 ```
 
 ## Developing
@@ -305,7 +319,7 @@ poetry run black .
 Helpful demo entry-point:
 
 ```bash
-poetry run twevals run examples
+poetry run twevals serve examples
 ```
 
 ---
