@@ -48,6 +48,19 @@ async def test_refund_requests():
                 "passed": expected_keyword in result["output"].lower(),
                 "notes": f"Expected keyword '{expected_keyword}' not found in output" if expected_keyword not in result["output"].lower() else None
             },
+            run_data={
+                "trace_id": f"refund_{expected_keyword}_{prompt.replace(' ', '_')}",
+                "trace": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    },
+                    {
+                        "role": "assistant",
+                        "content": result["output"]
+                    }
+                ]
+            },
         ))
     
     return results
@@ -78,7 +91,11 @@ def test_greeting_responses():
                 {"key": "response_time", "passed": True}
             ],
             metadata={"model": "gpt-4", "temperature": 0.7},
-            latency=0.05  # Override latency for testing
+            latency=0.05,  # Override latency for testing
+            run_data={
+                "token_usage": {"prompt": 6, "completion": 8, "total": 14},
+                "system_prompt": "You are a helpful assistant.",
+            },
         ))
     
     return results
@@ -96,6 +113,7 @@ def test_single_case():
     return EvalResult(
         input=input,
         output=output,
+        run_data={"debug": {"echo": True, "reason": "static demo"}},
     )
 
 
@@ -112,4 +130,5 @@ def test_single_case():
     return EvalResult(
         input=input,
         output=output,
+        run_data={"note": "this will not run due to assertion"},
     )

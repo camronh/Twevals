@@ -25,6 +25,10 @@ class EvalResult(BaseModel):
     error: Optional[str] = Field(default=None, description="Error message if failed")
     latency: Optional[float] = Field(default=None, description="Execution time in seconds")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional custom data")
+    run_data: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Additional run-specific data (JSON object)"
+    )
 
     @field_validator('scores', mode='before')
     @classmethod

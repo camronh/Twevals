@@ -28,6 +28,7 @@ def make_summary() -> dict:
                     "error": None,
                     "latency": 0.1,
                     "metadata": {"k": 1},
+                    "run_data": {"foo": [1, 2, 3]},
                 },
             },
             {
@@ -62,6 +63,8 @@ def test_results_template_reads_from_json(tmp_path: Path):
     # Function names and datasets should appear in the rendered table
     assert "f1" in html and "ds1" in html
     assert "f2" in html and "ds2" in html
+    # Run data rendered in expanded panel content (as JSON); presence check
+    assert "foo" in html
     # Expand controls and hidden detail rows should be present
     assert "expand-btn" in html
     assert 'data-row="detail"' in html
