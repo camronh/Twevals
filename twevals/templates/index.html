@@ -39,6 +39,20 @@
     <div class="flex items-center gap-2 mb-4">
       <h1 class="text-2xl font-bold mr-auto">Twevals Results</h1>
       <button
+        id="export-json"
+        class="px-3 py-2 bg-gray-100 text-gray-700 border rounded"
+        title="Download results as JSON"
+      >
+        Export JSON
+      </button>
+      <button
+        id="export-csv"
+        class="px-3 py-2 bg-gray-100 text-gray-700 border rounded"
+        title="Download results as CSV"
+      >
+        Export CSV
+      </button>
+      <button
         class="px-4 py-2 bg-blue-500 text-white rounded"
         hx-get="/results"
         hx-target="#results"
@@ -429,6 +443,7 @@
           initExpandHandlers();
           initInlineEditing();
           restoreExpandedRow();
+          wireExportButtons();
         }
       });
 
@@ -750,6 +765,23 @@
           return;
         }
       });
+
+      function wireExportButtons() {
+        const table = document.getElementById('results-table');
+        const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest';
+        const jsonBtn = document.getElementById('export-json');
+        const csvBtn = document.getElementById('export-csv');
+        if (jsonBtn) {
+          jsonBtn.onclick = () => {
+            window.location.href = `/api/runs/${runId}/export/json`;
+          };
+        }
+        if (csvBtn) {
+          csvBtn.onclick = () => {
+            window.location.href = `/api/runs/${runId}/export/csv`;
+          };
+        }
+      }
     </script>
   </body>
   </html>

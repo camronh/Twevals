@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from twevals.storage import ResultsStore
@@ -90,5 +91,65 @@ def create_app(
         except IndexError:
             raise HTTPException(status_code=404, detail="Index out of range")
         return {"ok": True}
+
+    @app.get("/api/runs/{run_id}/export/json")
+    def export_json(run_id: str):
+        rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else None
+        if not rid:
+            raise HTTPException(status_code=400, detail="Only active or latest run can be exported")
+        path = store.run_path(app.state.active_run_id)
+        return FileResponse(
+            path,
+            media_type="application/json",
+            filename=f"{app.state.active_run_id}.json",
+        )
+
+    @app.get("/api/runs/{run_id}/export/csv")
+    def export_csv(run_id: str):
+        import csv
+        import io
+        rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else None
+        if not rid:
+            raise HTTPException(status_code=400, detail="Only active or latest run can be exported")
+        data = store.load_run(app.state.active_run_id)
+        output = io.StringIO()
+        fieldnames = [
+            "function",
+            "dataset",
+            "labels",
+            "input",
+            "output",
+            "reference",
+            "scores",
+            "error",
+            "latency",
+            "metadata",
+            "run_data",
+            "annotations",
+        ]
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        import json as _json
+        for r in data.get("results", []):
+            result = r.get("result", {})
+            writer.writerow({
+                "function": r.get("function"),
+                "dataset": r.get("dataset"),
+                "labels": ";".join(r.get("labels") or []),
+                "input": _json.dumps(result.get("input")),
+                "output": _json.dumps(result.get("output")),
+                "reference": _json.dumps(result.get("reference")),
+                "scores": _json.dumps(result.get("scores")),
+                "error": result.get("error"),
+                "latency": result.get("latency"),
+                "metadata": _json.dumps(result.get("metadata")),
+                "run_data": _json.dumps(result.get("run_data")),
+                "annotations": _json.dumps(result.get("annotations")),
+            })
+        csv_bytes = output.getvalue()
+        headers = {
+            "Content-Disposition": f"attachment; filename={app.state.active_run_id}.csv"
+        }
+        return Response(content=csv_bytes, media_type="text/csv", headers=headers)
 
     return app

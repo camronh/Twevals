@@ -124,3 +124,25 @@ def test_annotations_endpoints(tmp_path: Path):
     assert pd.status_code == 200
     data = store.load_run(run_id)
     assert data["results"][0]["result"].get("annotations", []) == []
+
+
+def test_export_endpoints(tmp_path: Path):
+    store = ResultsStore(tmp_path / "runs")
+    summary = make_summary()
+    run_id = store.save_run(summary, "2024-01-01T00-00-00Z")
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+    client = TestClient(app)
+
+    # JSON export returns the underlying file
+    rj = client.get(f"/api/runs/{run_id}/export/json")
+    assert rj.status_code == 200
+    data = rj.content
+    assert b"results" in data and b"total_evaluations" in data
+
+    # CSV export returns a CSV with headers
+    rc = client.get(f"/api/runs/{run_id}/export/csv")
+    assert rc.status_code == 200
+    assert rc.headers.get("content-type", "").startswith("text/csv")
+    text = rc.text
+    assert "function,dataset,labels,input,output,reference,scores,error,latency,metadata,run_data,annotations" in text.splitlines()[0]
