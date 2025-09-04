@@ -91,6 +91,7 @@ def run(
 @click.option('--dataset', '-d', help='Run evaluations for specific dataset(s), comma-separated')
 @click.option('--label', '-l', multiple=True, help='Run evaluations with specific label(s)')
 @click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
+@click.option('--dev', is_flag=True, help='Enable hot-reload for development (watches repo for changes)')
 @click.option('--results-dir', default='.twevals/runs', help='Directory for JSON results storage')
 @click.option('--host', default='127.0.0.1', help='Host interface for the web server')
 @click.option('--port', default=8000, type=int, help='Port for the web server')
@@ -101,6 +102,7 @@ def serve(
     dataset: str | None,
     label: tuple,
     concurrency: int,
+    dev: bool,
     results_dir: str,
     host: str,
     port: int,
@@ -160,7 +162,40 @@ def serve(
     # Control logging verbosity
     log_level = "warning" if quiet and not verbose else ("info" if not verbose else "debug")
     access_log = False if quiet else True
-    uvicorn.run(app, host=host, port=port, log_level=log_level, access_log=access_log)
+
+    if dev:
+        # Enable hot reload watching the repo (code + templates).
+        # Uvicorn requires an import string/factory for reload to work.
+        # We use twevals.server:load_app_from_env and pass config via env.
+        from pathlib import Path as _Path
+        import os as _os, json as _json
+
+        repo_root = _Path('.').resolve()
+
+        # Pass config to the child reloader process
+        _os.environ["TWEVALS_RESULTS_DIR"] = str(results_dir)
+        _os.environ["TWEVALS_ACTIVE_RUN_ID"] = str(run_id)
+        _os.environ["TWEVALS_PATH"] = str(path)
+        if dataset:
+            _os.environ["TWEVALS_DATASET"] = str(dataset)
+        if labels is not None:
+            _os.environ["TWEVALS_LABELS"] = _json.dumps(labels)
+        _os.environ["TWEVALS_CONCURRENCY"] = str(concurrency)
+        _os.environ["TWEVALS_VERBOSE"] = "1" if verbose else "0"
+
+        uvicorn.run(
+            "twevals.server:load_app_from_env",
+            host=host,
+            port=port,
+            log_level=log_level,
+            access_log=access_log,
+            reload=True,
+            factory=True,
+            reload_dirs=[str(repo_root)],
+            reload_includes=["*.py", "*.pyi", "*.html", "*.jinja", "*.ini", "*.toml", "*.yaml", "*.yml", "*.json"],
+        )
+    else:
+        uvicorn.run(app, host=host, port=port, log_level=log_level, access_log=access_log)
 
 
 def main():
