@@ -81,6 +81,8 @@ def make_summary():
     }
 
 
+
+
 def test_expand_sort_and_toggle_columns(tmp_path):
     # Seed a run JSON
     store = ResultsStore(tmp_path / "runs")
@@ -152,6 +154,9 @@ def test_inline_edit_and_save(tmp_path):
             )
             expect(row.locator("td[data-col='dataset']").first).to_have_text("ds_edited")
             browser.close()
+
+
+# Sticky headers are intentionally disabled per product decision; related test removed.
 
 
 def test_annotations_crud(tmp_path):

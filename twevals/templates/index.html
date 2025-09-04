@@ -45,6 +45,14 @@
         </svg>
         Loading…
       </div>
+      <div class="hidden md:block relative">
+        <input id="search-input" type="search" placeholder="Search…"
+          class="pl-8 pr-3 py-2 border rounded w-64 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+        <svg class="h-4 w-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </div>
       <div class="relative">
         <button id="actions-toggle" class="px-3 py-2 bg-gray-900 text-white rounded shadow-sm">
           Actions ▾
@@ -455,6 +463,36 @@
         toggleSort(table, col, type, e.shiftKey);
       });
 
+      // Client-side search filtering
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) {
+        let timer;
+        searchInput.addEventListener('input', () => {
+          clearTimeout(timer);
+          timer = setTimeout(applySearchFilter, 120);
+        });
+      }
+      function applySearchFilter() {
+        const q = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+        const tbody = document.querySelector('#results-table tbody');
+        if (!tbody) return;
+        const mains = tbody.querySelectorAll("tr[data-row='main']");
+        mains.forEach((tr) => {
+          const id = tr.getAttribute('data-row-id');
+          const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
+          if (!q) {
+            tr.classList.remove('hidden');
+            return;
+          }
+          const text = tr.textContent.toLowerCase();
+          const match = text.includes(q);
+          tr.classList.toggle('hidden', !match);
+          if (detail && detail.getAttribute('hidden') === null) {
+            if (!match) detail.setAttribute('hidden', '');
+          }
+        });
+      }
+
       // Expand/collapse logic
       function initExpandHandlers() {
         const container = document.getElementById('results');
@@ -824,6 +862,27 @@
       document.body.addEventListener('htmx:beforeRequest', showLoading);
       document.body.addEventListener('htmx:afterSwap', hideLoading);
       document.body.addEventListener('htmx:responseError', hideLoading);
+
+      // Copy-to-clipboard for pre blocks (icon toggles)
+      document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.copy-btn');
+        if (!btn) return;
+        const id = btn.getAttribute('data-copy');
+        const pre = document.getElementById(id);
+        if (!pre) return;
+        try {
+          await navigator.clipboard.writeText(pre.innerText);
+          const copyIcon = btn.querySelector('.copy-icon');
+          const checkIcon = btn.querySelector('.check-icon');
+          if (copyIcon && checkIcon) {
+            copyIcon.classList.add('hidden');
+            checkIcon.classList.remove('hidden');
+            setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900);
+          }
+        } catch (err) {
+          alert('Copy failed');
+        }
+      });
     </script>
   </body>
   </html>

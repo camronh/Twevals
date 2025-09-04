@@ -1,3 +1,33 @@
+{% set ns = namespace(tests=summary.total_evaluations, passed=0, failed=0) %}
+{% for r in summary.results %}
+  {% set p = namespace(pass=false, fail=false) %}
+  {% if r.result and r.result.scores %}
+    {% for s in r.result.scores %}
+      {% if s.passed is true %}
+        {% set p.pass = true %}
+      {% elif s.passed is false and p.pass is not true %}
+        {% set p.fail = true %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {% if p.pass %}{% set ns.passed = ns.passed + 1 %}{% elif p.fail %}{% set ns.failed = ns.failed + 1 %}{% endif %}
+{% endfor %}
+<div class="mb-3 flex flex-wrap items-center gap-2">
+  <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
+    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    Tests: {{ ns.tests }}
+  </span>
+  <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+    {{ ns.passed }}/{{ ns.passed + ns.failed }}
+  </span>
+  {% if summary.average_latency > 0 %}
+    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Avg: {{ summary.average_latency | round(2) }}s
+    </span>
+  {% endif %}
+</div>
 <div class="overflow-x-auto">
 <table id="results-table" class="w-full table-fixed divide-y divide-gray-200 shadow ring-1 ring-black ring-opacity-5 rounded-lg" data-run-id="{{ run_id }}">
   <thead>
@@ -31,8 +61,8 @@
           {% endfor %}
         {% endif %}
       </td>
-      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="input">{{ r.result.input }}</td>
-      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="output">{{ r.result.output }}</td>
+      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="input" title="{{ r.result.input }}">{{ r.result.input }}</td>
+      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="output" title="{{ r.result.output }}">{{ r.result.output }}</td>
       <td class="px-4 py-2 text-sm truncate" data-col="error">
         {% if r.result.error %}
           <span class="text-red-600">{{ r.result.error }}</span>
@@ -127,26 +157,48 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="view-section">
+            <div class="view-section relative group">
               <div class="text-xs font-semibold text-gray-500 mb-1">Input</div>
-              <pre class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.input }}</pre>
+              <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-input-{{ row_id }}" title="Copy">
+                <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <pre id="pre-input-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.input }}</pre>
             </div>
-            <div class="view-section">
+            <div class="view-section relative group">
               <div class="text-xs font-semibold text-gray-500 mb-1">Output</div>
-              <pre class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.output }}</pre>
+              <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-output-{{ row_id }}" title="Copy">
+                <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <pre id="pre-output-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.output }}</pre>
             </div>
-            <div class="view-section">
+            <div class="view-section relative group">
               <div class="text-xs font-semibold text-gray-500 mb-1">Reference</div>
-              <pre class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.reference }}</pre>
+              <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-ref-{{ row_id }}" title="Copy">
+                <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <pre id="pre-ref-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.reference }}</pre>
             </div>
-            <div class="view-section">
+            <div class="view-section relative group">
               <div class="text-xs font-semibold text-gray-500 mb-1">Metadata</div>
-              <pre class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.metadata }}</pre>
+              <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-meta-{{ row_id }}" title="Copy">
+                <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <pre id="pre-meta-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.metadata }}</pre>
             </div>
             <div class="view-section md:col-span-2">
               <div class="text-xs font-semibold text-gray-500 mb-1">Run Data</div>
               {% if r.result.run_data is defined and r.result.run_data is not none %}
-                <pre class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.run_data | tojson(indent=2) }}</pre>
+                <div class="relative group">
+                  <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-run-{{ row_id }}" title="Copy">
+                    <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                  </button>
+                  <pre id="pre-run-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.run_data | tojson(indent=2) }}</pre>
+                </div>
               {% else %}
                 <div class="text-gray-400">—</div>
               {% endif %}
