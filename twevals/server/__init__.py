@@ -51,8 +51,47 @@ def create_app(
             summary = store.load_run(app.state.active_run_id)
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Active run not found")
+        # Build per-score-key chips: ratio for boolean passed, average for numeric value
+        score_map: dict[str, dict] = {}
+        for r in summary.get("results", []):
+            res = (r or {}).get("result") or {}
+            scores = res.get("scores") or []
+            for s in scores:
+                # s may be dict-like
+                key = s.get("key") if isinstance(s, dict) else getattr(s, "key", None)
+                if not key:
+                    continue
+                d = score_map.setdefault(key, {"passed": 0, "failed": 0, "bool": 0, "sum": 0.0, "count": 0})
+                passed = s.get("passed") if isinstance(s, dict) else getattr(s, "passed", None)
+                if passed is True:
+                    d["passed"] += 1
+                    d["bool"] += 1
+                elif passed is False:
+                    d["failed"] += 1
+                    d["bool"] += 1
+                value = s.get("value") if isinstance(s, dict) else getattr(s, "value", None)
+                if value is not None:
+                    try:
+                        d["sum"] += float(value)
+                        d["count"] += 1
+                    except Exception:
+                        pass
+        score_chips = []
+        for k, d in score_map.items():
+            if d["bool"] > 0:
+                total = d["passed"] + d["failed"]
+                score_chips.append({"key": k, "type": "ratio", "passed": d["passed"], "total": total})
+            elif d["count"] > 0:
+                avg = d["sum"] / d["count"]
+                score_chips.append({"key": k, "type": "avg", "avg": avg, "count": d["count"]})
         return templates.TemplateResponse(
-            "results.html", {"request": request, "summary": summary, "run_id": app.state.active_run_id}
+            "results.html",
+            {
+                "request": request,
+                "summary": summary,
+                "run_id": app.state.active_run_id,
+                "score_chips": score_chips,
+            },
         )
 
     @app.patch("/api/runs/{run_id}/results/{index}")
@@ -67,42 +106,11 @@ def create_app(
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Run not found")
         return {"ok": True, "result": updated}
+    # Annotation endpoints removed: annotation is a single string updated via PATCH /results/{index}
 
-    class AnnotationCreateBody(BaseModel):
-        text: str
+        # Annotation update endpoint removed
 
-    class AnnotationUpdateBody(BaseModel):
-        text: Optional[str] = None
-
-    @app.post("/api/runs/{run_id}/results/{index}/annotations")
-    def create_annotation(run_id: str, index: int, body: AnnotationCreateBody):
-        if run_id not in (app.state.active_run_id, "latest"):
-            raise HTTPException(status_code=400, detail="Only active or latest run can be updated")
-        try:
-            ann = store.add_annotation(app.state.active_run_id, index, body.text)
-        except IndexError:
-            raise HTTPException(status_code=404, detail="Result index out of range")
-        return {"ok": True, "annotation": ann}
-
-    @app.patch("/api/runs/{run_id}/results/{index}/annotations/{ann_index}")
-    def update_annotation(run_id: str, index: int, ann_index: int, body: AnnotationUpdateBody):
-        if run_id not in (app.state.active_run_id, "latest"):
-            raise HTTPException(status_code=400, detail="Only active or latest run can be updated")
-        try:
-            ann = store.update_annotation(app.state.active_run_id, index, ann_index, body.model_dump(exclude_none=True))
-        except IndexError:
-            raise HTTPException(status_code=404, detail="Index out of range")
-        return {"ok": True, "annotation": ann}
-
-    @app.delete("/api/runs/{run_id}/results/{index}/annotations/{ann_index}")
-    def delete_annotation(run_id: str, index: int, ann_index: int):
-        if run_id not in (app.state.active_run_id, "latest"):
-            raise HTTPException(status_code=400, detail="Only active or latest run can be updated")
-        try:
-            store.delete_annotation(app.state.active_run_id, index, ann_index)
-        except IndexError:
-            raise HTTPException(status_code=404, detail="Index out of range")
-        return {"ok": True}
+        # Annotation delete endpoint removed
 
     @app.post("/api/runs/rerun")
     def rerun():

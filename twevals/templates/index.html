@@ -589,12 +589,15 @@
           const ds = detail.getAttribute('data-original-dataset') || '';
           const lbls = JSON.parse(detail.getAttribute('data-original-labels') || '[]');
           const md = JSON.parse(detail.getAttribute('data-original-metadata') || 'null');
+          const ann = detail.getAttribute('data-original-annotation') || '';
           const dsInput = detail.querySelector(`#dataset-input-${rowId}`);
           const lbInput = detail.querySelector(`#labels-input-${rowId}`);
           const mdInput = detail.querySelector(`#metadata-input-${rowId}`);
+          const annInput = detail.querySelector(`#annotation-input-${rowId}`);
           if (dsInput) dsInput.value = ds;
           if (lbInput) lbInput.value = (lbls || []).join(', ');
           if (mdInput) mdInput.value = md ? JSON.stringify(md, null, 2) : '';
+          if (annInput) annInput.value = ann;
         }
 
         function exitEdit(rowId, resetValues) {
@@ -604,12 +607,15 @@
             const ds = detail.getAttribute('data-original-dataset') || '';
             const lbls = JSON.parse(detail.getAttribute('data-original-labels') || '[]');
             const md = JSON.parse(detail.getAttribute('data-original-metadata') || 'null');
+            const ann = detail.getAttribute('data-original-annotation') || '';
             const dsInput = detail.querySelector(`#dataset-input-${rowId}`);
             const lbInput = detail.querySelector(`#labels-input-${rowId}`);
             const mdInput = detail.querySelector(`#metadata-input-${rowId}`);
+            const annInput = detail.querySelector(`#annotation-input-${rowId}`);
             if (dsInput) dsInput.value = ds;
             if (lbInput) lbInput.value = (lbls || []).join(', ');
             if (mdInput) mdInput.value = md ? JSON.stringify(md, null, 2) : '';
+            if (annInput) annInput.value = ann;
             // reset scores inputs
             const scores = JSON.parse(detail.getAttribute('data-original-scores') || '[]');
             const editor = detail.querySelector(`#scores-editor-${rowId}`);
@@ -670,12 +676,16 @@
             });
           }
 
+          const annInput = detail.querySelector(`#annotation-input-${rowId}`);
+          const annValue = annInput ? annInput.value.trim() : '';
+          
           const payload = {
             dataset: dsInput ? dsInput.value.trim() : undefined,
             labels: lbInput ? lbInput.value.split(',').map(x => x.trim()).filter(Boolean) : undefined,
             result: {
               metadata: metadata,
-              scores: scorePayload
+              scores: scorePayload,
+              annotation: annValue || null
             }
           };
 
@@ -703,103 +713,6 @@
         }
       }
 
-      // Annotation handlers
-      document.addEventListener('click', async (e) => {
-        const btnAdd = e.target.closest('.ann-add');
-        if (btnAdd) {
-          const rowId = btnAdd.getAttribute('data-row-id');
-          const table = document.getElementById('results-table');
-          const runId = table.getAttribute('data-run-id') || 'latest';
-          const text = document.getElementById(`ann-new-text-${rowId}`).value.trim();
-          if (!text) return;
-          try {
-            const resp = await fetch(`/api/runs/${runId}/results/${rowId}/annotations`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text })
-            });
-            if (!resp.ok) throw new Error(await resp.text());
-          } catch (err) {
-            alert(`Add annotation failed: ${err}`);
-            return;
-          }
-          try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
-          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
-          return;
-        }
-
-        const btnEdit = e.target.closest('.ann-edit');
-        if (btnEdit) {
-          const rowId = btnEdit.getAttribute('data-row-id');
-          const idx = btnEdit.getAttribute('data-ann-index');
-          const li = document.querySelector(`tr[data-row='detail'][data-row-id='${rowId}'] li[data-ann-index='${idx}']`);
-          if (!li) return;
-          li.querySelector('.view-ann')?.classList.add('hidden');
-          li.querySelector('.edit-ann')?.classList.remove('hidden');
-          btnEdit.classList.add('hidden');
-          li.querySelector('.ann-save')?.classList.remove('hidden');
-          li.querySelector('.ann-cancel')?.classList.remove('hidden');
-          return;
-        }
-
-        const btnCancel = e.target.closest('.ann-cancel');
-        if (btnCancel) {
-          const rowId = btnCancel.getAttribute('data-row-id');
-          const idx = btnCancel.getAttribute('data-ann-index');
-          const li = document.querySelector(`tr[data-row='detail'][data-row-id='${rowId}'] li[data-ann-index='${idx}']`);
-          if (!li) return;
-          li.querySelector('.view-ann')?.classList.remove('hidden');
-          li.querySelector('.edit-ann')?.classList.add('hidden');
-          li.querySelector('.ann-edit')?.classList.remove('hidden');
-          li.querySelector('.ann-save')?.classList.add('hidden');
-          btnCancel.classList.add('hidden');
-          return;
-        }
-
-        const btnSave = e.target.closest('.ann-save');
-        if (btnSave) {
-          const rowId = btnSave.getAttribute('data-row-id');
-          const idx = btnSave.getAttribute('data-ann-index');
-          const table = document.getElementById('results-table');
-          const runId = table.getAttribute('data-run-id') || 'latest';
-          const li = document.querySelector(`tr[data-row='detail'][data-row-id='${rowId}'] li[data-ann-index='${idx}']`);
-          const text = li.querySelector('[name="ann-text"]').value.trim();
-          try {
-            const resp = await fetch(`/api/runs/${runId}/results/${rowId}/annotations/${idx}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text })
-            });
-            if (!resp.ok) throw new Error(await resp.text());
-          } catch (err) {
-            alert(`Update annotation failed: ${err}`);
-            return;
-          }
-          try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
-          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
-          return;
-        }
-
-        const btnDelete = e.target.closest('.ann-delete');
-        if (btnDelete) {
-          const rowId = btnDelete.getAttribute('data-row-id');
-          const idx = btnDelete.getAttribute('data-ann-index');
-          const table = document.getElementById('results-table');
-          const runId = table.getAttribute('data-run-id') || 'latest';
-          try {
-            const resp = await fetch(`/api/runs/${runId}/results/${rowId}/annotations/${idx}`, {
-              method: 'DELETE'
-            });
-            if (!resp.ok) throw new Error(await resp.text());
-          } catch (err) {
-            alert(`Delete annotation failed: ${err}`);
-            return;
-          }
-          try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
-          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
-          return;
-        }
-      });
 
       function wireExportButtons() {
         const table = document.getElementById('results-table');

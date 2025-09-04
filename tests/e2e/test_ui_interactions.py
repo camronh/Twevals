@@ -173,30 +173,38 @@ def test_annotations_crud(tmp_path):
 
             # Expand third row (index 2)
             page.locator(".expand-btn").nth(2).click()
-
-            # Add annotation
-            page.fill("#ann-new-text-2", "First note")
-            page.click(".ann-add[data-row-id='2']")
+            page.wait_for_selector("tr[data-row='detail'][data-row-id='2']", state="visible")
+            # Enter edit mode and set annotation
+            page.locator(".edit-btn[data-row-id='2']").click()
+            page.fill("#annotation-input-2", "First note")
+            page.locator(".save-btn[data-row-id='2']").click()
             page.wait_for_selector("#results-table")
-            from playwright.sync_api import expect
-            expect(page.locator("[data-testid='ann-item']")).to_contain_text("First note")
+            page.wait_for_timeout(500)  # Wait for JS to initialize after htmx refresh
+            # The row should auto-expand from localStorage, but if not, click again
+            detail = page.locator("tr[data-row='detail'][data-row-id='2']")
+            if detail.is_hidden():
+                page.locator(".expand-btn").nth(2).click()
+            page.wait_for_selector("tr[data-row='detail'][data-row-id='2']:not([hidden])")
+            assert page.locator("[data-testid='annotations-section']").locator("text=First note").count() > 0
 
             # Edit it
-            page.click(".ann-edit[data-row-id='2'][data-ann-index='0']")
-            page.fill("li[data-ann-index='0'] [name='ann-text']", "Updated note")
-            # Intercept dialog pre-registration for potential future confs
-            page.click(".ann-save[data-row-id='2'][data-ann-index='0']")
+            page.locator(".edit-btn[data-row-id='2']").click()
+            page.fill("#annotation-input-2", "Updated note")
+            page.locator(".save-btn[data-row-id='2']").click()
             page.wait_for_selector("#results-table")
-            expect(page.locator("[data-testid='ann-item']")).to_contain_text("Updated note")
-
-            # Delete it via API for reliability, then refresh UI
-            resp = requests.delete(f"{url}/api/runs/{run_id}/results/2/annotations/0")
-            assert resp.status_code == 200
-            page.reload()
-            page.wait_for_selector("#results-table")
-            # Row should auto-reopen; if not, open it
-            if page.locator("tr[data-row='detail'][data-row-id='2']").get_attribute("hidden") is not None:
+            page.wait_for_timeout(500)  # Wait for JS to initialize after htmx refresh
+            # The row should auto-expand from localStorage, but if not, click again
+            detail = page.locator("tr[data-row='detail'][data-row-id='2']")
+            if detail.is_hidden():
                 page.locator(".expand-btn").nth(2).click()
-            # Verify no annotations remain in this row's list
-            assert page.locator("#ann-list-2 li[data-testid='ann-item']").count() == 0
+            page.wait_for_selector("tr[data-row='detail'][data-row-id='2']:not([hidden])")
+            assert page.locator("[data-testid='annotations-section']").locator("text=Updated note").count() > 0
+
+            # Clear it
+            page.locator(".edit-btn[data-row-id='2']").click()
+            page.fill("#annotation-input-2", "")
+            page.locator(".save-btn[data-row-id='2']").click()
+            page.wait_for_selector("#results-table")
+            page.locator(".expand-btn").nth(2).click()
+            assert page.locator("[data-testid='annotations-section']").locator("text=Updated note").count() == 0
             browser.close()
