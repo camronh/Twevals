@@ -146,6 +146,11 @@ def serve(
     app = create_app(
         results_dir=results_dir,
         active_run_id=run_id,
+        path=path,
+        dataset=dataset,
+        labels=labels,
+        concurrency=concurrency,
+        verbose=verbose,
     )
     # Friendly startup message
     url = f"http://{host}:{port}"

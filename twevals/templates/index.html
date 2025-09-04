@@ -53,6 +53,13 @@
         Export CSV
       </button>
       <button
+        id="rerun-btn"
+        class="px-3 py-2 bg-green-600 text-white rounded"
+        title="Rerun all evaluations"
+      >
+        Rerun
+      </button>
+      <button
         class="px-4 py-2 bg-blue-500 text-white rounded"
         hx-get="/results"
         hx-target="#results"
@@ -444,6 +451,7 @@
           initInlineEditing();
           restoreExpandedRow();
           wireExportButtons();
+          wireRerunButton();
         }
       });
 
@@ -781,6 +789,27 @@
             window.location.href = `/api/runs/${runId}/export/csv`;
           };
         }
+      }
+
+      function wireRerunButton() {
+        const btn = document.getElementById('rerun-btn');
+        if (!btn) return;
+        btn.onclick = async () => {
+          const original = btn.textContent;
+          btn.textContent = 'Rerunning…';
+          btn.disabled = true;
+          try {
+            const resp = await fetch('/api/runs/rerun', { method: 'POST' });
+            if (!resp.ok) throw new Error(await resp.text());
+            // After rerun, reload results
+            htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+          } catch (e) {
+            alert('Rerun failed: ' + e);
+          } finally {
+            btn.disabled = false;
+            btn.textContent = original;
+          }
+        };
       }
     </script>
   </body>

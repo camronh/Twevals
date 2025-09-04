@@ -146,3 +146,47 @@ def test_export_endpoints(tmp_path: Path):
     assert rc.headers.get("content-type", "").startswith("text/csv")
     text = rc.text
     assert "function,dataset,labels,input,output,reference,scores,error,latency,metadata,run_data,annotations" in text.splitlines()[0]
+
+
+def test_rerun_endpoint(tmp_path: Path):
+    # Create a small eval file
+    eval_dir = tmp_path / "evals"
+    eval_dir.mkdir()
+    f = eval_dir / "test_e.py"
+    f.write_text(
+        """
+from twevals import eval, EvalResult
+
+@eval(dataset="rerun_ds")
+def case():
+    return EvalResult(input="x", output="y")
+"""
+    )
+
+    # Seed with an arbitrary run
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
+
+    # App configured with path for rerun
+    from twevals.server import create_app
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run_id,
+        path=str(f),
+        dataset=None,
+        labels=None,
+        concurrency=0,
+        verbose=False,
+    )
+    client = TestClient(app)
+
+    # Trigger rerun
+    rr = client.post("/api/runs/rerun")
+    assert rr.status_code == 200
+    payload = rr.json()
+    assert payload.get("ok") is True and payload.get("run_id")
+
+    # Results endpoint should now reflect the new run (dataset present)
+    r = client.get("/results")
+    assert r.status_code == 200
+    assert "rerun_ds" in r.text

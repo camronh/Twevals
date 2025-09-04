@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.templating import Jinja2Templates
@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from twevals.storage import ResultsStore
+from twevals.runner import EvalRunner
 
 
 class ResultUpdateBody(BaseModel):
@@ -18,6 +19,11 @@ class ResultUpdateBody(BaseModel):
 def create_app(
     results_dir: str,
     active_run_id: str,
+    path: Optional[str] = None,
+    dataset: Optional[str] = None,
+    labels: Optional[List[str]] = None,
+    concurrency: int = 0,
+    verbose: bool = False,
 ) -> FastAPI:
     """Create a FastAPI application serving evaluation results from JSON files."""
 
@@ -27,6 +33,12 @@ def create_app(
 
     app.state.active_run_id = active_run_id
     app.state.store = store
+    # Rerun configuration (optional but recommended)
+    app.state.path = path
+    app.state.dataset = dataset
+    app.state.labels = labels
+    app.state.concurrency = concurrency
+    app.state.verbose = verbose
 
     @app.get("/")
     def index(request: Request):
@@ -91,6 +103,27 @@ def create_app(
         except IndexError:
             raise HTTPException(status_code=404, detail="Index out of range")
         return {"ok": True}
+
+    @app.post("/api/runs/rerun")
+    def rerun():
+        # Ensure we have rerun configuration
+        if not app.state.path:
+            raise HTTPException(status_code=400, detail="Server not configured with path to evals")
+        runner = EvalRunner(concurrency=app.state.concurrency, verbose=app.state.verbose)
+        try:
+            summary = runner.run(
+                path=app.state.path,
+                dataset=app.state.dataset,
+                labels=app.state.labels,
+                verbose=app.state.verbose,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        # Save as a fresh run and update active run id
+        new_run_id = store.save_run(summary)
+        app.state.active_run_id = new_run_id
+        return {"ok": True, "run_id": new_run_id}
 
     @app.get("/api/runs/{run_id}/export/json")
     def export_json(run_id: str):
