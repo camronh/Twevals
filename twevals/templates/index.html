@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Twevals Results</title>
+    <title>Eval Results</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -35,38 +35,28 @@
       }
     </style>
   </head>
-  <body class="p-4">
-    <div class="flex items-center gap-2 mb-4">
-      <h1 class="text-2xl font-bold mr-auto">Twevals Results</h1>
-      <button
-        id="export-json"
-        class="px-3 py-2 bg-gray-100 text-gray-700 border rounded"
-        title="Download results as JSON"
-      >
-        Export JSON
-      </button>
-      <button
-        id="export-csv"
-        class="px-3 py-2 bg-gray-100 text-gray-700 border rounded"
-        title="Download results as CSV"
-      >
-        Export CSV
-      </button>
-      <button
-        id="rerun-btn"
-        class="px-3 py-2 bg-green-600 text-white rounded"
-        title="Rerun all evaluations"
-      >
-        Rerun
-      </button>
-      <button
-        class="px-4 py-2 bg-blue-500 text-white rounded"
-        hx-get="/results"
-        hx-target="#results"
-        hx-swap="innerHTML"
-      >
-        Refresh
-      </button>
+  <body class="min-h-screen bg-gray-50 text-gray-900 p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <h1 class="text-2xl font-semibold mr-auto tracking-tight">Twevals Results</h1>
+      <div id="loading-indicator" class="hidden items-center text-sm text-gray-600">
+        <svg class="animate-spin h-4 w-4 mr-2 text-gray-500" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+        Loading…
+      </div>
+      <div class="relative">
+        <button id="actions-toggle" class="px-3 py-2 bg-gray-900 text-white rounded shadow-sm">
+          Actions ▾
+        </button>
+        <div id="actions-menu" class="hidden absolute right-0 mt-2 w-44 bg-white border rounded shadow z-20 py-1">
+          <button class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-action="refresh">Refresh</button>
+          <button class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-action="rerun">Rerun</button>
+          <div class="my-1 border-t"></div>
+          <button class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-action="export-json">Export JSON</button>
+          <button class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-action="export-csv">Export CSV</button>
+        </div>
+      </div>
       <div class="relative">
         <button id="columns-toggle" class="px-3 py-2 bg-gray-100 border rounded">
           Columns ▾
@@ -450,8 +440,7 @@
           initExpandHandlers();
           initInlineEditing();
           restoreExpandedRow();
-          wireExportButtons();
-          wireRerunButton();
+          wireActionsMenu();
         }
       });
 
@@ -791,26 +780,50 @@
         }
       }
 
-      function wireRerunButton() {
-        const btn = document.getElementById('rerun-btn');
-        if (!btn) return;
-        btn.onclick = async () => {
-          const original = btn.textContent;
-          btn.textContent = 'Rerunning…';
-          btn.disabled = true;
-          try {
-            const resp = await fetch('/api/runs/rerun', { method: 'POST' });
-            if (!resp.ok) throw new Error(await resp.text());
-            // After rerun, reload results
-            htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
-          } catch (e) {
-            alert('Rerun failed: ' + e);
-          } finally {
-            btn.disabled = false;
-            btn.textContent = original;
-          }
-        };
+      function wireActionsMenu() {
+        const table = document.getElementById('results-table');
+        const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest';
+        const toggle = document.getElementById('actions-toggle');
+        const menu = document.getElementById('actions-menu');
+        if (!toggle || !menu) return;
+
+        toggle.onclick = () => menu.classList.toggle('hidden');
+        document.addEventListener('click', (e) => {
+          if (!menu.contains(e.target) && e.target !== toggle) menu.classList.add('hidden');
+        });
+
+        menu.querySelectorAll('[data-action]').forEach((el) => {
+          el.onclick = async (e) => {
+            const act = e.currentTarget.getAttribute('data-action');
+            menu.classList.add('hidden');
+            if (act === 'refresh') {
+              showLoading();
+              htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+            } else if (act === 'rerun') {
+              try {
+                showLoading();
+                const resp = await fetch('/api/runs/rerun', { method: 'POST' });
+                if (!resp.ok) throw new Error(await resp.text());
+                htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+              } catch (e) {
+                alert('Rerun failed: ' + e);
+              } finally {
+                hideLoading();
+              }
+            } else if (act === 'export-json') {
+              window.location.href = `/api/runs/${runId}/export/json`;
+            } else if (act === 'export-csv') {
+              window.location.href = `/api/runs/${runId}/export/csv`;
+            }
+          };
+        });
       }
+
+      function showLoading() { const el = document.getElementById('loading-indicator'); if (el) el.classList.remove('hidden'); }
+      function hideLoading() { const el = document.getElementById('loading-indicator'); if (el) el.classList.add('hidden'); }
+      document.body.addEventListener('htmx:beforeRequest', showLoading);
+      document.body.addEventListener('htmx:afterSwap', hideLoading);
+      document.body.addEventListener('htmx:responseError', hideLoading);
     </script>
   </body>
   </html>

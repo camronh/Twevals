@@ -92,8 +92,7 @@
         data-original-scores='{{ (r.result.scores or []) | tojson | e }}'>
       <td colspan="9" class="px-6 py-4">
         <div class="border rounded-md p-4 bg-white shadow-sm">
-          <div class="flex justify-between items-center mb-3">
-            <div class="text-sm text-gray-600">Row {{ row_id + 1 }}</div>
+          <div class="flex justify-end items-center mb-3">
             <div class="flex gap-2">
               <button class="edit-btn px-3 py-1 text-sm border rounded" data-row-id="{{ row_id }}">Edit</button>
               <button class="save-btn px-3 py-1 text-sm border rounded bg-green-600 text-white hidden" data-row-id="{{ row_id }}">Save</button>
