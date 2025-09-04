@@ -1,0 +1,44 @@
+name: Publish Dev on Main
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  publish-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Set dev version (timestamp)
+        run: |
+          python - <<'PY'
+          import datetime, re, pathlib
+          p = pathlib.Path('pyproject.toml')
+          s = p.read_text()
+          ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
+          new_ver = f'0.0.0.dev{ts}'
+          s = re.sub(r'(?m)^(version\s*=\s*")([^"]+)(")', lambda m: m.group(1)+new_ver+m.group(3), s)
+          p.write_text(s)
+          print(f'Version set to: {new_ver}')
+          PY
+
+      - name: Install build
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI (dev)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+

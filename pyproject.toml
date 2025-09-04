@@ -5,6 +5,9 @@ description = "A lightweight, code-first evaluation framework for testing AI age
 authors = ["Twevals Team"]
 readme = "README.md"
 packages = [{ include = "twevals" }]
+include = [
+  "twevals/templates/**/*",
+]
 
 # Optional but recommended metadata for PyPI
 homepage = "https://github.com/camronh/Twevals"
@@ -41,7 +44,7 @@ ruff = "^0.12.9"
 playwright = "^1.48.0"
 
 [tool.poetry.scripts]
-twevals = "twevals.cli:main"
+twevals = "twevals.cli:cli"
 
 [build-system]
 requires = ["poetry-core"]

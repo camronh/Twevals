@@ -1,8 +1,12 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [created]
+  # Publish automatically when you push a tag like v0.0.1
+  push:
+    tags:
+      - "v*"
+  # Still allow manual runs if you need them
+  workflow_dispatch:
 
 jobs:
   deploy:

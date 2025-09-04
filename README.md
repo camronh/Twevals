@@ -6,10 +6,15 @@ Code‑first evaluation for AI agents and LLM apps. This README focuses on concr
 
 ## Install
 
-- Poetry (developing this repo):
-  ```bash
-  poetry install  # Python 3.10+
-  ```
+```bash
+pip install twevals   # Python 3.10+
+```
+
+Develop this repo (Poetry):
+
+```bash
+poetry install
+```
 
 ## Quick Start: Serve the Web UI (recommended)
 
@@ -53,6 +58,7 @@ poetry run twevals serve examples
 ```
 
 Results storage and UI:
+
 - Saves to `.twevals/runs/<YYYY-MM-DDTHH-MM-SSZ>.json` and a portable copy at `.twevals/runs/latest.json`.
 - UI loads results from JSON on every refresh; external edits are reflected.
 - Inline editing via API: `PATCH /api/runs/{run_id}/results/{index}` for `dataset`, `labels`, and `result.{scores,metadata,error,reference,annotation}`.
@@ -186,7 +192,7 @@ Cartesian product and async:
 
 ```python
 @eval(dataset="model_comparison")
-@parametrize("model", ["gpt-3.5", "gpt-4"]) 
+@parametrize("model", ["gpt-4.1", "gpt-5"])
 @parametrize("temperature", [0.0, 1.0])
 async def test_model_temperatures(model, temperature):
     return EvalResult(
@@ -285,6 +291,7 @@ EvalResult(
 ```
 
 Notes:
+
 - Each score must include either `value` (numeric) or `passed` (boolean). `notes` is optional and shown in the UI.
 - The UI also supports saving a single free‑form `annotation` per result via the web editor/API; this is persisted in the JSON results.
 
