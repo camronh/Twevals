@@ -66,6 +66,68 @@
         </div>
       </div>
       <div class="relative">
+        <button id="filters-toggle" class="relative px-2 py-2 bg-gray-100 border rounded" aria-label="Filters">
+          <svg class="h-4 w-4 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 5h18l-7 8v6l-4-2v-4L3 5z" />
+          </svg>
+          <span id="filters-count-badge" class="hidden absolute -top-1 -right-1 text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-blue-600 text-white"></span>
+        </button>
+        <div id="filters-menu" class="hidden absolute right-0 mt-2 w-[28rem] bg-white border rounded shadow z-30 p-3">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-sm font-semibold">Advanced Filters</p>
+            <button id="clear-filters" class="text-xs px-2 py-1 border rounded">Clear</button>
+          </div>
+          <div class="space-y-3">
+            <div>
+              <div class="text-xs font-semibold text-gray-500 mb-1">Key</div>
+              <select id="key-select" class="w-full border rounded px-2 py-1 text-sm"></select>
+            </div>
+            <div id="value-section">
+              <div class="text-xs font-semibold text-gray-500 mb-1">Score Value</div>
+              <div class="grid grid-cols-5 gap-2 items-center">
+                <div class="col-span-2 text-xs text-gray-400">Value condition</div>
+                <select id="fv-op" class="border rounded px-2 py-1 text-sm">
+                  <option value=">">&gt;</option>
+                  <option value=">=">&gt;=</option>
+                  <option value="<">&lt;</option>
+                  <option value="<=">&lt;=</option>
+                  <option value="==">=</option>
+                  <option value="!=">!=</option>
+                </select>
+                <input id="fv-val" type="number" step="any" placeholder="value" class="border rounded px-2 py-1 text-sm" />
+                <button id="add-fv" class="text-xs px-2 py-1 border rounded">Add</button>
+              </div>
+            </div>
+            <div id="passed-section">
+              <div class="text-xs font-semibold text-gray-500 mb-1">Score Passed</div>
+              <div class="grid grid-cols-5 gap-2 items-center">
+                <div class="col-span-3 text-xs text-gray-400">Boolean condition</div>
+                <select id="fp-val" class="border rounded px-2 py-1 text-sm">
+                  <option value="true">Pass</option>
+                  <option value="false">Fail</option>
+                </select>
+                <button id="add-fp" class="text-xs px-2 py-1 border rounded">Add</button>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-gray-500 mb-1">Has Annotation</div>
+              <div class="flex items-center gap-2">
+                <select id="fa-val" class="border rounded px-2 py-1 text-sm">
+                  <option value="any">Any</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+                <span class="text-xs text-gray-400">Filters apply automatically</span>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-gray-500 mb-1">Active Filters</div>
+              <div id="active-filters" class="flex flex-wrap gap-2 min-h-[1.25rem]"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="relative">
         <button id="columns-toggle" class="px-3 py-2 bg-gray-100 border rounded">
           Columns ▾
         </button>
@@ -139,6 +201,7 @@
       const SORT_STORAGE_KEY = "twevals:sort_state";
       const WIDTHS_STORAGE_KEY = "twevals:col_widths";
       const EXPANDED_ROW_KEY = "twevals:expanded_row";
+      const FILTERS_STORAGE_KEY = "twevals:filters";
       function getHiddenCols() {
         try {
           return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -168,6 +231,59 @@
       }
       function setColWidths(map) {
         localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map));
+      }
+      // Filters state helpers
+      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any' }; }
+      function getFilters() {
+        try { return JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) || 'null') || defaultFilters(); }
+        catch { return defaultFilters(); }
+      }
+      function setFilters(f) {
+        localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(f));
+        renderActiveFilters();
+        applyAllFilters();
+      }
+      function renderActiveFilters() {
+        const f = getFilters();
+        const ct = document.getElementById('active-filters');
+        const badge = document.getElementById('filters-count-badge');
+        if (!ct) return;
+        ct.innerHTML = '';
+        let count = 0;
+        f.valueRules.forEach((r, idx) => {
+          count++;
+          const el = document.createElement('span');
+          el.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs';
+          el.textContent = `${r.key} ${r.op} ${r.value}`;
+          const x = document.createElement('button'); x.className='ml-1 text-gray-500 hover:text-gray-700'; x.textContent='×';
+          x.onclick = () => { const nf = getFilters(); nf.valueRules.splice(idx,1); setFilters(nf); };
+          el.appendChild(x);
+          ct.appendChild(el);
+        });
+        f.passedRules.forEach((r, idx) => {
+          count++;
+          const el = document.createElement('span');
+          el.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs';
+          el.textContent = `${r.key} passed=${r.value}`;
+          const x = document.createElement('button'); x.className='ml-1 text-gray-500 hover:text-gray-700'; x.textContent='×';
+          x.onclick = () => { const nf = getFilters(); nf.passedRules.splice(idx,1); setFilters(nf); };
+          el.appendChild(x);
+          ct.appendChild(el);
+        });
+        if (f.annotation && f.annotation !== 'any') {
+          count++;
+          const el = document.createElement('span');
+          el.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs';
+          el.textContent = `annotation: ${f.annotation}`;
+          const x = document.createElement('button'); x.className='ml-1 text-gray-500 hover:text-gray-700'; x.textContent='×';
+          x.onclick = () => { const nf = getFilters(); nf.annotation = 'any'; setFilters(nf); };
+          el.appendChild(x);
+          ct.appendChild(el);
+        }
+        if (badge) {
+          if (count > 0) { badge.textContent = String(count); badge.classList.remove('hidden'); }
+          else { badge.textContent = ''; badge.classList.add('hidden'); }
+        }
       }
       function applyColumnVisibility() {
         const hidden = new Set(getHiddenCols());
@@ -338,6 +454,130 @@
         menuEl.classList.add("hidden");
       });
 
+      // Filters menu wiring and anchoring to header toggle
+      (function wireFiltersMenu(){
+        const menu = document.getElementById('filters-menu');
+        const toggle = document.getElementById('filters-toggle');
+        if (!menu || !toggle) return;
+        let currentAnchor = null;
+        function openMenuAt(el){
+          try { populateScoreKeySelects(); } catch {}
+          try { const f = getFilters(); const fa = document.getElementById('fa-val'); if (fa) fa.value = f.annotation || 'any'; } catch {}
+          const rect = el.getBoundingClientRect();
+          // Measure menu (unhide off-screen temporarily)
+          menu.classList.remove('hidden');
+          const prevVis = menu.style.visibility;
+          menu.style.visibility = 'hidden';
+          // Ensure fixed positioning
+          menu.style.position = 'fixed';
+          let mw = menu.offsetWidth || 0;
+          let mh = menu.offsetHeight || 0;
+          // Right-align to the trigger's right edge
+          let left = Math.round(rect.right - mw);
+          // Below the header cell by default
+          let top = Math.round(rect.bottom + 6);
+          // If bottom overflows viewport, try opening above
+          const vpW = window.innerWidth;
+          const vpH = window.innerHeight;
+          if (top + mh > vpH - 8) {
+            top = Math.round(rect.top - mh - 6);
+          }
+          // Clamp within viewport with small margin
+          left = Math.max(8, Math.min(left, vpW - mw - 8));
+          top = Math.max(8, Math.min(top, vpH - mh - 8));
+          menu.style.left = `${left}px`;
+          menu.style.top = `${top}px`;
+          menu.style.right = 'auto';
+          // Show
+          menu.style.visibility = prevVis || '';
+          currentAnchor = el;
+        }
+        function closeMenu(){ menu.classList.add('hidden'); currentAnchor = null; }
+        // Toggle open/close anchored to header button
+        toggle.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!menu.classList.contains('hidden') && currentAnchor === toggle) closeMenu();
+          else openMenuAt(toggle);
+        });
+        // Outside click closes
+        document.addEventListener('click', (e) => { if (!menu.contains(e.target) && e.target !== toggle) closeMenu(); });
+        const keySelect = document.getElementById('key-select');
+        const addFv = document.getElementById('add-fv');
+        const fvOp = document.getElementById('fv-op');
+        const fvVal = document.getElementById('fv-val');
+        if (addFv) addFv.addEventListener('click', () => {
+          const k = (keySelect?.value || '').trim();
+          const v = parseFloat(fvVal.value);
+          if (!k || Number.isNaN(v)) return;
+          const f = getFilters();
+          f.valueRules.push({ key: k, op: fvOp.value, value: v });
+          setFilters(f);
+          fvVal.value = '';
+        });
+        const addFp = document.getElementById('add-fp');
+        const fpVal = document.getElementById('fp-val');
+        if (addFp) addFp.addEventListener('click', () => {
+          const k = (keySelect?.value || '').trim();
+          if (!k) return;
+          const f = getFilters();
+          f.passedRules.push({ key: k, value: fpVal.value === 'true' });
+          setFilters(f);
+        });
+        const faVal = document.getElementById('fa-val');
+        if (faVal) faVal.addEventListener('change', () => {
+          const f = getFilters();
+          f.annotation = faVal.value;
+          setFilters(f);
+        });
+        const clearBtn = document.getElementById('clear-filters');
+        if (clearBtn) clearBtn.addEventListener('click', () => { setFilters(defaultFilters()); });
+        renderActiveFilters();
+        const ksSel = document.getElementById('key-select');
+        if (ksSel) ksSel.addEventListener('change', updateFilterSectionsVisibility);
+      })();
+
+      function computeScoreKeys(){
+        const tbody = document.querySelector('#results-table tbody');
+        if (!tbody) return [];
+        const keys = new Set();
+        const meta = {};
+        tbody.querySelectorAll("tr[data-row='detail']").forEach(tr => {
+          let scores = [];
+          try { scores = JSON.parse(tr.getAttribute('data-original-scores') || '[]') || []; } catch {}
+          (scores || []).forEach(s => {
+            const k = s && s.key; if (!k) return;
+            keys.add(k);
+            const m = meta[k] || (meta[k] = { hasNumeric: false, hasPassed: false });
+            const v = parseFloat(s.value);
+            if (!Number.isNaN(v)) m.hasNumeric = true;
+            if (s.passed === true || s.passed === false) m.hasPassed = true;
+          });
+        });
+        const arr = Array.from(keys).sort((a,b) => a.localeCompare(b));
+        return { all: arr, meta };
+      }
+      function populateScoreKeySelects(){
+        const ks = computeScoreKeys();
+        const sel = document.getElementById('key-select');
+        if (!sel) return;
+        const current = sel.value;
+        sel.innerHTML = '';
+        ks.all.forEach(k => { const opt = document.createElement('option'); opt.value = k; opt.textContent = k; sel.appendChild(opt); });
+        if (current && ks.all.includes(current)) sel.value = current; else if (ks.all.length) sel.value = ks.all[0];
+        updateFilterSectionsVisibility();
+      }
+      function updateFilterSectionsVisibility(){
+        const sel = document.getElementById('key-select');
+        const ks = computeScoreKeys();
+        const k = sel?.value || '';
+        const m = ks.meta[k] || { hasNumeric: false, hasPassed: false };
+        const valSec = document.getElementById('value-section');
+        const passSec = document.getElementById('passed-section');
+        if (valSec) valSec.classList.toggle('hidden', !m.hasNumeric);
+        if (passSec) passSec.classList.toggle('hidden', !m.hasPassed);
+      }
+
       // Multi-column sorting
       const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
       function getCellValue(tr, col) {
@@ -449,6 +689,7 @@
           initInlineEditing();
           restoreExpandedRow();
           wireActionsMenu();
+          try { populateScoreKeySelects(); applyAllFilters(); } catch {}
         }
       });
 
@@ -463,16 +704,51 @@
         toggleSort(table, col, type, e.shiftKey);
       });
 
-      // Client-side search filtering
+      // Client-side filtering (search + advanced)
       const searchInput = document.getElementById('search-input');
       if (searchInput) {
         let timer;
         searchInput.addEventListener('input', () => {
           clearTimeout(timer);
-          timer = setTimeout(applySearchFilter, 120);
+          timer = setTimeout(applyAllFilters, 120);
         });
       }
-      function applySearchFilter() {
+      function compare(op, a, b){
+        if (op === '>') return a > b;
+        if (op === '>=') return a >= b;
+        if (op === '<') return a < b;
+        if (op === '<=') return a <= b;
+        if (op === '==') return a === b;
+        if (op === '!=') return a !== b;
+        return false;
+      }
+
+      function rowMatchesFilters(mainTr, detailTr){
+        const f = getFilters();
+        if (f.annotation && f.annotation !== 'any') {
+          const ann = (detailTr?.getAttribute('data-original-annotation') || '').trim();
+          const has = !!ann;
+          if (f.annotation === 'yes' && !has) return false;
+          if (f.annotation === 'no' && has) return false;
+        }
+        let scores = [];
+        try { scores = JSON.parse(detailTr?.getAttribute('data-original-scores') || '[]') || []; } catch {}
+        for (const vr of (f.valueRules || [])){
+          const s = scores.find(x => (x && (x.key === vr.key)));
+          if (!s) return false;
+          const val = parseFloat(s.value);
+          if (Number.isNaN(val)) return false;
+          if (!compare(vr.op, val, vr.value)) return false;
+        }
+        for (const pr of (f.passedRules || [])){
+          const s = scores.find(x => (x && (x.key === pr.key)));
+          if (!s) return false;
+          if ((s.passed === true) !== (pr.value === true)) return false;
+        }
+        return true;
+      }
+
+      function applyAllFilters(){
         const q = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
         const tbody = document.querySelector('#results-table tbody');
         if (!tbody) return;
@@ -480,16 +756,74 @@
         mains.forEach((tr) => {
           const id = tr.getAttribute('data-row-id');
           const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
-          if (!q) {
-            tr.classList.remove('hidden');
+          let show = true;
+          if (q) {
+            const text = tr.textContent.toLowerCase();
+            if (!text.includes(q)) show = false;
+          }
+          if (show) show = rowMatchesFilters(tr, detail);
+          tr.classList.toggle('hidden', !show);
+          if (!show && detail && detail.getAttribute('hidden') === null) {
+            detail.setAttribute('hidden', '');
+          }
+        });
+        updateFilteredSummary();
+      }
+
+      function updateFilteredSummary(){
+        const container = document.getElementById('filtered-summary');
+        const table = document.getElementById('results-table');
+        if (!container || !table) return;
+        const tbody = table.querySelector('tbody');
+        const mains = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
+        const visible = mains.filter(tr => !tr.classList.contains('hidden'));
+        const hasActive = (() => { const f = getFilters(); return (f.valueRules.length + f.passedRules.length + (f.annotation!=='any'?1:0)) > 0 || (document.getElementById('search-input')?.value || '').trim().length>0; })();
+        container.classList.toggle('hidden', !hasActive);
+        if (!hasActive) return;
+        const countEl = document.getElementById('filtered-count-chip');
+        if (countEl) countEl.textContent = `Filtered: ${visible.length}/${mains.length}`;
+        let sum = 0, cnt = 0;
+        visible.forEach(tr => {
+          const td = tr.querySelector("td[data-col='latency']");
+          const v = parseFloat(td?.getAttribute('data-value') || '');
+          if (!Number.isNaN(v)) { sum += v; cnt += 1; }
+        });
+        const avgEl = document.getElementById('filtered-avg-latency');
+        if (avgEl) avgEl.textContent = cnt>0 ? `Avg: ${(sum/cnt).toFixed(2)}s` : 'Avg: —';
+        const chipsEl = document.getElementById('filtered-score-chips');
+        if (chipsEl) chipsEl.innerHTML = '';
+        const map = {};
+        visible.forEach(tr => {
+          const id = tr.getAttribute('data-row-id');
+          const det = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
+          let scores = [];
+          try { scores = JSON.parse(det?.getAttribute('data-original-scores') || '[]') || []; } catch {}
+          scores.forEach(s => {
+            const key = s?.key; if (!key) return;
+            const d = map[key] || (map[key] = {passed:0, failed:0, bool:0, sum:0, count:0});
+            if (s.passed === true) { d.passed++; d.bool++; }
+            else if (s.passed === false) { d.failed++; d.bool++; }
+            const val = parseFloat(s.value);
+            if (!Number.isNaN(val)) { d.sum += val; d.count += 1; }
+          });
+        });
+        Object.entries(map).forEach(([k,d]) => {
+          const el = document.createElement('span');
+          el.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium mr-1';
+          if (d.bool>0){
+            const total = d.passed + d.failed;
+            let klass = 'bg-yellow-100 text-yellow-800';
+            if (d.passed === total) klass = 'bg-green-100 text-green-800';
+            else if (d.passed === 0 && total>0) klass = 'bg-red-100 text-red-800';
+            el.className += ' ' + klass;
+            el.textContent = `${k}: ${d.passed}/${total}`;
+          } else if (d.count>0){
+            el.className += ' bg-slate-100 text-slate-800';
+            el.textContent = `${k}: ${(d.sum/d.count).toFixed(2)}`;
+          } else {
             return;
           }
-          const text = tr.textContent.toLowerCase();
-          const match = text.includes(q);
-          tr.classList.toggle('hidden', !match);
-          if (detail && detail.getAttribute('hidden') === null) {
-            if (!match) detail.setAttribute('hidden', '');
-          }
+          chipsEl?.appendChild(el);
         });
       }
 

@@ -12,7 +12,7 @@
   {% endif %}
   {% if p.pass %}{% set ns.passed = ns.passed + 1 %}{% elif p.fail %}{% set ns.failed = ns.failed + 1 %}{% endif %}
 {% endfor %}
-<div class="mb-3 flex flex-wrap items-center gap-2">
+<div id="summary-chips" class="mb-3 flex flex-wrap items-center gap-2">
   <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     Tests: {{ summary.total_evaluations }}
@@ -36,6 +36,15 @@
       Avg: {{ summary.average_latency | round(2) }}s
     </span>
   {% endif %}
+  
+</div>
+<!-- Filtered summary (computed client-side) -->
+<div id="filtered-summary" class="mb-3 hidden">
+  <div class="flex flex-wrap items-center gap-2">
+    <span id="filtered-count-chip" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium"></span>
+    <span id="filtered-avg-latency" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-medium"></span>
+    <span id="filtered-score-chips" class="inline-flex items-center gap-1 flex-wrap"></span>
+  </div>
 </div>
 <div class="overflow-x-auto">
 <table id="results-table" class="w-full table-fixed divide-y divide-gray-200 shadow ring-1 ring-black ring-opacity-5 rounded-lg" data-run-id="{{ run_id }}">
