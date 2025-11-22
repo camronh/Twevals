@@ -1,10 +1,11 @@
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 import functools
 import time
 import asyncio
 import inspect
 
 from twevals.schemas import EvalResult, Score
+from twevals.context import EvalContext
 
 
 class EvalFunction:
@@ -13,14 +14,39 @@ class EvalFunction:
         func: Callable,
         dataset: Optional[str] = None,
         labels: Optional[List[str]] = None,
-        evaluators: Optional[List[Callable]] = None
+        evaluators: Optional[List[Callable]] = None,
+        # Context injection parameters
+        input: Any = None,
+        reference: Any = None,
+        default_score_key: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        metadata_from_params: Optional[List[str]] = None,
     ):
         self.func = func
         self.dataset = dataset if dataset is not None else self._infer_dataset_from_name(func)
         self.labels = labels or []
         self.evaluators = evaluators or []
         self.is_async = asyncio.iscoroutinefunction(func)
+
+        # Context injection support
+        self.context_param = self._detect_context_param(func)
+        self.context_kwargs = {
+            'input': input,
+            'reference': reference,
+            'default_score_key': default_score_key,
+            'metadata': metadata,
+        }
+        self.metadata_from_params = metadata_from_params or []
+
         functools.update_wrapper(self, func)
+
+    def _detect_context_param(self, func: Callable) -> Optional[str]:
+        """Detect if function has a context parameter (context, ctx, or carrier)"""
+        sig = inspect.signature(func)
+        for param_name in ['context', 'ctx', 'carrier']:
+            if param_name in sig.parameters:
+                return param_name
+        return None
 
     def _infer_dataset_from_name(self, func: Callable) -> str:
         module = inspect.getmodule(func)
@@ -29,6 +55,37 @@ class EvalFunction:
             filename = os.path.basename(module.__file__)
             return filename.replace('.py', '')
         return 'default'
+
+    def _create_context(self, kwargs: Dict[str, Any]) -> EvalContext:
+        """Create EvalContext from decorator kwargs and function kwargs"""
+        # Start with decorator-provided values
+        context_init = {k: v for k, v in self.context_kwargs.items() if v is not None}
+
+        # Extract metadata_from_params if specified
+        if self.metadata_from_params:
+            if 'metadata' not in context_init:
+                context_init['metadata'] = {}
+            for param_name in self.metadata_from_params:
+                if param_name in kwargs:
+                    context_init['metadata'][param_name] = kwargs[param_name]
+
+        return EvalContext(**context_init)
+
+    def _process_result(self, result: Any, context: Optional[EvalContext] = None) -> Union[EvalResult, List[EvalResult]]:
+        """Process function result, handling EvalContext and auto-return"""
+        # If result is None and we have a context, auto-return context.build()
+        if result is None and context is not None:
+            return context.build()
+
+        # If result is EvalContext, convert to EvalResult
+        if isinstance(result, EvalContext):
+            return result.build()
+
+        # Otherwise, result should be EvalResult or List[EvalResult]
+        if not isinstance(result, (EvalResult, list)):
+            raise ValueError(f"Evaluation function must return EvalResult, List[EvalResult], EvalContext, or None (with context param), got {type(result)}")
+
+        return result
     
     def _process_evaluator_result(self, eval_result, processed_result: EvalResult) -> EvalResult:
         """Process the result from an evaluator and update the EvalResult accordingly."""
@@ -96,18 +153,30 @@ class EvalFunction:
         return processed_result
 
     async def _execute_async(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
+        # Create context if function expects it
+        context = None
+        if self.context_param:
+            context = self._create_context(kwargs)
+            # Inject context as first argument
+            args = (context,) + args
+
         # Measure only the main function execution time
         start = time.time()
         try:
             result = await self.func(*args, **kwargs)
+            result = self._process_result(result, context)
         except Exception as e:
-            result = EvalResult(
-                input=kwargs.get('input', args[0] if args else None),
-                output=None,
-                error=str(e)
-            )
+            # If we have a context with partial data, preserve it
+            if context is not None:
+                result = context.build_with_error(str(e))
+            else:
+                result = EvalResult(
+                    input=kwargs.get('input', args[0] if args else None),
+                    output=None,
+                    error=str(e)
+                )
         latency = time.time() - start
-        
+
         # Set latency first (only for main function, excludes evaluators)
         if isinstance(result, EvalResult):
             if result.latency is None:
@@ -118,24 +187,36 @@ class EvalFunction:
                     r.latency = latency / len(result)
         else:
             raise ValueError(f"Evaluation function must return EvalResult or List[EvalResult], got {type(result)}")
-        
+
         # Apply evaluators after latency is set (not included in latency measurement)
         result = await self._apply_evaluators_async(result)
         return result
 
     def _execute_sync(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
+        # Create context if function expects it
+        context = None
+        if self.context_param:
+            context = self._create_context(kwargs)
+            # Inject context as first argument
+            args = (context,) + args
+
         # Measure only the main function execution time
         start = time.time()
         try:
             result = self.func(*args, **kwargs)
+            result = self._process_result(result, context)
         except Exception as e:
-            result = EvalResult(
-                input=kwargs.get('input', args[0] if args else None),
-                output=None,
-                error=str(e)
-            )
+            # If we have a context with partial data, preserve it
+            if context is not None:
+                result = context.build_with_error(str(e))
+            else:
+                result = EvalResult(
+                    input=kwargs.get('input', args[0] if args else None),
+                    output=None,
+                    error=str(e)
+                )
         latency = time.time() - start
-        
+
         # Set latency first (only for main function, excludes evaluators)
         if isinstance(result, EvalResult):
             if result.latency is None:
@@ -146,7 +227,7 @@ class EvalFunction:
                     r.latency = latency / len(result)
         else:
             raise ValueError(f"Evaluation function must return EvalResult or List[EvalResult], got {type(result)}")
-        
+
         # Apply evaluators after latency is set (not included in latency measurement)
         result = self._apply_evaluators_sync(result)
         return result
@@ -202,10 +283,16 @@ class EvalFunction:
 def eval(
     dataset: Optional[str] = None,
     labels: Optional[List[str]] = None,
-    evaluators: Optional[List[Callable]] = None
+    evaluators: Optional[List[Callable]] = None,
+    # Context injection parameters
+    input: Any = None,
+    reference: Any = None,
+    default_score_key: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    metadata_from_params: Optional[List[str]] = None,
 ):
     from twevals.parametrize import ParametrizedEvalFunction
-    
+
     # Support both @eval and @eval()
     if callable(dataset) and labels is None and evaluators is None:
         # Called as @eval without parentheses
@@ -215,12 +302,18 @@ def eval(
             func.eval_func = EvalFunction(func.base_func, None, None, None)
             return func
         return EvalFunction(func, None, None, None)
-    
+
     # Called as @eval() or @eval(dataset=..., labels=..., evaluators=...)
     def decorator(func: Union[Callable, ParametrizedEvalFunction]):
         if isinstance(func, ParametrizedEvalFunction):
             # Handle parametrized function
-            func.eval_func = EvalFunction(func.base_func, dataset, labels, evaluators)
+            func.eval_func = EvalFunction(
+                func.base_func, dataset, labels, evaluators,
+                input, reference, default_score_key, metadata, metadata_from_params
+            )
             return func
-        return EvalFunction(func, dataset, labels, evaluators)
+        return EvalFunction(
+            func, dataset, labels, evaluators,
+            input, reference, default_score_key, metadata, metadata_from_params
+        )
     return decorator

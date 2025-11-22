@@ -1,8 +1,9 @@
 from twevals.decorators import eval
 from twevals.schemas import EvalResult
 from twevals.parametrize import parametrize
+from twevals.context import EvalContext
 
-__all__ = ["eval", "EvalResult", "parametrize"]
+__all__ = ["eval", "EvalResult", "parametrize", "EvalContext"]
 
 # Resolve version from installed package metadata to avoid hard-coding.
 try:  # Python 3.8+

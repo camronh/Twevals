@@ -21,51 +21,120 @@ class ParametrizedEvalFunction:
     def generate_eval_functions(self) -> List[EvalFunction]:
         """Generate individual EvalFunction instances for each parameter set"""
         functions = []
-        
+
+        # Detect if base function has a context parameter
+        sig = inspect.signature(self.base_func)
+        has_context = any(param in sig.parameters for param in ['context', 'ctx', 'carrier'])
+
+        # EvalResult field names that can be auto-mapped to context
+        context_field_names = {'input', 'output', 'reference', 'metadata', 'run_data', 'latency'}
+
         for idx, params in enumerate(self.param_sets):
             # Create a wrapper function for this specific parameter set
             test_id = self.ids[idx] if idx < len(self.ids) else None
-            
+
             # Create function name with test ID if available
             if test_id:
                 func_name = f"{self.base_func.__name__}[{test_id}]"
             else:
                 func_name = f"{self.base_func.__name__}[{idx}]"
-            
-            # Create the wrapper based on whether base function is async
-            # Use default parameter to capture current params value
-            if inspect.iscoroutinefunction(self.base_func):
-                async def wrapper(*args, _params=params, **kwargs):
-                    # Merge parametrized values with any provided kwargs
-                    merged_kwargs = {**_params, **kwargs}
-                    return await self.base_func(*args, **merged_kwargs)
+
+            # If function has context param, separate context fields from regular params
+            context_kwargs = {}
+            function_params = {}
+
+            if has_context:
+                for key, value in params.items():
+                    if key in context_field_names:
+                        context_kwargs[key] = value
+                    else:
+                        function_params[key] = value
             else:
-                def wrapper(*args, _params=params, **kwargs):
-                    # Merge parametrized values with any provided kwargs
-                    merged_kwargs = {**_params, **kwargs}
-                    return self.base_func(*args, **merged_kwargs)
-            
+                # No context, all params go to function
+                function_params = params
+
+            # Create the wrapper based on whether base function is async
+            # If base function has context param, wrapper must also have it
+            if has_context:
+                # Wrapper with context parameter
+                context_param_name = [p for p in ['context', 'ctx', 'carrier'] if p in sig.parameters][0]
+
+                if inspect.iscoroutinefunction(self.base_func):
+                    # Create wrapper with explicit context parameter
+                    if context_param_name == 'context':
+                        async def wrapper(context, _params=function_params, **kwargs):
+                            merged_kwargs = {**_params, **kwargs}
+                            return await self.base_func(context, **merged_kwargs)
+                    elif context_param_name == 'ctx':
+                        async def wrapper(ctx, _params=function_params, **kwargs):
+                            merged_kwargs = {**_params, **kwargs}
+                            return await self.base_func(ctx, **merged_kwargs)
+                    else:  # carrier
+                        async def wrapper(carrier, _params=function_params, **kwargs):
+                            merged_kwargs = {**_params, **kwargs}
+                            return await self.base_func(carrier, **merged_kwargs)
+                else:
+                    # Sync version
+                    if context_param_name == 'context':
+                        def wrapper(context, _params=function_params, **kwargs):
+                            merged_kwargs = {**_params, **kwargs}
+                            return self.base_func(context, **merged_kwargs)
+                    elif context_param_name == 'ctx':
+                        def wrapper(ctx, _params=function_params, **kwargs):
+                            merged_kwargs = {**_params, **kwargs}
+                            return self.base_func(ctx, **merged_kwargs)
+                    else:  # carrier
+                        def wrapper(carrier, _params=function_params, **kwargs):
+                            merged_kwargs = {**_params, **kwargs}
+                            return self.base_func(carrier, **merged_kwargs)
+            else:
+                # No context, use original logic
+                if inspect.iscoroutinefunction(self.base_func):
+                    async def wrapper(*args, _params=function_params, **kwargs):
+                        merged_kwargs = {**_params, **kwargs}
+                        return await self.base_func(*args, **merged_kwargs)
+                else:
+                    def wrapper(*args, _params=function_params, **kwargs):
+                        merged_kwargs = {**_params, **kwargs}
+                        return self.base_func(*args, **merged_kwargs)
+
             # Set the name for better reporting
             wrapper.__name__ = func_name
             wrapper.__qualname__ = func_name
-            
+
             # Copy over the eval decorator settings if they exist
             if self.eval_func:
                 eval_func = EvalFunction(
                     wrapper,
                     dataset=self.eval_func.dataset,
                     labels=self.eval_func.labels,
-                    evaluators=self.eval_func.evaluators
+                    evaluators=self.eval_func.evaluators,
+                    # Pass context fields from parametrize
+                    input=context_kwargs.get('input', self.eval_func.context_kwargs.get('input')),
+                    reference=context_kwargs.get('reference', self.eval_func.context_kwargs.get('reference')),
+                    default_score_key=self.eval_func.context_kwargs.get('default_score_key'),
+                    metadata={
+                        **(self.eval_func.context_kwargs.get('metadata') or {}),
+                        **(context_kwargs.get('metadata') or {})
+                    } if self.eval_func.context_kwargs.get('metadata') or context_kwargs.get('metadata') else None,
+                    metadata_from_params=self.eval_func.metadata_from_params,
                 )
             else:
-                eval_func = EvalFunction(wrapper, None, None, None)
-            
+                eval_func = EvalFunction(
+                    wrapper,
+                    None, None, None,
+                    # Pass context fields from parametrize
+                    input=context_kwargs.get('input'),
+                    reference=context_kwargs.get('reference'),
+                    metadata=context_kwargs.get('metadata'),
+                )
+
             # Store parameter info for reporting
             eval_func.parameters = params
             eval_func.parameter_id = test_id
-            
+
             functions.append(eval_func)
-        
+
         return functions
 
 
