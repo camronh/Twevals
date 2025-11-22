@@ -75,6 +75,10 @@ ctx.add_score(True, "Test passed")  # Boolean with default key
 ctx.add_score(0.95, "High score", key="similarity")  # Numeric with custom key
 ctx.add_score(key="detailed", passed=True, value=0.98, notes="...")  # Full control
 
+# Note: add_score() is optional! If you never call it, the test automatically
+# passes with the default score key. Just like pytest - if your test runs
+# through without errors, it passes.
+
 # Helper for parametrize
 ctx.set_params(model="gpt-4", temperature=0.7)  # Sets both input and metadata
 ```

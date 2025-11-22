@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Union
 
 from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
-from twevals.schemas import EvalResult
+from twevals.schemas import EvalResult, Score
 
 
 class EvalRunner:
@@ -16,15 +16,24 @@ class EvalRunner:
         self.concurrency = concurrency  # 0 means sequential
         self.verbose = verbose
         self.results: List[Dict] = []
-        
+
+    def _ensure_default_score(self, result: EvalResult) -> EvalResult:
+        """Add default passing score if result has no scores and no error"""
+        if not result.scores and not result.error:
+            # Create a new result with default passing score
+            result_dict = result.model_dump()
+            result_dict['scores'] = [{"key": "correctness", "passed": True}]
+            return EvalResult(**result_dict)
+        return result
+
     async def run_async_eval(self, func: EvalFunction) -> List[EvalResult]:
         stdout_capture = io.StringIO() if not self.verbose else None
         try:
             with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
                 result = await func.call_async()
             if isinstance(result, EvalResult):
-                return [result]
-            return result
+                return [self._ensure_default_score(result)]
+            return [self._ensure_default_score(r) for r in result]
         except Exception as e:
             return [EvalResult(
                 input=None,
@@ -38,8 +47,8 @@ class EvalRunner:
             with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
                 result = func()
             if isinstance(result, EvalResult):
-                return [result]
-            return result
+                return [self._ensure_default_score(result)]
+            return [self._ensure_default_score(r) for r in result]
         except Exception as e:
             return [EvalResult(
                 input=None,

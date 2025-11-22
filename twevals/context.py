@@ -177,11 +177,16 @@ class EvalContext:
         Returns:
             EvalResult with all accumulated data
         """
+        # Auto-add default passing score if none provided and no error
+        scores = self.scores
+        if not scores and not self.error:
+            scores = [{"key": self.default_score_key or "correctness", "passed": True}]
+
         return EvalResult(
             input=self.input,
             output=self.output,
             reference=self.reference,
-            scores=self.scores if self.scores else None,
+            scores=scores if scores else None,
             error=self.error,
             latency=self.latency,
             metadata=self.metadata if self.metadata else None,

@@ -117,18 +117,36 @@ def test_single_case():
     )
 
 
-# Test assertion handling
+# Test assertion handling - with failure
 @eval(labels=["assert"])
-def test_single_case():
+def test_assertion_failure():
     input = "Hi there"
     output = "Hello! How can I help you today?"
 
     # Test assertion handling
     # Should result in an errored test with the error message
-    assert output == input, "Output does not match input" 
-    
+    assert output == input, "Output does not match input"
+
     return EvalResult(
         input=input,
         output=output,
         run_data={"note": "this will not run due to assertion"},
+    )
+
+
+# Test that passes with just assertions (no explicit add_score needed)
+@eval(labels=["assert"])
+def test_assertion_pass():
+    input = "Hi there"
+    output = "Hello! How can I help you today?"
+
+    # Just assertions - if we get through all asserts, test passes automatically
+    assert output is not None
+    assert len(output) > 0
+    assert "hello" in output.lower()
+
+    return EvalResult(
+        input=input,
+        output=output,
+        run_data={"note": "passed all assertions, auto-scored as passed"},
     )

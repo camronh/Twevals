@@ -442,17 +442,21 @@ class TestEdgeCases:
         assert result.output == "output"
 
     def test_context_with_empty_scores(self):
-        """Test context with no scores added"""
+        """Test context with no scores added - should auto-add default passing score"""
 
         @eval()
         def test_func(ctx):
             ctx.input = "test"
             ctx.add_output("output")
-            # No scores added
+            # No scores added - should default to passed=True
 
         result = test_func()
 
-        assert result.scores is None or len(result.scores) == 0
+        # Should have a default passing score
+        assert result.scores is not None
+        assert len(result.scores) == 1
+        assert result.scores[0].key == "correctness"
+        assert result.scores[0].passed is True
 
     def test_context_score_without_notes(self):
         """Test add_score without notes parameter"""

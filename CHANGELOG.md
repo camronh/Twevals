@@ -2,6 +2,26 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a0 - 2025-11-22
+
+- Added: `EvalContext` (accessible as `ctx`, `context`, or `carrier` parameter) provides a mutable builder pattern for constructing eval results incrementally with methods like `add_output()`, `add_score()`, and `set_params()`.
+- Added: Context manager support for `EvalContext` allowing `with` statement usage in eval functions.
+- Added: Automatic context injection - functions accepting a `ctx`/`context`/`carrier` parameter receive an `EvalContext` instance automatically.
+- Added: Auto-return feature - eval functions using context don't need explicit `return` statements; context is auto-built at function end.
+- Added: Smart `add_output()` method that extracts EvalResult fields (output, latency, run_data, metadata) from dict responses or sets output directly.
+- Added: Flexible `add_score()` supporting boolean pass/fail, numeric values, custom keys, and full control via kwargs.
+- Added: `set_params()` helper for parametrized tests to set both input and metadata from params.
+- Added: Filters in the web UI for dataset, labels, and status with multi-select support and persistence.
+- Added: Reference column in results table to display expected/ground truth outputs.
+- Changed: Tests that complete without calling `add_score()` now automatically pass with a default "correctness" score, similar to pytest behavior.
+- Changed: `EvalContext` defaults to "correctness" as the default score key (previously required explicit key).
+- Changed: Migrated from Poetry to uv for faster dependency management and installation.
+- Changed: `EvalContext.build()` auto-adds `{"key": "correctness", "passed": True}` when no scores are provided and no error occurred.
+- Changed: `EvalRunner` ensures all results without scores and without errors receive a default passing score.
+- Tests: Added comprehensive unit tests for EvalContext methods, context manager pattern, and decorator integration.
+- Tests: Added integration tests for context usage patterns, parametrize auto-mapping, and assertion preservation.
+- Tests: Added e2e test for advanced UI filters functionality.
+
 0.0.1a0 - 2025-09-04
 
 - Added: Results Web UI with expandable rows, multi‑column sorting, column toggles and resizable columns, copy‑to‑clipboard, and summary chips for score ratios/averages.
