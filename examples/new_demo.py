@@ -166,7 +166,7 @@ def test_calculator(ctx: EvalContext, operation, a, b, expected):
 # ============================================================================
 
 @eval(dataset="qa_system", default_score_key="exact_match")
-async def test_multiple_scores(ctx):
+async def test_multiple_scores(ctx: EvalContext):
     """Show different score types in one eval"""
     ctx.input = "What is the capital of France?"
     ctx.reference = "Paris"
@@ -194,7 +194,7 @@ async def test_multiple_scores(ctx):
 # ============================================================================
 
 @eval(dataset="validation", default_score_key="correctness")
-async def test_assertion_preservation(ctx):
+async def test_assertion_preservation(ctx: EvalContext):
     """Assertions still raise, but ctx data is preserved!"""
     ctx.input = "test input"
     ctx.reference = "expected output"
@@ -223,7 +223,7 @@ async def test_assertion_preservation(ctx):
 )
 @parametrize("model", ["gpt-3.5", "gpt-4"])
 @parametrize("temperature", [0.0, 1.0])
-async def test_metadata_extraction(ctx, model, temperature):
+async def test_metadata_extraction(ctx: EvalContext, model, temperature):
     """metadata_from_params automatically adds params to metadata"""
     # ctx.metadata already has {"model": "gpt-4", "temperature": 1.0}!
 
@@ -245,7 +245,7 @@ async def test_metadata_extraction(ctx, model, temperature):
     ("gpt-3.5", 0.0),
     ("gpt-4", 1.0),
 ])
-async def test_set_params_helper(ctx, model, temperature):
+async def test_set_params_helper(ctx: EvalContext, model, temperature):
     """Use set_params to set both input and metadata at once"""
     # Sets both ctx.input and ctx.metadata with same values
     ctx.set_params(model=model, temperature=temperature)
@@ -263,7 +263,7 @@ async def test_set_params_helper(ctx, model, temperature):
     ("I love this!", "positive"),
     ("Terrible!", "negative"),
 ])
-def test_ultra_minimal(ctx):
+def test_ultra_minimal(ctx: EvalContext):
     """The absolute shortest possible eval - 2 lines!"""
     sentiment = "positive" if "love" in ctx.input.lower() else "negative"
     ctx.add_output(sentiment)
@@ -275,7 +275,7 @@ def test_ultra_minimal(ctx):
 # ============================================================================
 
 @eval(dataset="explicit_return", default_score_key="correctness")
-async def test_explicit_return(ctx):
+async def test_explicit_return(ctx: EvalContext):
     """You can still explicitly return ctx if you want"""
     ctx.input = "test"
     ctx.add_output(await run_agent(ctx.input))
@@ -289,7 +289,7 @@ async def test_explicit_return(ctx):
 # ============================================================================
 
 @eval(dataset="auto_return", default_score_key="correctness")
-async def test_auto_return(ctx):
+async def test_auto_return(ctx: EvalContext):
     """No return statement - decorator auto-returns ctx.build()"""
     ctx.input = "test"
     ctx.add_output(await run_agent(ctx.input))
