@@ -55,31 +55,42 @@ class EvalContext:
     def add_output(self, data: Union[Dict[str, Any], Any], **kwargs) -> "EvalContext":
         """Smart output setter that extracts EvalResult fields from dicts
 
-        If data is a dict, extracts known EvalResult fields (output, latency, run_data, metadata).
-        Otherwise, sets the output field directly.
+        Handles three cases:
+        1. Dict with known EvalResult fields (output, latency, run_data, metadata) - extracts them
+        2. Dict without known fields - stores entire dict as output
+        3. Non-dict values - stores directly as output
 
         Args:
-            data: Either a dict with EvalResult fields, or a simple value for output
+            data: Dict with EvalResult fields, dict with arbitrary data, or simple value
             **kwargs: Override extracted values
 
         Returns:
             self for chaining
 
         Examples:
-            ctx.add_output({"output": "result", "latency": 0.5})
-            ctx.add_output("simple output")
-            ctx.add_output(result, latency=custom_value)
+            ctx.add_output({"output": "result", "latency": 0.5})  # Extracts fields
+            ctx.add_output({"full_name": "Kim Diaz"})  # Stores dict as-is
+            ctx.add_output("simple output")  # Stores string
+            ctx.add_output(result, latency=custom_value)  # Override latency
         """
         if isinstance(data, dict):
-            # Extract known EvalResult fields
-            if 'output' in data:
-                self.output = data['output']
-            if 'latency' in data:
-                self.latency = data['latency']
-            if 'run_data' in data:
-                self.run_data.update(data['run_data'])
-            if 'metadata' in data:
-                self.metadata.update(data['metadata'])
+            # Check if this dict contains any known EvalResult fields
+            known_fields = ['output', 'latency', 'run_data', 'metadata']
+            has_known_fields = any(key in data for key in known_fields)
+
+            if has_known_fields:
+                # Extract known EvalResult fields
+                if 'output' in data:
+                    self.output = data['output']
+                if 'latency' in data:
+                    self.latency = data['latency']
+                if 'run_data' in data:
+                    self.run_data.update(data['run_data'])
+                if 'metadata' in data:
+                    self.metadata.update(data['metadata'])
+            else:
+                # Dict without known fields - store as-is in output
+                self.output = data
         else:
             # Simple value, just set output
             self.output = data

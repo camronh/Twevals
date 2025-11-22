@@ -85,6 +85,49 @@ class TestAddOutput:
         assert ctx.output == "from dict"
         assert ctx.latency == 0.8  # Overridden
 
+    def test_add_output_dict_without_known_fields(self):
+        """Test add_output with dict that doesn't contain known EvalResult fields
+
+        This tests the case where a user passes a dict like {'full_name': 'Kim Diaz'}
+        that should be stored as-is in the output field, not treated as a structured
+        EvalResult dict.
+        """
+        ctx = EvalContext()
+        user_data = {'full_name': 'Kim Diaz', 'user_id': 'user_00000'}
+        ctx.add_output(user_data)
+
+        # The dict should be stored as-is in the output field
+        assert ctx.output == user_data
+        assert ctx.output == {'full_name': 'Kim Diaz', 'user_id': 'user_00000'}
+        # Other fields should remain untouched
+        assert ctx.latency is None
+        assert ctx.run_data == {}
+
+    def test_add_output_dict_simple_data(self):
+        """Test add_output with various simple dict structures
+
+        Common case: API responses, parsed data, etc. that don't contain
+        the specific 'output', 'latency', 'run_data', 'metadata' keys.
+        """
+        ctx = EvalContext()
+
+        # Test with nested dict
+        api_response = {
+            'status': 'success',
+            'data': {
+                'name': 'John Doe',
+                'age': 30
+            }
+        }
+        ctx.add_output(api_response)
+        assert ctx.output == api_response
+
+        # Test with list values
+        ctx2 = EvalContext()
+        list_data = {'items': [1, 2, 3], 'count': 3}
+        ctx2.add_output(list_data)
+        assert ctx2.output == list_data
+
     def test_add_output_chaining(self):
         """Test that add_output returns self for chaining"""
         ctx = EvalContext()

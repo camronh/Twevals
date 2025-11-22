@@ -2,6 +2,11 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a3 - 2025-11-22
+
+- Fixed: `add_output()` now correctly handles dicts without EvalResult fields (like `{'full_name': 'Kim Diaz'}`) by storing them as-is in the output field, instead of incorrectly treating them as structured EvalResult dicts.
+- Tests: Added comprehensive tests for `add_output()` behavior with arbitrary dict structures to prevent regression.
+
 0.0.2a2 - 2025-11-22
 
 - Fixed: Failed assertions now create failing scores instead of error states, properly treating them as validation failures rather than execution errors.
