@@ -1,6 +1,6 @@
 # Twevals
 
-Lightweight evals for AI agents and LLM apps. Write Python functions alongside your code, return an `EvalResult`, and Twevals handles storage, scoring, and a small web UI.
+Lightweight evals for AI agents and LLM apps. Write Python functions, use `EvalContext` to track results, and Twevals handles storage, scoring, and a small web UI.
 
 ## Installation
 
@@ -33,142 +33,372 @@ Common `serve` flags: `--dataset`, `--label`, `-c/--concurrency`, `--dev`, `--ho
 
 ## Authoring evals
 
-Write evals like tests; return `EvalResult`.
+Write evals like tests. Add a `ctx: EvalContext` parameter, and Twevals auto-injects a mutable context object for building your evaluation.
 
 ```python
-from twevals import eval, EvalResult
+from twevals import eval, EvalContext
 
-@eval(dataset="customer_service")
-def test_refund_request():
-    output = run_agent("I want a refund")
-    return EvalResult(
-        input="I want a refund",
-        output=output,
-        reference="refund",
-        scores={"key": "keyword", "passed": "refund" in output.lower()},
+@eval(
+    input="I want a refund",
+    dataset="customer_service",
+    default_score_key="correctness"
+)
+async def test_refund(ctx: EvalContext):
+    # ctx.input already set from decorator
+    ctx.add_output(await run_agent(ctx.input))
+    ctx.add_score(ctx.output == "expected refund response", "Validation")
+    # No return needed - decorator auto-returns!
+```
+
+### EvalContext
+
+`EvalContext` is a mutable builder that makes writing evals clean and intuitive. When your function has a `ctx`, `context`, or `carrier` parameter, Twevals automatically injects an `EvalContext` instance.
+
+**Key features:**
+- **Auto-injection**: Just add `ctx: EvalContext` parameter
+- **Smart methods**: `add_output()`, `add_score()`, `set_params()`
+- **Auto-return**: No explicit return needed
+- **IDE support**: Full type hints and autocomplete
+- **Incremental building**: Set fields as you get them
+- **Exception safety**: Partial data preserved on errors
+
+**Core methods:**
+
+```python
+# Smart output extraction
+ctx.add_output({"output": "result", "latency": 0.5, "run_data": {...}})
+# Or simple value
+ctx.add_output("simple output")
+
+# Flexible scoring
+ctx.add_score(True, "Test passed")  # Boolean with default key
+ctx.add_score(0.95, "High score", key="similarity")  # Numeric with custom key
+ctx.add_score(key="detailed", passed=True, value=0.98, notes="...")  # Full control
+
+# Helper for parametrize
+ctx.set_params(model="gpt-4", temperature=0.7)  # Sets both input and metadata
+```
+
+**Direct field access:**
+
+```python
+ctx.input = "test input"
+ctx.reference = "expected output"
+ctx.metadata = {"model": "gpt-4"}
+# ... and more: output, latency, run_data, error
+```
+
+### Writing your first eval
+
+The cleanest pattern sets everything you can in the decorator:
+
+```python
+from twevals import eval, EvalContext
+
+@eval(
+    input="I want a refund",
+    reference="I'll help you process your refund request.",
+    dataset="customer_service",
+    default_score_key="correctness",
+    metadata={"model": "gpt-4", "version": "1.0"}
+)
+async def test_refund_request(ctx: EvalContext):
+    # ctx.input and ctx.reference already set!
+    ctx.add_output(await run_agent(ctx.input))
+    ctx.add_score(ctx.output == ctx.reference, "Output validation")
+```
+
+### Common patterns
+
+**1) Set input in function (more dynamic):**
+
+```python
+@eval(dataset="greetings", default_score_key="politeness")
+async def test_greeting(ctx: EvalContext):
+    ctx.input = "Hello there"
+    ctx.reference = fetch_expected_greeting()
+
+    ctx.add_output(await run_agent(ctx.input))
+    ctx.add_score(ctx.output == ctx.reference, "Match check")
+```
+
+**2) Smart field extraction:**
+
+```python
+@eval(dataset="qa", default_score_key="accuracy")
+async def test_question(ctx: EvalContext):
+    ctx.input = "What is the capital of France?"
+    ctx.reference = "Paris"
+
+    # Extracts output, latency, run_data, metadata from dict
+    ctx.add_output(await run_agent(ctx.input))
+
+    ctx.add_score(ctx.reference.lower() in ctx.output.lower(), "Contains answer")
+```
+
+**3) Multiple scores:**
+
+```python
+@eval(dataset="qa", default_score_key="exact_match")
+async def test_multi_score(ctx: EvalContext):
+    ctx.input = "What is 2+2?"
+    ctx.reference = "4"
+    ctx.add_output(await run_agent(ctx.input))
+
+    # Boolean score with default key
+    ctx.add_score(ctx.reference in ctx.output, "Exact match")
+
+    # Numeric score with custom key
+    similarity = calculate_similarity(ctx.output, ctx.reference)
+    ctx.add_score(similarity, "Similarity score", key="similarity")
+
+    # Full control
+    ctx.add_score(
+        key="confidence",
+        value=0.95,
+        passed=True,
+        notes="High confidence prediction"
     )
 ```
 
-### EvalResult
-
-The `EvalResult` object is used to store the result of an eval. It is returned by the `@eval` decorator.
+**4) Explicit return (optional):**
 
 ```python
-EvalResult(
-    input="...",          # required: prompt or test input. Can be a string, a dict, or a list.
-    output="...",         # required: model/agent output. Can be a string, a dict, or a list.
-    reference="...",      # optional expected output.
-    error=None,            # optional error message. Assert errors will automatically be added to the result.
-    latency=0.123,         # optional execution time. Latency is automatically calculated if not provided.
-    metadata={"model": "gpt-4"},  # optional metadata for filtering and tracking
-    run_data={"trace": [...]},     # optional extra JSON stored with result. Good place to store the trace for debugging.
-    scores={"key": "exact", "passed": True},  # scores dict or list of dicts;
-)
+@eval(dataset="test")
+async def test_explicit(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output("output")
+    ctx.add_score(True, "Passed", key="test")
+    return ctx  # Optional - decorator auto-converts to EvalResult
 ```
-
-Twevals allows you to use a pass/fail score, a numeric score, or a combination of both. You can also add justification to the score in the `notes` field.
-
-The Score schema for `scores` items is:
-
-```python
-{
-    "key": "metric",        # required: Name of the metric
-    "value": 0.42,           # optional numeric metric
-    "passed": True,          # optional boolean metric
-    "notes": "optional",     # optional notes
-}
-# Provide at least one of: value or passed
-```
-
-`scores` accepts a single dict or a list of dicts/`Score` objects; Twevals normalizes both forms.
 
 ### `@eval` decorator
 
-Wraps a function and records returned `EvalResult` objects.
+Wraps a function and records evaluation results.
 
-Parameters:
-- `dataset` (defaults to filename)
-- `labels` (filtering tags)
-- `evaluators` (callables that add scores to a result)
+**Parameters:**
+- `dataset` (str, optional): Groups related evals (defaults to filename)
+- `labels` (list, optional): Filtering tags
+- `evaluators` (list, optional): Callables that add scores to a result
+- `input` (any, optional): Pre-populate ctx.input
+- `reference` (any, optional): Pre-populate ctx.reference
+- `default_score_key` (str, optional): Default key for `add_score()`
+- `metadata` (dict, optional): Pre-populate ctx.metadata
+- `metadata_from_params` (list, optional): Auto-extract params to metadata
+
+**Examples:**
+
+```python
+# Minimal
+@eval()
+def test(ctx: EvalContext):
+    ...
+
+# With defaults
+@eval(
+    dataset="my_tests",
+    default_score_key="correctness",
+    metadata={"version": "1.0"}
+)
+def test(ctx: EvalContext):
+    ...
+
+# Pre-populated input/reference
+@eval(
+    input="test input",
+    reference="expected",
+    dataset="static_tests"
+)
+def test(ctx: EvalContext):
+    # ctx.input and ctx.reference already set!
+    ...
+```
 
 ### `@parametrize`
 
 Generate multiple evals from one function. Place `@eval` above `@parametrize`.
 
+**Auto-mapping magic:**
+
+When parameter names match EvalContext fields (`input`, `reference`, `metadata`, etc.), they automatically populate the context:
+
 ```python
 from twevals import parametrize
 
-@eval(dataset="customer_service")
-@parametrize("prompt,expected", [
-    ("I want a refund", "refund"),
-    ("Can I get my money back?", "refund"),
+@eval(dataset="sentiment", default_score_key="accuracy")
+@parametrize("input,reference", [
+    ("I love this!", "positive"),
+    ("This is terrible", "negative"),
+    ("It's okay I guess", "neutral"),
 ])
-def test_refund(prompt, expected):
-    output = run_agent(prompt)
+def test_sentiment(ctx: EvalContext):
+    # ctx.input and ctx.reference auto-populated! ✨
+
+    detected = analyze_sentiment(ctx.input)
+    ctx.add_output(detected)
+    ctx.add_score(ctx.output == ctx.reference, f"Detected: {detected}")
+```
+
+**Custom parameters:**
+
+```python
+@eval(dataset="math", default_score_key="correctness")
+@parametrize("operation,a,b,expected", [
+    ("add", 2, 3, 5),
+    ("multiply", 4, 7, 28),
+])
+def test_calculator(ctx: EvalContext, operation, a, b, expected):
+    ctx.input = {"operation": operation, "a": a, "b": b}
+    ctx.reference = expected
+
+    ops = {"add": lambda x, y: x + y, "multiply": lambda x, y: x * y}
+    result = ops[operation](a, b)
+
+    ctx.add_output(result)
+    ctx.add_score(result == expected, f"{a} {operation} {b} = {result}")
+```
+
+**Common patterns:**
+
+```python
+# 1) Single parameter with IDs
+@eval(dataset="thresholds")
+@parametrize("threshold", [0.2, 0.5, 0.8], ids=["low", "mid", "high"])
+def test_threshold(ctx: EvalContext, threshold):
+    ctx.input = threshold
+    ctx.add_output(evaluate(threshold))
+    ctx.add_score(ctx.output > threshold, "Above threshold")
+
+# 2) Cartesian product (stacked parametrize)
+@eval(dataset="models", default_score_key="quality")
+@parametrize("model", ["gpt-4", "gpt-3.5"])
+@parametrize("temperature", [0.0, 0.7, 1.0])
+def test_model_grid(ctx: EvalContext, model, temperature):
+    ctx.set_params(model=model, temperature=temperature)  # Sets input and metadata
+    ctx.add_output(run_model(model, temperature))
+    ctx.add_score(score_output(ctx.output), f"Model: {model}")
+
+# 3) Dictionaries for named arguments
+@eval(dataset="auth")
+@parametrize("username,password,should_succeed", [
+    {"username": "alice", "password": "correct", "should_succeed": True},
+    {"username": "alice", "password": "wrong", "should_succeed": False},
+])
+def test_login(ctx: EvalContext, username, password, should_succeed):
+    ctx.input = {"username": username}
+    result = login(username, password)
+    ctx.add_output(result)
+    ctx.add_score(result.success == should_succeed, "Login check", key="auth")
+```
+
+**Notes:**
+- Accepts tuples, dicts, or single values
+- Works with sync or async functions
+- Put `@eval` above `@parametrize`
+- Parameter names matching `input`, `reference`, etc. auto-populate context
+
+See more patterns in `examples/new_demo.py`.
+
+## Advanced patterns
+
+### Assertion preservation
+
+Assertions raise exceptions but preserve partial context data:
+
+```python
+@eval(dataset="validation", default_score_key="correctness")
+async def test_with_assertion(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.reference = "expected"
+    ctx.metadata = {"model": "gpt-4"}
+
+    ctx.add_output(await run_agent(ctx.input))
+
+    # If this fails, you still get input/output/reference/metadata in the result!
+    assert ctx.output == ctx.reference, "Output mismatch"
+
+    ctx.add_score(True, "All checks passed")
+```
+
+### Context manager pattern
+
+For explicit control:
+
+```python
+@eval(dataset="test")
+async def test_with_context_manager():
+    with EvalContext(input="test", default_score_key="accuracy") as ctx:
+        ctx.add_output(await run_agent(ctx.input))
+        ctx.add_score(True, "Passed")
+        return ctx  # Explicit return
+```
+
+### Ultra-minimal pattern
+
+The absolute shortest eval (2 lines!):
+
+```python
+@eval(dataset="sentiment", default_score_key="accuracy")
+@parametrize("input,reference", [("I love this!", "positive"), ("Terrible!", "negative")])
+def test(ctx: EvalContext):
+    ctx.add_output(analyze(ctx.input))
+    ctx.add_score(ctx.output == ctx.reference)
+```
+
+## Reference
+
+### EvalResult schema
+
+`EvalContext` automatically builds an `EvalResult` object when the evaluation completes. You can also return `EvalResult` directly if you prefer:
+
+```python
+from twevals import EvalResult
+
+@eval(dataset="test")
+def test_direct():
     return EvalResult(
-        input=prompt,
-        output=output,
-        reference=expected,
+        input="...",          # required: test input
+        output="...",         # required: system output
+        reference="...",      # optional: expected output
+        error=None,           # optional: error message
+        latency=0.123,        # optional: execution time (auto-calculated if not provided)
+        metadata={"model": "gpt-4"},  # optional: metadata for filtering
+        run_data={"trace": [...]},     # optional: debug data
+        scores={"key": "exact", "passed": True},  # scores dict or list
     )
 ```
 
-Common patterns:
+### Score schema
 
 ```python
-# 1) Single parameter values (with optional ids)
-@eval(dataset="math")
-@parametrize("n", [1, 2, 3], ids=["small", "medium", "large"])
-def test_square(n):
-    out = n * n
-    return EvalResult(input=n, output=out, reference=n**2,
-                      scores={"key": "exact", "passed": out == n**2})
-
-# 2) Multiple parameters via tuples
-@eval(dataset="auth")
-@parametrize("username,password,ok", [
-    ("alice", "correct", True),
-    ("alice", "wrong", False),
-])
-def test_login(username, password, ok):
-    out = fake_login(username, password)
-    return EvalResult(input={"u": username}, output=out,
-                      scores={"key": "ok", "passed": out is ok})
-
-# 3) Dictionaries for named argument sets
-@eval(dataset="calc")
-@parametrize("op,a,b,expected", [
-    {"op": "add", "a": 2, "b": 3, "expected": 5},
-    {"op": "mul", "a": 4, "b": 7, "expected": 28},
-])
-def test_calc(op, a, b, expected):
-    ops = {"add": lambda x, y: x + y, "mul": lambda x, y: x * y}
-    result = ops[op](a, b)
-    return EvalResult(input={"op": op, "a": a, "b": b}, output=result,
-                      reference=expected,
-                      scores=[{"key": "correct", "passed": result == expected})]
-
-# 4) Stacked parametrize (cartesian product); ids combine like "model-temp"
-@eval(dataset="models")
-@parametrize("model", ["gpt-4", "gpt-3.5"], ids=["g4", "g35"])
-@parametrize("temperature", [0.0, 0.7])
-def test_model_grid(model, temperature):
-    out = run(model=model, temperature=temperature)
-    return EvalResult(input={"model": model, "temperature": temperature}, output=out)
-
-# 5) Single-name shorthand accepts single values
-@eval(dataset="thresholds")
-@parametrize("threshold", [0.2, 0.5, 0.8])
-def test_threshold(threshold=0.5):
-    out = evaluate(threshold=threshold)
-    return EvalResult(input=threshold, output=out)
+{
+    "key": "metric_name",    # required: Name of the metric
+    "value": 0.95,           # optional: Numeric score
+    "passed": True,          # optional: Boolean pass/fail
+    "notes": "...",          # optional: Justification
+}
+# Must provide at least one of: value or passed
 ```
 
-Notes:
-- Accepts tuples, dicts, or single values (for one parameter).
-- Works with sync or async functions.
-- Put `@eval` above `@parametrize` so Twevals can attach dataset/labels.
+`scores` accepts a single dict, a list of dicts, or a list of `Score` objects.
 
-See more patterns in `examples/demo_eval_paramatrize.py`.
+### Evaluators
+
+Callables that add scores to results after execution:
+
+```python
+def custom_evaluator(result):
+    """Returns Score object, dict, or list of either"""
+    if result.reference in result.output.lower():
+        return {"key": "contains_ref", "passed": True}
+    return {"key": "contains_ref", "passed": False}
+
+@eval(dataset="test", evaluators=[custom_evaluator])
+def test_with_evaluator(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output("test output")
+    # custom_evaluator runs after, adds score
+```
 
 ## Headless runs
 
