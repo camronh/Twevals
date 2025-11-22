@@ -2,6 +2,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a2 - 2025-11-22
+
+- Fixed: Failed assertions now create failing scores instead of error states, properly treating them as validation failures rather than execution errors.
+- Fixed: Output field is now preserved in results table when assertions fail, instead of being overwritten with error messages.
+- Changed: Table formatter only displays error in output column when output is empty, preventing loss of actual output data.
+- Tests: Added comprehensive tests for assertion handling including edge cases for assertions without messages, non-assertion errors, and multiple assertions.
+
 0.0.2a1 - 2025-11-22
 
 - Fixed: Module discovery now properly handles relative imports by temporarily adding parent directory to sys.path with cleanup.

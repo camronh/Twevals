@@ -307,7 +307,7 @@ See more patterns in `examples/new_demo.py`.
 
 ### Assertion preservation
 
-Assertions raise exceptions but preserve partial context data:
+Assertions are treated as validation failures and create failing scores:
 
 ```python
 @eval(dataset="validation", default_score_key="correctness")
@@ -318,7 +318,8 @@ async def test_with_assertion(ctx: EvalContext):
 
     ctx.add_output(await run_agent(ctx.input))
 
-    # If this fails, you still get input/output/reference/metadata in the result!
+    # If this fails, a failing score is added with the assertion message
+    # All data (input/output/reference/metadata) is preserved
     assert ctx.output == ctx.reference, "Output mismatch"
 
     ctx.add_score(True, "All checks passed")

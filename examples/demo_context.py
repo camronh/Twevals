@@ -226,7 +226,9 @@ async def test_assertion_preservation(ctx: EvalContext):
 
     # If this assertion fails, the decorator will catch it and return
     # an EvalResult with all the ctx data preserved (input, output, reference, metadata)
-    # plus error field set to the assertion message
+    # and a failing score will be added:
+    # {"key": default_score_key, "passed": False, "notes": "Output does not match reference"}
+    # Note: Failed assertions create SCORES, not errors. Output is always preserved!
     assert ctx.output == ctx.reference, "Output does not match reference"
 
     # Only reached if assertion passes
@@ -316,3 +318,5 @@ async def test_auto_return(ctx: EvalContext):
     ctx.add_output(await run_agent(ctx.input))
     ctx.add_score(True, "Passed")
     # No return! Decorator handles it
+
+

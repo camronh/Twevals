@@ -220,7 +220,7 @@ class TestAssertionPreservation:
 
     @pytest.mark.asyncio
     async def test_assertion_preserves_data(self):
-        """Test that assertion failures preserve context data"""
+        """Test that assertion failures preserve context data and create failing scores"""
 
         @eval(dataset="test", default_score_key="correctness")
         async def test_func(ctx):
@@ -239,14 +239,76 @@ class TestAssertionPreservation:
 
         result = await test_func.call_async()
 
-        # Result should have error but preserve all data
-        assert result.error is not None
-        assert "Output does not match reference" in result.error
+        # Result should NOT have error field - assertions are validation failures, not errors
+        assert result.error is None
+        # Instead, should have a failing score with the assertion message
+        assert len(result.scores) == 1
+        assert result.scores[0].passed is False
+        assert "Output does not match reference" in result.scores[0].notes
+        assert result.scores[0].key == "correctness"
+        # All data should be preserved
         assert result.input == "test input"
         assert result.output == "wrong output"
         assert result.reference == "expected output"
         assert result.metadata == {"model": "test-model"}
         assert result.latency > 0
+
+    @pytest.mark.asyncio
+    async def test_assertion_without_message(self):
+        """Test that assertions without messages still work"""
+
+        @eval(dataset="test", default_score_key="accuracy")
+        async def test_func(ctx):
+            ctx.input = "test"
+            ctx.add_output("wrong")
+            assert False  # Assertion without message
+
+        result = await test_func.call_async()
+
+        assert result.error is None
+        assert len(result.scores) == 1
+        assert result.scores[0].passed is False
+        # Python's str(AssertionError) returns the code "assert False"
+        assert result.scores[0].notes == "assert False"
+        assert result.output == "wrong"  # Output preserved
+
+    def test_actual_error_still_creates_error_field(self):
+        """Test that non-assertion errors still set the error field"""
+
+        @eval(dataset="test", default_score_key="correctness")
+        def test_func(ctx):
+            ctx.input = "test"
+            ctx.add_output("some output")
+            # Raise a non-assertion error
+            raise ValueError("This is an actual error, not a validation failure")
+
+        result = test_func()
+
+        # Should have error field, not a failing score
+        assert result.error is not None
+        assert "This is an actual error" in result.error
+        # Output should still be preserved
+        assert result.output == "some output"
+        # No scores should be added
+        assert result.scores is None or len(result.scores) == 0
+
+    @pytest.mark.asyncio
+    async def test_multiple_assertions_first_one_fails(self):
+        """Test that only the first failed assertion is captured"""
+
+        @eval(dataset="test", default_score_key="test")
+        async def test_func(ctx):
+            ctx.input = "test"
+            ctx.add_output("output")
+            assert False, "First assertion failed"
+            assert False, "Second assertion failed"  # Never reached
+
+        result = await test_func.call_async()
+
+        assert result.error is None
+        assert len(result.scores) == 1
+        assert "First assertion failed" in result.scores[0].notes
+        assert result.output == "output"
 
 
 class TestMetadataFromParams:

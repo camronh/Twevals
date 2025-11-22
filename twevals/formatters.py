@@ -67,8 +67,9 @@ def format_results_table(results: List[Dict[str, Any]]) -> Table:
         # Truncate long strings
         input_str = str(result.get("input", ""))[:50]
         output_str = str(result.get("output", ""))[:50]
-        
-        if result.get("error"):
+
+        # Only show error in output column if output is empty
+        if result.get("error") and not output_str:
             output_str = f"Error: {result['error'][:40]}"
         
         table.add_row(

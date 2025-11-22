@@ -168,7 +168,14 @@ class EvalFunction:
         except Exception as e:
             # If we have a context with partial data, preserve it
             if context is not None:
-                result = context.build_with_error(str(e))
+                if isinstance(e, AssertionError):
+                    # Failed assertion = validation failure, add as failing score
+                    assertion_msg = str(e) if str(e) else "Assertion failed"
+                    context.add_score(False, notes=assertion_msg)
+                    result = context.build()
+                else:
+                    # Actual error (network, bug, etc.) - set error field
+                    result = context.build_with_error(str(e))
             else:
                 result = EvalResult(
                     input=kwargs.get('input', args[0] if args else None),
@@ -208,7 +215,14 @@ class EvalFunction:
         except Exception as e:
             # If we have a context with partial data, preserve it
             if context is not None:
-                result = context.build_with_error(str(e))
+                if isinstance(e, AssertionError):
+                    # Failed assertion = validation failure, add as failing score
+                    assertion_msg = str(e) if str(e) else "Assertion failed"
+                    context.add_score(False, notes=assertion_msg)
+                    result = context.build()
+                else:
+                    # Actual error (network, bug, etc.) - set error field
+                    result = context.build_with_error(str(e))
             else:
                 result = EvalResult(
                     input=kwargs.get('input', args[0] if args else None),
