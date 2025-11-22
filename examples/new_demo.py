@@ -112,7 +112,7 @@ async def test_context_manager():
     ("This is terrible", "negative"),
     ("It's okay I guess", "neutral"),
 ])
-def test_parametrize_auto_mapping(ctx):
+def test_parametrize_auto_mapping(ctx: EvalContext):
     """Parametrize fields named 'input' and 'reference' auto-populate ctx!"""
     # ctx.input and ctx.reference already set by parametrize! ✨
 
@@ -143,7 +143,7 @@ def test_parametrize_auto_mapping(ctx):
     ("multiply", 4, 7, 28),
     ("subtract", 10, 3, 7),
 ])
-def test_calculator(ctx, operation, a, b, expected):
+def test_calculator(ctx: EvalContext, operation, a, b, expected):
     """Custom param names - passed as function arguments"""
     # Set input and reference manually from params
     ctx.input = {"operation": operation, "a": a, "b": b}

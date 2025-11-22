@@ -88,10 +88,12 @@ class TestEvalDecorator:
         @eval()
         def test_func():
             return "invalid"
-        
-        with pytest.raises(ValueError) as exc_info:
-            test_func()
-        assert "must return EvalResult or List[EvalResult]" in str(exc_info.value)
+
+        result = test_func()
+        # Invalid return types are now caught and returned as EvalResult with error
+        assert isinstance(result, EvalResult)
+        assert result.error is not None
+        assert "must return EvalResult" in result.error
 
     def test_latency_not_overridden(self):
         @eval()
