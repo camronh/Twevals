@@ -25,7 +25,7 @@ class EvalContext:
         input: Any = None,
         output: Any = None,
         reference: Any = None,
-        default_score_key: Optional[str] = None,
+        default_score_key: Optional[str] = "correctness",
         metadata: Optional[Dict[str, Any]] = None,
         run_data: Optional[Dict[str, Any]] = None,
         latency: Optional[float] = None,

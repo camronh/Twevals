@@ -140,12 +140,13 @@ class TestAddScore:
         assert score["value"] == 0.98
         assert score["notes"] == "Detailed validation"
 
-    def test_add_score_no_default_key_raises(self):
-        """Test add_score raises without default_score_key"""
-        ctx = EvalContext()  # No default_score_key
+    def test_add_score_uses_default_correctness(self):
+        """Test add_score uses 'correctness' as default key"""
+        ctx = EvalContext()  # Should default to "correctness"
+        ctx.add_score(True, "Test")
 
-        with pytest.raises(ValueError, match="Must specify score key"):
-            ctx.add_score(True, "Test")
+        assert len(ctx.scores) == 1
+        assert ctx.scores[0]["key"] == "correctness"
 
     def test_add_score_multiple(self):
         """Test adding multiple scores"""

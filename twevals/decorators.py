@@ -287,7 +287,7 @@ def eval(
     # Context injection parameters
     input: Any = None,
     reference: Any = None,
-    default_score_key: Optional[str] = None,
+    default_score_key: Optional[str] = "correctness",
     metadata: Optional[Dict[str, Any]] = None,
     metadata_from_params: Optional[List[str]] = None,
 ):
