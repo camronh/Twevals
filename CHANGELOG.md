@@ -2,6 +2,10 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a1 - 2025-11-22
+
+- Fixed: Module discovery now properly handles relative imports by temporarily adding parent directory to sys.path with cleanup.
+
 0.0.2a0 - 2025-11-22
 
 - Added: `EvalContext` (accessible as `ctx`, `context`, or `carrier` parameter) provides a mutable builder pattern for constructing eval results incrementally with methods like `add_output()`, `add_score()`, and `set_params()`.

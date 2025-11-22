@@ -52,6 +52,14 @@ class EvalDiscovery:
 
     def _discover_in_file(self, file_path: Path):
         try:
+            # Add the parent directory to sys.path so relative imports work
+            import sys
+            parent_dir = str(file_path.parent.absolute())
+            path_added = False
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+                path_added = True
+
             # Load the module
             spec = importlib.util.spec_from_file_location(
                 file_path.stem,
@@ -79,7 +87,15 @@ class EvalDiscovery:
                         if obj.dataset == 'default':
                             obj.dataset = file_path.stem
                         self.discovered_functions.append(obj)
+
+            # Clean up sys.path if we added it
+            if path_added and parent_dir in sys.path:
+                sys.path.remove(parent_dir)
+
         except Exception as e:
+            # Clean up sys.path even on error
+            if 'path_added' in locals() and path_added and 'parent_dir' in locals() and parent_dir in sys.path:
+                sys.path.remove(parent_dir)
             # Log or handle import errors gracefully
             print(f"Warning: Could not import {file_path}: {e}")
 
