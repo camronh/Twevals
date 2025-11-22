@@ -85,7 +85,28 @@ async def test_with_defaults(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 3: Context Manager (Auto-return!)
+# Pattern 3: Input in Decorator (ULTIMATE CLEAN!)
+# ============================================================================
+
+@eval(
+    input="I want a refund",  # Set input in decorator!
+    reference="I'll help you process your refund request.",  # Reference too!
+    dataset="customer_service",
+    default_score_key="correctness",
+    metadata={"model": AGENT_MODEL, "temperature": AGENT_TEMPERATURE}
+)
+async def test_input_in_decorator(ctx: EvalContext):
+    """Set input and reference in decorator - ctx auto-populated!"""
+    # ctx.input and ctx.reference already set by decorator! ✨
+
+    ctx.add_output(await run_agent(ctx.input))
+
+    # Just validate!
+    ctx.add_score(ctx.output == ctx.reference, "Output matches")
+
+
+# ============================================================================
+# Pattern 4: Context Manager (Explicit Return)
 # ============================================================================
 
 @eval(dataset="customer_service", default_score_key="accuracy")
@@ -103,7 +124,7 @@ async def test_context_manager():
 
 
 # ============================================================================
-# Pattern 4: Parametrize with Auto-Mapping (MAGICAL!)
+# Pattern 5: Parametrize with Auto-Mapping (MAGICAL!)
 # ============================================================================
 
 @eval(dataset="sentiment_analysis", default_score_key="accuracy")
@@ -134,7 +155,7 @@ def test_parametrize_auto_mapping(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 5: Parametrize with Custom Params
+# Pattern 6: Parametrize with Custom Params
 # ============================================================================
 
 @eval(dataset="math_operations", default_score_key="correctness")
@@ -162,7 +183,7 @@ def test_calculator(ctx: EvalContext, operation, a, b, expected):
 
 
 # ============================================================================
-# Pattern 6: Multiple Score Types
+# Pattern 7: Multiple Score Types
 # ============================================================================
 
 @eval(dataset="qa_system", default_score_key="exact_match")
@@ -190,7 +211,7 @@ async def test_multiple_scores(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 7: Assertion Preservation
+# Pattern 8: Assertion Preservation
 # ============================================================================
 
 @eval(dataset="validation", default_score_key="correctness")
@@ -213,7 +234,7 @@ async def test_assertion_preservation(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 8: metadata_from_params (Advanced!)
+# Pattern 9: metadata_from_params (Advanced!)
 # ============================================================================
 
 @eval(
@@ -237,7 +258,7 @@ async def test_metadata_extraction(ctx: EvalContext, model, temperature):
 
 
 # ============================================================================
-# Pattern 9: set_params Helper
+# Pattern 10: set_params Helper
 # ============================================================================
 
 @eval(dataset="model_config")
@@ -255,7 +276,7 @@ async def test_set_params_helper(ctx: EvalContext, model, temperature):
 
 
 # ============================================================================
-# Pattern 10: Ultra-Minimal (THE DREAM!)
+# Pattern 11: Ultra-Minimal (THE DREAM!)
 # ============================================================================
 
 @eval(dataset="sentiment", default_score_key="accuracy")
@@ -271,7 +292,7 @@ def test_ultra_minimal(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 11: Explicit Return (Still Works!)
+# Pattern 12: Explicit Return (Still Works!)
 # ============================================================================
 
 @eval(dataset="explicit_return", default_score_key="correctness")
@@ -285,7 +306,7 @@ async def test_explicit_return(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 12: No Return (Auto-Return!)
+# Pattern 13: No Return (Auto-Return!)
 # ============================================================================
 
 @eval(dataset="auto_return", default_score_key="correctness")
