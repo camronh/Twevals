@@ -117,7 +117,7 @@ def serve(
         from twevals.server import create_app
         import uvicorn
     except Exception as e:
-        console.print("[red]Missing server dependencies. Install with:[/red] \n  poetry add fastapi uvicorn jinja2")
+        console.print("[red]Missing server dependencies. Install with:[/red] \n  uv add fastapi uvicorn jinja2")
         raise
 
     # Always create a fresh run on startup

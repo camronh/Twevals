@@ -8,8 +8,8 @@ Twevals is intended as a development dependency.
 
 ```bash
 pip install twevals
-# or with Poetry
-poetry add --group dev twevals
+# or with uv
+uv add --dev twevals
 ```
 
 ## Quick start
@@ -437,14 +437,14 @@ run-only:
 ## Contributing
 
 ```bash
-poetry install
-poetry run pytest -q
-poetry run ruff check twevals tests
-poetry run black .
+uv sync
+uv run pytest -q
+uv run ruff check twevals tests
+uv run black .
 ```
 
 Helpful demo:
 
 ```bash
-poetry run twevals serve examples
+uv run twevals serve examples
 ```

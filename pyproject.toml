@@ -1,18 +1,11 @@
-[tool.poetry]
+[project]
 name = "twevals"
 version = "0.0.1a0"
 description = "A lightweight, code-first evaluation framework for testing AI agents and LLM applications"
-authors = ["Twevals Team"]
+authors = [{ name = "Twevals Team" }]
 readme = "README.md"
-packages = [{ include = "twevals" }]
-include = [
-  "twevals/templates/**/*",
-]
-
-# Optional but recommended metadata for PyPI
-homepage = "https://github.com/camronh/Twevals"
-repository = "https://github.com/camronh/Twevals"
-documentation = "https://github.com/camronh/Twevals#readme"
+requires-python = ">=3.10"
+license = { text = "MIT" }
 keywords = ["evaluation", "llm", "agents", "testing", "benchmark", "cli"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -24,28 +17,38 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "License :: OSI Approved :: MIT License",
 ]
-license = "MIT"
+dependencies = [
+  "pydantic>=2.11.7",
+  "click>=8.1.0",
+  "rich>=14.1.0",
+  "fastapi>=0.112.2",
+  "uvicorn>=0.30.1",
+  "jinja2>=3.1.4",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-pydantic = "^2.11.7"
-click = "^8.1.0"
-rich = "^14.1.0"
-fastapi = "^0.112.2"
-uvicorn = "^0.30.1"
-jinja2 = "^3.1.4"
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4.1",
+  "pytest-asyncio>=1.1.0",
+  "pytest-cov>=6.2.1",
+  "black>=25.1.0",
+  "ruff>=0.12.9",
+  "playwright>=1.48.0",
+  "httpx>=0.27.0",
+  "requests>=2.31.0",
+]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-pytest-asyncio = "^1.1.0"
-pytest-cov = "^6.2.1"
-black = "^25.1.0"
-ruff = "^0.12.9"
-playwright = "^1.48.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 twevals = "twevals.cli:cli"
 
+[project.urls]
+Homepage = "https://github.com/camronh/Twevals"
+Repository = "https://github.com/camronh/Twevals"
+Documentation = "https://github.com/camronh/Twevals#readme"
+
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["twevals"]
