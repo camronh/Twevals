@@ -1,9 +1,15 @@
 import json
+import sys
+from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 from twevals.server import create_app
 from twevals.storage import ResultsStore
-from .conftest import run_server
+
+# Import run_server from conftest in same directory
+sys.path.insert(0, str(Path(__file__).parent))
+from conftest import run_server
+sys.path.pop(0)
 
 
 def make_summary_with_scores():
@@ -98,7 +104,7 @@ def test_advanced_filters_ui(tmp_path):
 
             # Clicking again should close
             btn.click()
-            page.wait_for_selector("#filters-menu.hidden")
+            page.wait_for_selector("#filters-menu.hidden", state='attached')
 
             # Open again for adding rules
             btn.click()
@@ -127,7 +133,8 @@ def test_advanced_filters_ui(tmp_path):
             expect(page.locator("#filtered-summary")).to_be_visible()
 
             # Dynamic key type detection: fluency has numeric only -> value section visible, passed hidden
-            page.locator("#filters-toggle").click()
+            # Ensure menu is visible before interacting with selects
+            page.wait_for_selector("#filters-menu:not(.hidden)")
             page.select_option("#key-select", value="fluency")
             expect(page.locator("#value-section")).to_be_visible()
             expect(page.locator("#passed-section")).to_be_hidden()

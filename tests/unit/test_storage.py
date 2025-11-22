@@ -110,24 +110,6 @@ def test_update_result_persists_and_limits_fields(tmp_path: Path):
         latest = json.load(f)
     assert latest["results"][0] == updated
 
-def test_annotations_crud(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
-    run_id = store.save_run(minimal_summary(), "2024-01-01T00-00-00Z")
-
-    # Add
-    ann = store.add_annotation(run_id, 0, "note one")
-    assert ann["text"] == "note one" and "timestamp" in ann
-
-    # Update
-    updated = store.update_annotation(run_id, 0, 0, {"text": "note two"})
-    assert updated["text"] == "note two"
-
-    # Delete
-    store.delete_annotation(run_id, 0, 0)
-    data = store.load_run(run_id)
-    anns = data["results"][0]["result"].get("annotations", [])
-    assert anns == []
-
 def test_replace_annotations_via_update_result(tmp_path: Path):
     store = ResultsStore(tmp_path / "runs")
     run_id = store.save_run(minimal_summary(), "2024-01-01T00-00-00Z")

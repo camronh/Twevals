@@ -77,6 +77,7 @@ class ResultsStore:
         - result.error
         - result.reference
         - result.annotation (full replace)
+        - result.annotations (full replace)
         """
         lock = self._get_lock(run_id)
         with lock:
@@ -96,7 +97,7 @@ class ResultsStore:
             result_updates = updates.get("result") or {}
             if result_updates:
                 result_entry = entry.setdefault("result", {})
-                for key in ("scores", "metadata", "error", "reference", "annotation"):
+                for key in ("scores", "metadata", "error", "reference", "annotation", "annotations"):
                     if key in result_updates:
                         result_entry[key] = result_updates[key]
 
