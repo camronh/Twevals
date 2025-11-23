@@ -2,6 +2,7 @@ import asyncio
 import json
 import csv
 import io
+import traceback
 from contextlib import redirect_stdout, nullcontext
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Callable
@@ -27,7 +28,8 @@ class EvalRunner:
         return result
 
     async def run_async_eval(self, func: EvalFunction) -> List[EvalResult]:
-        stdout_capture = io.StringIO() if not self.verbose else None
+        should_capture = not self.verbose and self.concurrency == 0
+        stdout_capture = io.StringIO() if should_capture else None
         try:
             with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
                 result = await func.call_async()
@@ -35,14 +37,17 @@ class EvalRunner:
                 return [self._ensure_default_score(result)]
             return [self._ensure_default_score(r) for r in result]
         except Exception as e:
+            tb = traceback.format_exc()
             return [EvalResult(
                 input=None,
                 output=None,
-                error=f"Error running {func.func.__name__}: {str(e)}"
+                error=f"Error running {func.func.__name__}: {str(e)}",
+                run_data={"traceback": tb}
             )]
     
     def run_sync_eval(self, func: EvalFunction) -> List[EvalResult]:
-        stdout_capture = io.StringIO() if not self.verbose else None
+        should_capture = not self.verbose and self.concurrency == 0
+        stdout_capture = io.StringIO() if should_capture else None
         try:
             with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
                 result = func()
@@ -50,10 +55,12 @@ class EvalRunner:
                 return [self._ensure_default_score(result)]
             return [self._ensure_default_score(r) for r in result]
         except Exception as e:
+            tb = traceback.format_exc()
             return [EvalResult(
                 input=None,
                 output=None,
-                error=f"Error running {func.func.__name__}: {str(e)}"
+                error=f"Error running {func.func.__name__}: {str(e)}",
+                run_data={"traceback": tb}
             )]
     
     async def run_all_async(

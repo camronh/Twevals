@@ -3,6 +3,7 @@ import sys
 import inspect
 import os
 import json
+import traceback
 from pathlib import Path
 from typing import Optional, List, Dict
 
@@ -149,6 +150,10 @@ class ProgressReporter:
             if failure_type == "error":
                 error_msg = result.get("error", "Unknown error")
                 console.print(f"   [red]ERROR:[/red] {error_msg}")
+                # Show traceback if available
+                if result.get("run_data") and result["run_data"].get("traceback"):
+                    console.print(f"   [dim]Traceback:[/dim]")
+                    console.print(f"   [dim]{result['run_data']['traceback']}[/dim]")
             elif failure_type == "failure":
                 # Show failing scores
                 if result.get("scores"):
@@ -160,7 +165,7 @@ class ProgressReporter:
                                 console.print(f"   [red]FAIL:[/red] {key} - {notes}")
                             else:
                                 console.print(f"   [red]FAIL:[/red] {key}")
-            
+
             # Show input/output if available
             if result.get("input"):
                 console.print(f"   [dim]Input:[/dim] {result['input']}")
@@ -243,9 +248,11 @@ def run(
         if json_mode:
             click.echo(json.dumps({"error": str(e)}))
         else:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error during runner.run(): {e}[/red]")
+            console.print("[red]Full traceback:[/red]")
+            console.print(traceback.format_exc())
         sys.exit(1)
-    
+
     # Handle JSON output
     if json_mode:
         summary_clean = _remove_none(summary)
@@ -254,12 +261,12 @@ def run(
 
     # Print failure details if any
     reporter.print_failures()
-    
+
     # Display results
     if summary["total_evaluations"] == 0:
         console.print("[yellow]No evaluations found matching the criteria[/yellow]")
         return
-    
+
     # Show results table (always, not just with verbose)
     if summary['results']:
         table = format_results_table(summary['results'])
