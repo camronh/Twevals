@@ -69,24 +69,44 @@ class EvalDiscovery:
                 module = importlib.util.module_from_spec(spec)
                 module.__file__ = str(file_path)  # Ensure __file__ is set
                 spec.loader.exec_module(module)
-                
+
                 # Find all EvalFunction instances
                 from twevals.parametrize import ParametrizedEvalFunction
-                
+
+                # Collect functions with their source line numbers for sorting
+                functions_to_add = []
+
                 for name, obj in inspect.getmembers(module):
                     if isinstance(obj, ParametrizedEvalFunction):
                         # Handle parametrized functions - generate individual functions
                         generated_funcs = obj.generate_eval_functions()
+                        # Get line number from the original function
+                        try:
+                            line_number = inspect.getsourcelines(obj.base_func)[1]
+                        except (OSError, TypeError):
+                            line_number = 0  # Fallback for built-ins or issues
+
                         for func in generated_funcs:
                             # If dataset is still default, use the filename
                             if func.dataset == 'default':
                                 func.dataset = file_path.stem
-                            self.discovered_functions.append(func)
+                            functions_to_add.append((line_number, func))
                     elif isinstance(obj, EvalFunction):
+                        # Get line number from the function
+                        try:
+                            line_number = inspect.getsourcelines(obj.func)[1]
+                        except (OSError, TypeError):
+                            line_number = 0  # Fallback for built-ins or issues
+
                         # If dataset is still default, use the filename
                         if obj.dataset == 'default':
                             obj.dataset = file_path.stem
-                        self.discovered_functions.append(obj)
+                        functions_to_add.append((line_number, obj))
+
+                # Sort by line number and add to discovered_functions
+                functions_to_add.sort(key=lambda x: x[0])
+                for _, func in functions_to_add:
+                    self.discovered_functions.append(func)
 
             # Clean up sys.path if we added it
             if path_added and parent_dir in sys.path:
