@@ -2,6 +2,14 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a3 - 2025-11-22
+
+- Fixed: Eval results table now preserves source file order instead of alphabetically sorting functions by name (resolves #2).
+- Changed: Replaced `ParametrizedEvalFunction` class with function attributes (`__param_sets__`, `__param_ids__`) for simpler architecture.
+- Changed: `generate_eval_functions()` is now a standalone function instead of a class method.
+- Changed: Removed special-case handling for parametrized functions in `@eval` decorator, unifying code paths.
+- Tests: Added test to verify source file order preservation in discovery.
+
 0.0.2a2 - 2025-11-22
 
 - Fixed: Failed assertions now create failing scores instead of error states, properly treating them as validation failures rather than execution errors.
