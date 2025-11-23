@@ -25,8 +25,12 @@ class EvalFunction:
     ):
         self.func = func
         self.dataset = dataset if dataset is not None else self._infer_dataset_from_name(func)
-        self.labels = labels or []
-        self.evaluators = evaluators or []
+        # Track whether decorator explicitly provided list params (including empty lists)
+        self._provided_labels = labels
+        self._provided_evaluators = evaluators
+        self._provided_metadata_from_params = metadata_from_params
+        self.labels = labels if labels is not None else []
+        self.evaluators = evaluators if evaluators is not None else []
         self.target = target
         self.is_async = asyncio.iscoroutinefunction(func)
 
@@ -40,7 +44,7 @@ class EvalFunction:
             'default_score_key': default_score_key,
             'metadata': metadata,
         }
-        self.metadata_from_params = metadata_from_params or []
+        self.metadata_from_params = metadata_from_params if metadata_from_params is not None else []
 
         functools.update_wrapper(self, func)
 
@@ -381,7 +385,7 @@ def eval(
     # Context injection parameters
     input: Any = None,
     reference: Any = None,
-    default_score_key: Optional[str] = "correctness",
+    default_score_key: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
     metadata_from_params: Optional[List[str]] = None,
 ):

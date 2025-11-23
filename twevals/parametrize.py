@@ -136,6 +136,10 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
                 } if (eval_settings.context_kwargs.get('metadata') or context_kwargs.get('metadata') or function_params) else None,
                 metadata_from_params=eval_settings.metadata_from_params,
             )
+            # Preserve whether decorator explicitly provided list params (None means not provided)
+            eval_func._provided_labels = getattr(eval_settings, '_provided_labels', None)
+            eval_func._provided_evaluators = getattr(eval_settings, '_provided_evaluators', None)
+            eval_func._provided_metadata_from_params = getattr(eval_settings, '_provided_metadata_from_params', None)
         else:
             eval_func = EvalFunction(
                 func=wrapper,

@@ -236,6 +236,34 @@ def test_with_target(ctx: EvalContext):
 ```
 If your target returns a value, it is treated as `ctx.output` by default (dicts are passed to `ctx.add_output()`).
 
+### File-level defaults
+
+Set global properties for all tests in a file using `twevals_defaults` (similar to pytest's `pytestmark`):
+
+```python
+# Set defaults at the top of your file
+twevals_defaults = {
+    "dataset": "sentiment_analysis",
+    "labels": ["production", "nlp"],
+    "default_score_key": "accuracy",
+    "metadata": {"model": "gpt-4", "version": "v1.0"}
+}
+
+@eval  # Inherits all defaults
+def test_positive():
+    ...
+
+@eval(labels=["experimental"])  # Override just labels
+def test_edge_case():
+    ...
+```
+
+**Priority:** Decorator parameters > File defaults > Built-in defaults
+
+**Supported parameters:** All `@eval` decorator parameters including `dataset`, `labels`, `evaluators`, `target`, `input`, `reference`, `default_score_key`, `metadata`, and `metadata_from_params`.
+
+**Deep merge:** When both file and decorator specify `metadata`, they are merged (decorator values win on conflicts).
+
 ### `@parametrize`
 
 Generate multiple evals from one function. Place `@eval` above `@parametrize`.
