@@ -2,6 +2,15 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a5 - 2025-11-22
+
+- Added: Pytest-style progress reporting during evaluation execution with colored output (green for pass, red for fail/error).
+- Added: Progress display shows one line per file with filename prefix followed by status characters (`.`, `F`, `E`), matching pytest's output format.
+- Added: Detailed failure reporting after progress output showing dataset::function_name, error messages, and input/output for failed evaluations.
+- Added: Progress hooks (`on_start`, `on_complete`) to `EvalRunner` for extensible progress reporting.
+- Changed: Replaced spinner-only progress indicator with real-time pytest-style character output.
+- Tests: Added comprehensive tests for progress reporting hooks and CLI progress output validation.
+
 0.0.2a4 - 2025-11-22
 
 - Added: Function name filtering using `file.py::function_name` syntax, similar to pytest. Run specific evaluation functions or parametrized variants (e.g., `twevals run tests.py::my_eval` or `tests.py::my_eval[param1]`).

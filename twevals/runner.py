@@ -97,7 +97,8 @@ class EvalRunner:
                     on_start(func)
                 
                 if func.is_async:
-                    tasks.append((func, self.run_async_eval(func)))
+                    # Ensure async functions are wrapped in tasks for concurrent execution
+                    tasks.append((func, asyncio.create_task(self.run_async_eval(func))))
                 else:
                     # Wrap sync functions in asyncio
                     tasks.append((func, asyncio.create_task(

@@ -1,5 +1,8 @@
 import click
 import sys
+import inspect
+import os
+from pathlib import Path
 from typing import Optional, List, Dict
 
 from rich.console import Console
@@ -18,14 +21,53 @@ class ProgressReporter:
     def __init__(self):
         self.failures: List[Dict] = []
         self.current_line = ""
+        self.current_file = None
+    
+    def _get_file_display(self, func: EvalFunction) -> str:
+        """Get the display name for the file containing the function"""
+        try:
+            # Try to get the file path directly from the function
+            file_path = inspect.getfile(func.func)
+            # Try to make it relative to CWD
+            try:
+                return str(Path(file_path).relative_to(os.getcwd()))
+            except ValueError:
+                return Path(file_path).name
+        except (TypeError, OSError):
+            # Fallback: try to get from module
+            module = inspect.getmodule(func.func)
+            if module and hasattr(module, '__file__') and module.__file__:
+                try:
+                    return str(Path(module.__file__).relative_to(os.getcwd()))
+                except ValueError:
+                    return Path(module.__file__).name
+            # Final fallback: use dataset name
+            return func.dataset
     
     def on_start(self, func: EvalFunction):
         """Called when an evaluation starts"""
-        # Track that we're running this eval
-        pass
+        # In sequential mode, we could print the header here.
+        # But to be safe with how runner calls things, we'll handle it in on_complete
+        # or check if we need to initialize the first file line.
+        file_display = self._get_file_display(func)
+        if file_display != self.current_file:
+            if self.current_file is not None:
+                console.print("") # Newline for previous file
+            console.print(f"{file_display} ", end="")
+            self.current_file = file_display
+            self.current_line = ""
     
     def on_complete(self, func: EvalFunction, result_dict: Dict):
         """Called when an evaluation completes"""
+        # Ensure we're on the right file line (in case on_start didn't catch it or out of order - though runner is ordered)
+        file_display = self._get_file_display(func)
+        if file_display != self.current_file:
+            if self.current_file is not None:
+                console.print("")
+            console.print(f"{file_display} ", end="")
+            self.current_file = file_display
+            self.current_line = ""
+
         result = result_dict["result"]
         
         # Determine status character and color
@@ -73,10 +115,13 @@ class ProgressReporter:
     
     def print_failures(self):
         """Print detailed failure information"""
+        if self.current_file is not None:
+            console.print("") # Final newline
+            
         if not self.failures:
             return
         
-        console.print("\n")  # New line after progress dots
+        # console.print("\n")  # No extra newline needed as we added one above
         
         for i, failure in enumerate(self.failures, 1):
             func = failure["func"]
