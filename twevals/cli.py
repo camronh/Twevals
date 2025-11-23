@@ -18,7 +18,7 @@ def cli():
 
 
 @cli.command()
-@click.argument('path', type=click.Path(exists=True))
+@click.argument('path', type=str)
 @click.option('--dataset', '-d', help='Run evaluations for specific dataset(s), comma-separated')
 @click.option('--label', '-l', multiple=True, help='Run evaluations with specific label(s)')
 @click.option('--output', '-o', type=click.Path(dir_okay=False), help='Path to JSON file for results')
@@ -34,7 +34,23 @@ def run(
     concurrency: int,
     verbose: bool
 ):
-    """Run evaluations in specified path"""
+    """Run evaluations in specified path
+    
+    Path can include function name filter: file.py::function_name
+    """
+    from pathlib import Path as PathLib
+    
+    # Parse path to extract file path and optional function name
+    function_name = None
+    if '::' in path:
+        file_path, function_name = path.rsplit('::', 1)
+        path = file_path
+    
+    # Validate that the file path portion exists
+    path_obj = PathLib(path)
+    if not path_obj.exists():
+        console.print(f"[red]Error: Path {path} does not exist[/red]")
+        sys.exit(1)
     
     # Convert label tuple to list
     labels = list(label) if label else None
@@ -49,6 +65,7 @@ def run(
                 path=path,
                 dataset=dataset,
                 labels=labels,
+                function_name=function_name,
                 output_file=output,
                 csv_file=csv,
                 verbose=verbose

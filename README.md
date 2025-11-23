@@ -411,6 +411,8 @@ Skip the UI and save results to disk:
 
 ```bash
 twevals run path/to/evals
+# Run specific function: twevals run path/to/evals.py::function_name
+# Run parametrized variant: twevals run path/to/evals.py::function_name[param_id]
 # Filtering and other common flags work here as well
 ```
 
@@ -421,6 +423,7 @@ twevals run path/to/evals
 ```
 twevals serve <path>   # run evals once and launch the web UI
 twevals run <path>     # run without UI
+twevals run <path>::<function>  # run specific function (e.g., tests.py::my_eval)
 
 Common flags:
   -d, --dataset TEXT      Filter by dataset(s)

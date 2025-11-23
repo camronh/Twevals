@@ -2,6 +2,11 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a4 - 2025-11-22
+
+- Added: Function name filtering using `file.py::function_name` syntax, similar to pytest. Run specific evaluation functions or parametrized variants (e.g., `twevals run tests.py::my_eval` or `tests.py::my_eval[param1]`).
+- Tests: Added comprehensive tests for function filtering including exact matches, parametrized variants, and combined filters with dataset/labels.
+
 0.0.2a3 - 2025-11-22
 
 - Fixed: Eval results table now preserves source file order instead of alphabetically sorting functions by name (resolves #2).
