@@ -71,37 +71,40 @@ class EvalDiscovery:
                 spec.loader.exec_module(module)
 
                 # Find all EvalFunction instances
-                from twevals.parametrize import ParametrizedEvalFunction
+                from twevals.parametrize import generate_eval_functions
 
                 # Collect functions with their source line numbers for sorting
                 functions_to_add = []
 
                 for name, obj in inspect.getmembers(module):
-                    if isinstance(obj, ParametrizedEvalFunction):
-                        # Handle parametrized functions - generate individual functions
-                        generated_funcs = obj.generate_eval_functions()
-                        # Get line number from the original function
-                        try:
-                            line_number = inspect.getsourcelines(obj.base_func)[1]
-                        except (OSError, TypeError):
-                            line_number = 0  # Fallback for built-ins or issues
+                    if isinstance(obj, EvalFunction):
+                        # Check if this is a parametrized function
+                        if hasattr(obj, '__param_sets__'):
+                            # Handle parametrized functions - generate individual functions
+                            generated_funcs = generate_eval_functions(obj)
+                            # Get line number from the original function
+                            try:
+                                line_number = inspect.getsourcelines(obj.func)[1]
+                            except (OSError, TypeError):
+                                line_number = 0  # Fallback for built-ins or issues
 
-                        for func in generated_funcs:
+                            for func in generated_funcs:
+                                # If dataset is still default, use the filename
+                                if func.dataset == 'default':
+                                    func.dataset = file_path.stem
+                                functions_to_add.append((line_number, func))
+                        else:
+                            # Regular eval function
+                            # Get line number from the function
+                            try:
+                                line_number = inspect.getsourcelines(obj.func)[1]
+                            except (OSError, TypeError):
+                                line_number = 0  # Fallback for built-ins or issues
+
                             # If dataset is still default, use the filename
-                            if func.dataset == 'default':
-                                func.dataset = file_path.stem
-                            functions_to_add.append((line_number, func))
-                    elif isinstance(obj, EvalFunction):
-                        # Get line number from the function
-                        try:
-                            line_number = inspect.getsourcelines(obj.func)[1]
-                        except (OSError, TypeError):
-                            line_number = 0  # Fallback for built-ins or issues
-
-                        # If dataset is still default, use the filename
-                        if obj.dataset == 'default':
-                            obj.dataset = file_path.stem
-                        functions_to_add.append((line_number, obj))
+                            if obj.dataset == 'default':
+                                obj.dataset = file_path.stem
+                            functions_to_add.append((line_number, obj))
 
                 # Sort by line number and add to discovered_functions
                 functions_to_add.sort(key=lambda x: x[0])

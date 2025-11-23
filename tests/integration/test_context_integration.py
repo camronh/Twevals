@@ -3,6 +3,7 @@
 import pytest
 import asyncio
 from twevals import eval, EvalContext, parametrize, EvalResult
+from twevals.parametrize import generate_eval_functions
 
 
 class TestSimpleContextUsage:
@@ -123,7 +124,7 @@ class TestParametrizeAutoMapping:
             )
 
         # Execute all parametrized tests
-        eval_functions = test_sentiment.generate_eval_functions()
+        eval_functions = generate_eval_functions(test_sentiment)
 
         assert len(eval_functions) == 3
 
@@ -164,7 +165,7 @@ class TestParametrizeCustomParams:
                 result == expected, f"{a} {operation} {b} = {result}"
             )
 
-        eval_functions = test_calculator.generate_eval_functions()
+        eval_functions = generate_eval_functions(test_calculator)
         results = [func() for func in eval_functions]
 
         # All calculations should be correct
@@ -337,7 +338,7 @@ class TestMetadataFromParams:
             ctx.add_score(creativity, f"Creativity: {creativity}")
 
         # Generate all combinations (2 models × 2 temps = 4 tests)
-        eval_functions = test_func.generate_eval_functions()
+        eval_functions = generate_eval_functions(test_func)
         assert len(eval_functions) == 4
 
         results = [await func.call_async() for func in eval_functions]
@@ -371,7 +372,7 @@ class TestSetParamsHelper:
             assert "model" in ctx.metadata
             assert "temperature" in ctx.metadata
 
-        eval_functions = test_func.generate_eval_functions()
+        eval_functions = generate_eval_functions(test_func)
         results = [await func.call_async() for func in eval_functions]
 
         assert len(results) == 2
@@ -393,7 +394,7 @@ class TestUltraMinimal:
             ctx.add_output(sentiment)
             ctx.add_score(ctx.output == ctx.reference)
 
-        eval_functions = test_ultra_minimal.generate_eval_functions()
+        eval_functions = generate_eval_functions(test_ultra_minimal)
         results = [func() for func in eval_functions]
 
         assert len(results) == 2
