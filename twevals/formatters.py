@@ -1,6 +1,7 @@
 from typing import Dict, List, Any
 from rich.table import Table
 from rich.text import Text
+import json
 
 
 def format_results_table(results: List[Dict[str, Any]]) -> Table:
@@ -85,7 +86,12 @@ def format_results_table(results: List[Dict[str, Any]]) -> Table:
 
 
 def format_eval_list_table(eval_info_list: List[Dict[str, Any]]) -> Table:
-    """Format a list of evaluation function metadata into a Rich table"""
+    def fmt(val, max_len):
+        if val is None:
+            return ""
+        s = json.dumps(val) if isinstance(val, (dict, list)) else str(val)
+        return s if len(s) <= max_len else s[:max_len-3] + "..."
+
     table = Table(
         title="Evaluation Functions",
         show_header=True,
@@ -102,45 +108,13 @@ def format_eval_list_table(eval_info_list: List[Dict[str, Any]]) -> Table:
     table.add_column("Metadata", max_width=20)
 
     for info in eval_info_list:
-        # Format labels
-        labels_str = ", ".join(info['labels']) if info['labels'] else ""
-
-        # Format input
-        input_val = info.get('input')
-        if input_val is not None:
-            import json
-            input_str = json.dumps(input_val) if isinstance(input_val, (dict, list)) else str(input_val)
-            if len(input_str) > 60:
-                input_str = input_str[:57] + "..."
-        else:
-            input_str = ""
-
-        # Format reference
-        reference_val = info.get('reference')
-        if reference_val is not None:
-            reference_str = str(reference_val)
-            if len(reference_str) > 40:
-                reference_str = reference_str[:37] + "..."
-        else:
-            reference_str = ""
-
-        # Format metadata
-        metadata_val = info.get('metadata')
-        if metadata_val:
-            import json
-            metadata_str = json.dumps(metadata_val)
-            if len(metadata_str) > 40:
-                metadata_str = metadata_str[:37] + "..."
-        else:
-            metadata_str = ""
-
         table.add_row(
             info['function'],
             info['dataset'],
-            labels_str,
-            input_str,
-            reference_str,
-            metadata_str
+            ", ".join(info['labels']),
+            fmt(info.get('input'), 60),
+            fmt(info.get('reference'), 40),
+            fmt(info.get('metadata'), 40)
         )
 
     return table
