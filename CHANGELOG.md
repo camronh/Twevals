@@ -2,6 +2,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a8 - 2025-11-23
+
+- Added: `--list` flag to `twevals run` command to list evaluations without running them, preserving all filtering options.
+- Changed: Removed standalone `list` command in favor of `run --list`.
+- Tests: Added regression test for concurrency output capturing.
+
 0.0.2a7 - 2025-11-23
 
 - Added: File-level defaults via `twevals_defaults` dictionary - set global properties (dataset, labels, metadata, etc.) at the top of test files that all tests inherit, similar to pytest's pytestmark pattern.
@@ -89,4 +95,3 @@ All notable changes to this project will be documented in this file.
 - Added: `EvalResult.run_data` for run‑specific structured data, displayed in the UI details panel.
 - Changed: CLI `run` prints a results table by default and a concise summary below it.
 - Tests: Added integration tests for server (JSON flow, export endpoints, rerun) and e2e UI tests (Playwright), plus unit tests for storage behavior.
-
