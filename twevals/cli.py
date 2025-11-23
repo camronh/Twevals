@@ -1,14 +1,115 @@
 import click
 import sys
-from typing import Optional
+from typing import Optional, List, Dict
 
 from rich.console import Console
 
 from twevals.runner import EvalRunner
 from twevals.formatters import format_results_table
+from twevals.decorators import EvalFunction
 
 
 console = Console()
+
+
+class ProgressReporter:
+    """Pytest-style progress reporter for evaluation runs"""
+    
+    def __init__(self):
+        self.failures: List[Dict] = []
+        self.current_line = ""
+    
+    def on_start(self, func: EvalFunction):
+        """Called when an evaluation starts"""
+        # Track that we're running this eval
+        pass
+    
+    def on_complete(self, func: EvalFunction, result_dict: Dict):
+        """Called when an evaluation completes"""
+        result = result_dict["result"]
+        
+        # Determine status character and color
+        if result.get("error"):
+            char = "E"
+            color = "red"
+            self.failures.append({
+                "func": func,
+                "result_dict": result_dict,
+                "type": "error"
+            })
+        elif result.get("scores"):
+            # Check if any score has passed=True
+            passed = any(
+                score.get("passed") is True 
+                for score in result["scores"]
+            )
+            if passed:
+                char = "."
+                color = "green"
+            else:
+                # Check if there are explicit failures
+                failed = any(
+                    score.get("passed") is False 
+                    for score in result["scores"]
+                )
+                if failed:
+                    char = "F"
+                    color = "red"
+                    self.failures.append({
+                        "func": func,
+                        "result_dict": result_dict,
+                        "type": "failure"
+                    })
+                else:
+                    char = "."
+                    color = "green"
+        else:
+            char = "."
+            color = "green"
+        
+        # Print character inline with color (no newline)
+        console.print(f"[{color}]{char}[/{color}]", end="")
+        self.current_line += char
+    
+    def print_failures(self):
+        """Print detailed failure information"""
+        if not self.failures:
+            return
+        
+        console.print("\n")  # New line after progress dots
+        
+        for i, failure in enumerate(self.failures, 1):
+            func = failure["func"]
+            result_dict = failure["result_dict"]
+            result = result_dict["result"]
+            failure_type = failure["type"]
+            
+            # Format like pytest: dataset::function_name
+            dataset = result_dict.get("dataset", "unknown")
+            func_name = func.func.__name__
+            
+            console.print(f"\n[red]{i}. {dataset}::{func_name}[/red]")
+            
+            if failure_type == "error":
+                error_msg = result.get("error", "Unknown error")
+                console.print(f"   [red]ERROR:[/red] {error_msg}")
+            elif failure_type == "failure":
+                # Show failing scores
+                if result.get("scores"):
+                    for score in result["scores"]:
+                        if score.get("passed") is False:
+                            key = score.get("key", "unknown")
+                            notes = score.get("notes", "")
+                            if notes:
+                                console.print(f"   [red]FAIL:[/red] {key} - {notes}")
+                            else:
+                                console.print(f"   [red]FAIL:[/red] {key}")
+            
+            # Show input/output if available
+            if result.get("input"):
+                console.print(f"   [dim]Input:[/dim] {result['input']}")
+            if result.get("output"):
+                console.print(f"   [dim]Output:[/dim] {result['output']}")
 
 
 @click.group()
@@ -58,21 +159,29 @@ def run(
     # Create runner
     runner = EvalRunner(concurrency=concurrency, verbose=verbose)
     
-    # Run evaluations with progress indicator
-    with console.status("[bold green]Running evaluations...", spinner="dots") as status:
-        try:
-            summary = runner.run(
-                path=path,
-                dataset=dataset,
-                labels=labels,
-                function_name=function_name,
-                output_file=output,
-                csv_file=csv,
-                verbose=verbose
-            )
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
+    # Create progress reporter
+    reporter = ProgressReporter()
+    
+    # Run evaluations with progress reporting
+    console.print("[bold green]Running evaluations...[/bold green]")
+    try:
+        summary = runner.run(
+            path=path,
+            dataset=dataset,
+            labels=labels,
+            function_name=function_name,
+            output_file=output,
+            csv_file=csv,
+            verbose=verbose,
+            on_start=reporter.on_start,
+            on_complete=reporter.on_complete
+        )
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    
+    # Print failure details if any
+    reporter.print_failures()
     
     # Display results
     if summary["total_evaluations"] == 0:
