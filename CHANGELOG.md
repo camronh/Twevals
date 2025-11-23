@@ -2,6 +2,14 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a9 - 2025-11-23
+
+- Added: `timeout` parameter to `@eval` decorator for setting per-evaluation timeout limits in seconds.
+- Added: `--timeout` CLI flag for `twevals run` command to set a global timeout that overrides individual test timeouts.
+- Added: Timeout enforcement for both sync and async functions using `concurrent.futures.ThreadPoolExecutor` and `asyncio.wait_for`.
+- Added: Timeout support for target hooks with proper error handling and latency tracking on timeout.
+- Tests: Added comprehensive timeout tests covering async/sync functions and target hooks.
+
 0.0.2a8 - 2025-11-23
 
 - Added: `--list` flag to `twevals run` command to list evaluations without running them, preserving all filtering options.

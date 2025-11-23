@@ -190,6 +190,7 @@ Wraps a function and records evaluation results.
 - `default_score_key` (str, optional): Default key for `add_score()`
 - `metadata` (dict, optional): Pre-populate ctx.metadata
 - `metadata_from_params` (list, optional): Auto-extract params to metadata
+- `timeout` (float, optional): Maximum execution time in seconds for the evaluation
 
 **Examples:**
 
@@ -233,6 +234,16 @@ def test_with_target(ctx: EvalContext):
     # ctx.output comes from the target hook, ctx.trace_id is preserved
     ctx.add_score("weather" in ctx.output.lower(), notes="Contains answer")
     return ctx.build()
+
+# With timeout to prevent long-running evals
+@eval(
+    input="complex task",
+    timeout=5.0,  # Fails if execution exceeds 5 seconds
+    dataset="performance"
+)
+async def test_with_timeout(ctx: EvalContext):
+    ctx.add_output(await slow_agent(ctx.input))
+    ctx.add_score(ctx.output is not None, "Completed in time")
 ```
 If your target returns a value, it is treated as `ctx.output` by default (dicts are passed to `ctx.add_output()`).
 
@@ -485,6 +496,7 @@ Common flags:
   -d, --dataset TEXT      Filter by dataset(s)
   -l, --label TEXT        Filter by label(s)
   -c, --concurrency INT   Number of concurrent evals (0 = sequential)
+  --timeout FLOAT         Global timeout in seconds (overrides individual test timeouts)
   -q, --quiet             Reduce logs
   -v, --verbose           Verbose logs
 
