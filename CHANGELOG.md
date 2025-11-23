@@ -4,12 +4,14 @@ All notable changes to this project will be documented in this file.
 
 0.0.2a5 - 2025-11-22
 
+- Added: `--json` flag for `twevals run` command to output results as compact JSON to stdout, omitting null values for machine-readable output.
 - Added: Pytest-style progress reporting during evaluation execution with colored output (green for pass, red for fail/error).
 - Added: Progress display shows one line per file with filename prefix followed by status characters (`.`, `F`, `E`), matching pytest's output format.
 - Added: Detailed failure reporting after progress output showing dataset::function_name, error messages, and input/output for failed evaluations.
 - Added: Progress hooks (`on_start`, `on_complete`) to `EvalRunner` for extensible progress reporting.
 - Changed: Replaced spinner-only progress indicator with real-time pytest-style character output.
 - Tests: Added comprehensive tests for progress reporting hooks and CLI progress output validation.
+- Tests: Added tests for `--json` flag output format validation and null value omission.
 
 0.0.2a4 - 2025-11-22
 
