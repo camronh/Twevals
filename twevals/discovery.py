@@ -15,7 +15,8 @@ class EvalDiscovery:
         self,
         path: str,
         dataset: Optional[str] = None,
-        labels: Optional[List[str]] = None
+        labels: Optional[List[str]] = None,
+        function_name: Optional[str] = None
     ) -> List[EvalFunction]:
         self.discovered_functions = []
         path_obj = Path(path)
@@ -37,6 +38,15 @@ class EvalDiscovery:
         if labels:
             label_set = set(labels)
             filtered = [f for f in filtered if any(l in label_set for l in f.labels)]
+        
+        if function_name:
+            # Filter by function name
+            # Match exact name or parametrized variants (e.g., "func" matches "func[param1]")
+            filtered = [
+                f for f in filtered
+                if f.func.__name__ == function_name
+                or f.func.__name__.startswith(function_name + "[")
+            ]
         
         return filtered
 

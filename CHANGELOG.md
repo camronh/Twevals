@@ -2,6 +2,11 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a4 - 2025-11-22
+
+- Added: Function name filtering using `file.py::function_name` syntax, similar to pytest. Run specific evaluation functions or parametrized variants (e.g., `twevals run tests.py::my_eval` or `tests.py::my_eval[param1]`).
+- Tests: Added comprehensive tests for function filtering including exact matches, parametrized variants, and combined filters with dataset/labels.
+
 0.0.2a3 - 2025-11-22
 
 - Fixed: `add_output()` now correctly handles dicts without EvalResult fields (like `{'full_name': 'Kim Diaz'}`) by storing them as-is in the output field, instead of incorrectly treating them as structured EvalResult dicts.

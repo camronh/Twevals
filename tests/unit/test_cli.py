@@ -268,4 +268,5 @@ def test_error():
     
     def test_run_nonexistent_path(self):
         result = self.runner.invoke(cli, ['run', 'nonexistent.py'])
-        assert result.exit_code == 2  # Click's error code for missing file
+        assert result.exit_code == 1  # Error code for missing file
+        assert 'does not exist' in result.output

@@ -112,13 +112,14 @@ class EvalRunner:
         path: str,
         dataset: Optional[str] = None,
         labels: Optional[List[str]] = None,
+        function_name: Optional[str] = None,
         output_file: Optional[str] = None,
         csv_file: Optional[str] = None,
         verbose: bool = False
     ) -> Dict:
         # Discover functions
         discovery = EvalDiscovery()
-        functions = discovery.discover(path, dataset, labels)
+        functions = discovery.discover(path, dataset, labels, function_name)
         
         if not functions:
             return {
