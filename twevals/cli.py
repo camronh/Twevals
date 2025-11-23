@@ -9,8 +9,9 @@ from typing import Optional, List, Dict
 from rich.console import Console
 
 from twevals.runner import EvalRunner
-from twevals.formatters import format_results_table
+from twevals.formatters import format_results_table, format_eval_list_table
 from twevals.decorators import EvalFunction
+from twevals.discovery import EvalDiscovery
 
 
 console = Console()
@@ -281,6 +282,135 @@ def run(
         console.print(f"\n[green]Results saved to: {output}[/green]")
     if csv:
         console.print(f"[green]Results saved to: {csv}[/green]")
+
+
+@cli.command(name='list')
+@click.argument('path', type=str)
+@click.option('--dataset', '-d', help='Filter by specific dataset(s), comma-separated')
+@click.option('--label', '-l', multiple=True, help='Filter by specific label(s)')
+@click.option('--json', 'json_mode', is_flag=True, help='Output as JSON to stdout')
+@click.option('--csv', '-s', type=click.Path(dir_okay=False), help='Output to CSV file')
+def list_evals(
+    path: str,
+    dataset: Optional[str],
+    label: tuple,
+    json_mode: bool,
+    csv: Optional[str]
+):
+    """List all evaluations without running them
+
+    Path can include function name filter: file.py::function_name
+    """
+    from pathlib import Path as PathLib
+    import csv as csv_module
+
+    # Parse path to extract file path and optional function name
+    function_name = None
+    if '::' in path:
+        file_path, function_name = path.rsplit('::', 1)
+        path = file_path
+
+    # Validate that the file path portion exists
+    path_obj = PathLib(path)
+    if not path_obj.exists():
+        if json_mode:
+            click.echo(json.dumps({"error": f"Path {path} does not exist"}))
+        else:
+            console.print(f"[red]Error: Path {path} does not exist[/red]")
+        sys.exit(1)
+
+    # Convert label tuple to list
+    labels = list(label) if label else None
+
+    # Discover evaluations
+    discovery = EvalDiscovery()
+    try:
+        eval_functions = discovery.discover(
+            path=path,
+            dataset=dataset,
+            labels=labels,
+            function_name=function_name
+        )
+    except Exception as e:
+        if json_mode:
+            click.echo(json.dumps({"error": str(e)}))
+        else:
+            console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+    if not eval_functions:
+        if json_mode:
+            click.echo(json.dumps({"evaluations": [], "total": 0}))
+        else:
+            console.print("[yellow]No evaluations found matching the criteria[/yellow]")
+        return
+
+    # Build eval info list
+    eval_info_list = []
+    for func in eval_functions:
+        eval_info = {
+            "function": func.__name__,
+            "dataset": func.dataset,
+            "labels": func.labels,
+            "input": func.context_kwargs.get('input'),
+            "reference": func.context_kwargs.get('reference'),
+            "metadata": func.context_kwargs.get('metadata'),
+            "evaluators": [e.__name__ if hasattr(e, '__name__') else str(e) for e in func.evaluators] if func.evaluators else [],
+            "target": func.target.__name__ if func.target and hasattr(func.target, '__name__') else None,
+            "has_context": func.context_param is not None,
+        }
+        eval_info_list.append(eval_info)
+
+    # Handle JSON output
+    if json_mode:
+        output_data = {
+            "evaluations": _remove_none(eval_info_list),
+            "total": len(eval_info_list)
+        }
+        click.echo(json.dumps(output_data, separators=(',', ':'), default=str))
+        return
+
+    # Handle CSV output
+    if csv:
+        try:
+            with open(csv, 'w', newline='') as csvfile:
+                if not eval_info_list:
+                    return
+
+                # Flatten the data for CSV
+                fieldnames = ['function', 'dataset', 'labels', 'input', 'reference', 'metadata', 'evaluators', 'target', 'has_context']
+                writer = csv_module.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+
+                for info in eval_info_list:
+                    # Convert lists/dicts to strings for CSV
+                    row = {
+                        'function': info['function'],
+                        'dataset': info['dataset'],
+                        'labels': ','.join(info['labels']) if info['labels'] else '',
+                        'input': json.dumps(info['input']) if info['input'] is not None else '',
+                        'reference': json.dumps(info['reference']) if info['reference'] is not None else '',
+                        'metadata': json.dumps(info['metadata']) if info['metadata'] else '',
+                        'evaluators': ','.join(info['evaluators']) if info['evaluators'] else '',
+                        'target': info['target'] if info['target'] else '',
+                        'has_context': 'yes' if info['has_context'] else 'no',
+                    }
+                    writer.writerow(row)
+
+                console.print(f"[green]Evaluations list saved to: {csv}[/green]")
+        except Exception as e:
+            console.print(f"[red]Error writing CSV: {e}[/red]")
+            sys.exit(1)
+        return
+
+    # Display table
+    table = format_eval_list_table(eval_info_list)
+    console.print(table)
+
+    # Print summary
+    console.print(f"\n[bold]Total evaluations:[/bold] {len(eval_info_list)}")
+    unique_datasets = len(set(info['dataset'] for info in eval_info_list))
+    console.print(f"[bold]Unique datasets:[/bold] {unique_datasets}")
 
 
 @cli.command()

@@ -80,5 +80,67 @@ def format_results_table(results: List[Dict[str, Any]]) -> Table:
             scores_text.strip(),
             latency_text
         )
-    
+
+    return table
+
+
+def format_eval_list_table(eval_info_list: List[Dict[str, Any]]) -> Table:
+    """Format a list of evaluation function metadata into a Rich table"""
+    table = Table(
+        title="Evaluation Functions",
+        show_header=True,
+        header_style="bold magenta",
+        show_lines=True,
+        expand=True
+    )
+
+    table.add_column("Function", style="cyan", width=30)
+    table.add_column("Dataset", style="green", width=20)
+    table.add_column("Labels", max_width=15)
+    table.add_column("Input", max_width=30)
+    table.add_column("Reference", max_width=20)
+    table.add_column("Metadata", max_width=20)
+
+    for info in eval_info_list:
+        # Format labels
+        labels_str = ", ".join(info['labels']) if info['labels'] else ""
+
+        # Format input
+        input_val = info.get('input')
+        if input_val is not None:
+            import json
+            input_str = json.dumps(input_val) if isinstance(input_val, (dict, list)) else str(input_val)
+            if len(input_str) > 60:
+                input_str = input_str[:57] + "..."
+        else:
+            input_str = ""
+
+        # Format reference
+        reference_val = info.get('reference')
+        if reference_val is not None:
+            reference_str = str(reference_val)
+            if len(reference_str) > 40:
+                reference_str = reference_str[:37] + "..."
+        else:
+            reference_str = ""
+
+        # Format metadata
+        metadata_val = info.get('metadata')
+        if metadata_val:
+            import json
+            metadata_str = json.dumps(metadata_val)
+            if len(metadata_str) > 40:
+                metadata_str = metadata_str[:37] + "..."
+        else:
+            metadata_str = ""
+
+        table.add_row(
+            info['function'],
+            info['dataset'],
+            labels_str,
+            input_str,
+            reference_str,
+            metadata_str
+        )
+
     return table
