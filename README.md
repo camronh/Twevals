@@ -184,6 +184,7 @@ Wraps a function and records evaluation results.
 - `dataset` (str, optional): Groups related evals (defaults to filename)
 - `labels` (list, optional): Filtering tags
 - `evaluators` (list, optional): Callables that add scores to a result
+- `target` (callable, optional): Pre-hook that runs before the eval, populating the `EvalContext`
 - `input` (any, optional): Pre-populate ctx.input
 - `reference` (any, optional): Pre-populate ctx.reference
 - `default_score_key` (str, optional): Default key for `add_score()`
@@ -216,7 +217,24 @@ def test(ctx: EvalContext):
 def test(ctx: EvalContext):
     # ctx.input and ctx.reference already set!
     ...
+
+# Target hook to run your agent and inject results
+def call_agent(ctx: EvalContext):
+    # Use any attributes you like on the context
+    ctx.trace_id = "abc123"
+    ctx.add_output(my_agent(ctx.input), metadata={"trace_id": ctx.trace_id})
+
+@eval(
+    target=call_agent,
+    input="What is the weather?",
+    dataset="agent_calls",
+)
+def test_with_target(ctx: EvalContext):
+    # ctx.output comes from the target hook, ctx.trace_id is preserved
+    ctx.add_score("weather" in ctx.output.lower(), notes="Contains answer")
+    return ctx.build()
 ```
+If your target returns a value, it is treated as `ctx.output` by default (dicts are passed to `ctx.add_output()`).
 
 ### `@parametrize`
 
@@ -241,6 +259,16 @@ def test_sentiment(ctx: EvalContext):
     detected = analyze_sentiment(ctx.input)
     ctx.add_output(detected)
     ctx.add_score(ctx.output == ctx.reference, f"Detected: {detected}")
+
+# Parametrize + targets: param sets are available to the target via ctx.input/ctx.metadata
+def call_agent(ctx: EvalContext):
+    ctx.add_output(my_agent(ctx.input["prompt"]))
+
+@eval(target=call_agent)
+@parametrize("prompt", ["hello", "world"])
+def test_prompt(ctx: EvalContext):
+    assert "prompt" in ctx.input  # set before target runs
+    return ctx.build()
 ```
 
 **Custom parameters:**
