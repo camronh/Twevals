@@ -305,27 +305,14 @@ def eval(
     metadata: Optional[Dict[str, Any]] = None,
     metadata_from_params: Optional[List[str]] = None,
 ):
-    from twevals.parametrize import ParametrizedEvalFunction
-
     # Support both @eval and @eval()
     if callable(dataset) and labels is None and evaluators is None:
         # Called as @eval without parentheses
         func = dataset
-        if isinstance(func, ParametrizedEvalFunction):
-            # Handle parametrized function
-            func.eval_func = EvalFunction(func.base_func, None, None, None)
-            return func
         return EvalFunction(func, None, None, None)
 
     # Called as @eval() or @eval(dataset=..., labels=..., evaluators=...)
-    def decorator(func: Union[Callable, ParametrizedEvalFunction]):
-        if isinstance(func, ParametrizedEvalFunction):
-            # Handle parametrized function
-            func.eval_func = EvalFunction(
-                func.base_func, dataset, labels, evaluators,
-                input, reference, default_score_key, metadata, metadata_from_params
-            )
-            return func
+    def decorator(func: Callable):
         return EvalFunction(
             func, dataset, labels, evaluators,
             input, reference, default_score_key, metadata, metadata_from_params

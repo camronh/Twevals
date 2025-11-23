@@ -2,23 +2,25 @@
 import pytest
 from twevals import eval, EvalResult, parametrize
 from twevals.discovery import EvalDiscovery
-from twevals.parametrize import ParametrizedEvalFunction
+from twevals.parametrize import generate_eval_functions
+from twevals.decorators import EvalFunction
 
 
 class TestParametrize:
-    
+
     def test_simple_parametrize(self):
         """Test basic parametrization with tuples"""
         @eval(dataset="test")
         @parametrize("x,y", [(1, 2), (3, 4), (5, 6)])
         def test_func(x, y):
             return EvalResult(input=x, output=y)
-        
-        # Should be a ParametrizedEvalFunction
-        assert isinstance(test_func, ParametrizedEvalFunction)
-        
+
+        # Should be an EvalFunction with param_sets attribute
+        assert isinstance(test_func, EvalFunction)
+        assert hasattr(test_func, '__param_sets__')
+
         # Generate the functions
-        funcs = test_func.generate_eval_functions()
+        funcs = generate_eval_functions(test_func)
         assert len(funcs) == 3
         
         # Test each generated function
@@ -43,8 +45,8 @@ class TestParametrize:
         ])
         def test_func(a, b, c):
             return EvalResult(input=a, output=b+c)
-        
-        funcs = test_func.generate_eval_functions()
+
+        funcs = generate_eval_functions(test_func)
         assert len(funcs) == 2
         
         result0 = funcs[0]()
@@ -61,8 +63,8 @@ class TestParametrize:
         @parametrize("value", [10, 20, 30], ids=["ten", "twenty", "thirty"])
         def test_func(value):
             return EvalResult(input=value, output=value*2)
-        
-        funcs = test_func.generate_eval_functions()
+
+        funcs = generate_eval_functions(test_func)
         assert len(funcs) == 3
         
         # Check function names include IDs
@@ -81,8 +83,8 @@ class TestParametrize:
         @parametrize("x", [1, 2, 3])
         def test_func(x):
             return EvalResult(input=x, output=x*x)
-        
-        funcs = test_func.generate_eval_functions()
+
+        funcs = generate_eval_functions(test_func)
         assert len(funcs) == 3
         
         assert funcs[0]().output == 1
@@ -96,8 +98,8 @@ class TestParametrize:
         @parametrize("y", [10, 20])
         def test_func(x, y):
             return EvalResult(input={"x": x, "y": y}, output=x+y)
-        
-        funcs = test_func.generate_eval_functions()
+
+        funcs = generate_eval_functions(test_func)
         # Should create cartesian product: 2 x 2 = 4 functions
         assert len(funcs) == 4
         
@@ -116,8 +118,8 @@ class TestParametrize:
                 input={"model": model, "temp": temp},
                 output=f"{model}@{temp}"
             )
-        
-        funcs = test_func.generate_eval_functions()
+
+        funcs = generate_eval_functions(test_func)
         assert len(funcs) == 4
         
         # Check combined IDs in function names
@@ -137,8 +139,8 @@ class TestParametrize:
             import asyncio
             await asyncio.sleep(0.001)
             return EvalResult(input=value, output=value*10)
-        
-        funcs = test_func.generate_eval_functions()
+
+        funcs = generate_eval_functions(test_func)
         assert len(funcs) == 3
         
         # Test async execution
@@ -195,8 +197,8 @@ def test_normal():
         @parametrize("x", [1, 2])
         def test_func(x):
             return EvalResult(input=x, output=x)
-        
-        funcs = test_func.generate_eval_functions()
+
+        funcs = generate_eval_functions(test_func)
         
         for func in funcs:
             assert func.dataset == "my_dataset"
@@ -229,8 +231,8 @@ def test_normal():
         ])
         def test_func(a, b):
             return EvalResult(input=a, output=b)
-        
-        funcs = test_func.generate_eval_functions()
+
+        funcs = generate_eval_functions(test_func)
         assert len(funcs) == 2
         
         result0 = funcs[0]()

@@ -119,7 +119,7 @@ class TestEvalDiscovery:
             f.write("def test_func():\n")
             f.write("    return EvalResult(input='t', output='o')\n")
             temp_path = f.name
-        
+
         try:
             discovery = EvalDiscovery()
             # Should handle the import error gracefully
@@ -127,3 +127,17 @@ class TestEvalDiscovery:
             assert functions == []  # No functions discovered due to import error
         finally:
             os.unlink(temp_path)
+
+    def test_preserve_source_file_order(self):
+        """Test that discovered functions preserve their source file definition order"""
+        discovery = EvalDiscovery()
+        functions = discovery.discover("tests/fixtures/test_eval_file.py")
+
+        # Verify we have the expected functions
+        assert len(functions) == 3
+
+        # Check that functions are in source file order (not alphabetical)
+        # Source file order: test_fixture_function, async_fixture_function, test_no_params
+        # Alphabetical would be: async_fixture_function, test_fixture_function, test_no_params
+        func_names = [f.func.__name__ for f in functions]
+        assert func_names == ["test_fixture_function", "async_fixture_function", "test_no_params"]
