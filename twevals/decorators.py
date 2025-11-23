@@ -3,6 +3,7 @@ import functools
 import time
 import asyncio
 import inspect
+import concurrent.futures
 
 from twevals.schemas import EvalResult, Score
 from twevals.context import EvalContext
@@ -22,6 +23,7 @@ class EvalFunction:
         default_score_key: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         metadata_from_params: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
     ):
         self.func = func
         self.dataset = dataset if dataset is not None else self._infer_dataset_from_name(func)
@@ -32,6 +34,7 @@ class EvalFunction:
         self.labels = labels if labels is not None else []
         self.evaluators = evaluators if evaluators is not None else []
         self.target = target
+        self.timeout = timeout
         self.is_async = asyncio.iscoroutinefunction(func)
 
         # Context injection support
@@ -114,7 +117,18 @@ class EvalFunction:
 
         start = time.time()
         try:
-            target_result = self.target(context)
+            if self.timeout:
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(self.target, context)
+                    try:
+                        target_result = future.result(timeout=self.timeout)
+                    except concurrent.futures.TimeoutError:
+                        if context.latency is None:
+                            context.latency = time.time() - start
+                        return context.build_with_error(f"Target execution timed out after {self.timeout}s")
+            else:
+                target_result = self.target(context)
+
             self._inject_target_result(target_result, context)
             if context.latency is None:
                 context.latency = time.time() - start
@@ -131,10 +145,25 @@ class EvalFunction:
 
         start = time.time()
         try:
-            if asyncio.iscoroutinefunction(self.target):
-                target_result = await self.target(context)
+            if self.timeout:
+                try:
+                    if asyncio.iscoroutinefunction(self.target):
+                        target_result = await asyncio.wait_for(self.target(context), timeout=self.timeout)
+                    else:
+                        target_result = await asyncio.wait_for(
+                            asyncio.to_thread(self.target, context), 
+                            timeout=self.timeout
+                        )
+                except asyncio.TimeoutError:
+                    if context.latency is None:
+                        context.latency = time.time() - start
+                    return context.build_with_error(f"Target execution timed out after {self.timeout}s")
             else:
-                target_result = self.target(context)
+                if asyncio.iscoroutinefunction(self.target):
+                    target_result = await self.target(context)
+                else:
+                    target_result = self.target(context)
+
             self._inject_target_result(target_result, context)
             if context.latency is None:
                 context.latency = time.time() - start
@@ -241,7 +270,13 @@ class EvalFunction:
         # Measure only the main function execution time
         start = time.time()
         try:
-            result = await self.func(*args, **kwargs)
+            if self.timeout and not self.target:
+                try:
+                    result = await asyncio.wait_for(self.func(*args, **kwargs), timeout=self.timeout)
+                except asyncio.TimeoutError:
+                    raise TimeoutError(f"Evaluation timed out after {self.timeout}s")
+            else:
+                result = await self.func(*args, **kwargs)
             result = self._process_result(result, context)
         except Exception as e:
             # If we have a context with partial data, preserve it
@@ -293,7 +328,15 @@ class EvalFunction:
         # Measure only the main function execution time
         start = time.time()
         try:
-            result = self.func(*args, **kwargs)
+            if self.timeout and not self.target:
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(self.func, *args, **kwargs)
+                    try:
+                        result = future.result(timeout=self.timeout)
+                    except concurrent.futures.TimeoutError:
+                        raise TimeoutError(f"Evaluation timed out after {self.timeout}s")
+            else:
+                result = self.func(*args, **kwargs)
             result = self._process_result(result, context)
         except Exception as e:
             # If we have a context with partial data, preserve it
@@ -388,9 +431,10 @@ def eval(
     default_score_key: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
     metadata_from_params: Optional[List[str]] = None,
+    timeout: Optional[float] = None,
 ):
     # Support both @eval and @eval()
-    if callable(dataset) and labels is None and evaluators is None:
+    if callable(dataset) and labels is None and evaluators is None and timeout is None:
         # Called as @eval without parentheses
         func = dataset
         return EvalFunction(func, dataset=None, labels=None, evaluators=None, target=None)
@@ -408,5 +452,6 @@ def eval(
             default_score_key=default_score_key,
             metadata=metadata,
             metadata_from_params=metadata_from_params,
+            timeout=timeout,
         )
     return decorator

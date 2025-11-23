@@ -186,6 +186,7 @@ def cli():
 @click.option('--output', '-o', type=click.Path(dir_okay=False), help='Path to JSON file for results')
 @click.option('--csv', '-s', type=click.Path(dir_okay=False), help='Path to CSV file for results (include filename)')
 @click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
+@click.option('--timeout', type=float, help='Global timeout in seconds (overrides individual test timeouts)')
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
 @click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
 @click.option('--list', 'list_mode', is_flag=True, help='List all evaluations without running them')
@@ -196,6 +197,7 @@ def run(
     output: Optional[str],
     csv: Optional[str],
     concurrency: int,
+    timeout: Optional[float],
     verbose: bool,
     json_mode: bool,
     list_mode: bool
@@ -288,7 +290,7 @@ def run(
         return
     
     # Create runner
-    runner = EvalRunner(concurrency=concurrency, verbose=verbose)
+    runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
     
     # Create progress reporter
     reporter = ProgressReporter() if not json_mode else None

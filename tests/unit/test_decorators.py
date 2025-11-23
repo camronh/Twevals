@@ -132,3 +132,76 @@ class TestEvalDecorator:
         assert isinstance(result, EvalResult)
         assert result.input == "sync"
         assert result.output == "result"
+
+
+class TestEvalTimeout:
+    @pytest.mark.asyncio
+    async def test_async_timeout_exceeded(self):
+        @eval(timeout=0.1)
+        async def slow_func():
+            await asyncio.sleep(0.3)
+            return EvalResult(input="test", output="finished")
+
+        # Need to run call_async to verify async behavior directly
+        # Although the decorator's __call__ also handles async execution logic
+        result = await slow_func.call_async()
+        
+        assert isinstance(result, EvalResult)
+        assert result.error is not None
+        assert "timeout" in result.error.lower() or "timed out" in result.error.lower()
+        # Output should be None because it failed
+        assert result.output is None
+
+    @pytest.mark.asyncio
+    async def test_async_timeout_not_exceeded(self):
+        @eval(timeout=0.5)
+        async def fast_func():
+            await asyncio.sleep(0.1)
+            return EvalResult(input="test", output="finished")
+
+        result = await fast_func.call_async()
+        assert isinstance(result, EvalResult)
+        assert result.error is None
+        assert result.output == "finished"
+
+    def test_sync_timeout_exceeded(self):
+        @eval(timeout=0.1)
+        def slow_sync_func():
+            time.sleep(0.3)
+            return EvalResult(input="test", output="finished")
+
+        result = slow_sync_func()
+        assert isinstance(result, EvalResult)
+        assert result.error is not None
+        assert "timeout" in result.error.lower() or "timed out" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_target_async_timeout_exceeded(self):
+        async def slow_target(ctx):
+            await asyncio.sleep(0.3)
+            return "target_done"
+
+        @eval(target=slow_target, timeout=0.1)
+        async def test_func(ctx):
+            assert ctx.output == "target_done"
+            return EvalResult(input="test", output="success")
+
+        result = await test_func.call_async()
+        assert isinstance(result, EvalResult)
+        assert result.error is not None
+        assert "timeout" in result.error.lower() or "timed out" in result.error.lower()
+
+    def test_target_sync_timeout_exceeded(self):
+        def slow_target(ctx):
+            time.sleep(0.3)
+            return "target_done"
+
+        @eval(target=slow_target, timeout=0.1)
+        def test_func(ctx):
+            assert ctx.output == "target_done"
+            return EvalResult(input="test", output="success")
+
+        result = test_func()
+        assert isinstance(result, EvalResult)
+        assert result.error is not None
+        assert "timeout" in result.error.lower() or "timed out" in result.error.lower()
