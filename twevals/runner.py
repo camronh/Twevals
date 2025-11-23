@@ -4,7 +4,7 @@ import csv
 import io
 from contextlib import redirect_stdout, nullcontext
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Callable
 
 from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
@@ -56,30 +56,49 @@ class EvalRunner:
                 error=f"Error running {func.func.__name__}: {str(e)}"
             )]
     
-    async def run_all_async(self, functions: List[EvalFunction]) -> List[Dict]:
+    async def run_all_async(
+        self, 
+        functions: List[EvalFunction],
+        on_start: Optional[Callable[[EvalFunction], None]] = None,
+        on_complete: Optional[Callable[[EvalFunction, Dict], None]] = None
+    ) -> List[Dict]:
         all_results = []
         
         if self.concurrency == 0:
             # Sequential execution
             for func in functions:
+                # Call on_start callback if provided
+                if on_start:
+                    on_start(func)
+                
                 if func.is_async:
                     results = await self.run_async_eval(func)
                 else:
                     results = self.run_sync_eval(func)
                 
                 for result in results:
-                    all_results.append({
+                    result_dict = {
                         "function": func.func.__name__,
                         "dataset": func.dataset,
                         "labels": func.labels,
                         "result": result.model_dump()
-                    })
+                    }
+                    all_results.append(result_dict)
+                    
+                    # Call on_complete callback if provided
+                    if on_complete:
+                        on_complete(func, result_dict)
         else:
             # Concurrent execution
             tasks = []
             for func in functions:
+                # Call on_start callback before creating task
+                if on_start:
+                    on_start(func)
+                
                 if func.is_async:
-                    tasks.append((func, self.run_async_eval(func)))
+                    # Ensure async functions are wrapped in tasks for concurrent execution
+                    tasks.append((func, asyncio.create_task(self.run_async_eval(func))))
                 else:
                     # Wrap sync functions in asyncio
                     tasks.append((func, asyncio.create_task(
@@ -98,12 +117,17 @@ class EvalRunner:
             for func, task in tasks:
                 func_obj, results = await run_with_semaphore(func, task)
                 for result in results:
-                    all_results.append({
+                    result_dict = {
                         "function": func_obj.func.__name__,
                         "dataset": func_obj.dataset,
                         "labels": func_obj.labels,
                         "result": result.model_dump()
-                    })
+                    }
+                    all_results.append(result_dict)
+                    
+                    # Call on_complete callback if provided
+                    if on_complete:
+                        on_complete(func_obj, result_dict)
         
         return all_results
     
@@ -115,7 +139,9 @@ class EvalRunner:
         function_name: Optional[str] = None,
         output_file: Optional[str] = None,
         csv_file: Optional[str] = None,
-        verbose: bool = False
+        verbose: bool = False,
+        on_start: Optional[Callable[[EvalFunction], None]] = None,
+        on_complete: Optional[Callable[[EvalFunction, Dict], None]] = None
     ) -> Dict:
         # Discover functions
         discovery = EvalDiscovery()
@@ -138,7 +164,7 @@ class EvalRunner:
             in_loop = False
 
         if not in_loop:
-            all_results = asyncio.run(self.run_all_async(functions))
+            all_results = asyncio.run(self.run_all_async(functions, on_start=on_start, on_complete=on_complete))
         else:
             # Execute in a separate thread with a fresh loop
             from threading import Thread
@@ -150,7 +176,7 @@ class EvalRunner:
                 loop = asyncio.new_event_loop()
                 try:
                     asyncio.set_event_loop(loop)
-                    res = loop.run_until_complete(self.run_all_async(functions))
+                    res = loop.run_until_complete(self.run_all_async(functions, on_start=on_start, on_complete=on_complete))
                     result_holder["res"] = res
                 except BaseException as e:
                     error_holder["err"] = e

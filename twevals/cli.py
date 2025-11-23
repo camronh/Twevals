@@ -1,14 +1,160 @@
 import click
 import sys
-from typing import Optional
+import inspect
+import os
+from pathlib import Path
+from typing import Optional, List, Dict
 
 from rich.console import Console
 
 from twevals.runner import EvalRunner
 from twevals.formatters import format_results_table
+from twevals.decorators import EvalFunction
 
 
 console = Console()
+
+
+class ProgressReporter:
+    """Pytest-style progress reporter for evaluation runs"""
+    
+    def __init__(self):
+        self.failures: List[Dict] = []
+        self.current_line = ""
+        self.current_file = None
+    
+    def _get_file_display(self, func: EvalFunction) -> str:
+        """Get the display name for the file containing the function"""
+        try:
+            # Try to get the file path directly from the function
+            file_path = inspect.getfile(func.func)
+            # Try to make it relative to CWD
+            try:
+                return str(Path(file_path).relative_to(os.getcwd()))
+            except ValueError:
+                return Path(file_path).name
+        except (TypeError, OSError):
+            # Fallback: try to get from module
+            module = inspect.getmodule(func.func)
+            if module and hasattr(module, '__file__') and module.__file__:
+                try:
+                    return str(Path(module.__file__).relative_to(os.getcwd()))
+                except ValueError:
+                    return Path(module.__file__).name
+            # Final fallback: use dataset name
+            return func.dataset
+    
+    def on_start(self, func: EvalFunction):
+        """Called when an evaluation starts"""
+        # In sequential mode, we could print the header here.
+        # But to be safe with how runner calls things, we'll handle it in on_complete
+        # or check if we need to initialize the first file line.
+        file_display = self._get_file_display(func)
+        if file_display != self.current_file:
+            if self.current_file is not None:
+                console.print("") # Newline for previous file
+            console.print(f"{file_display} ", end="")
+            self.current_file = file_display
+            self.current_line = ""
+    
+    def on_complete(self, func: EvalFunction, result_dict: Dict):
+        """Called when an evaluation completes"""
+        # Ensure we're on the right file line (in case on_start didn't catch it or out of order - though runner is ordered)
+        file_display = self._get_file_display(func)
+        if file_display != self.current_file:
+            if self.current_file is not None:
+                console.print("")
+            console.print(f"{file_display} ", end="")
+            self.current_file = file_display
+            self.current_line = ""
+
+        result = result_dict["result"]
+        
+        # Determine status character and color
+        if result.get("error"):
+            char = "E"
+            color = "red"
+            self.failures.append({
+                "func": func,
+                "result_dict": result_dict,
+                "type": "error"
+            })
+        elif result.get("scores"):
+            # Check if any score has passed=True
+            passed = any(
+                score.get("passed") is True 
+                for score in result["scores"]
+            )
+            if passed:
+                char = "."
+                color = "green"
+            else:
+                # Check if there are explicit failures
+                failed = any(
+                    score.get("passed") is False 
+                    for score in result["scores"]
+                )
+                if failed:
+                    char = "F"
+                    color = "red"
+                    self.failures.append({
+                        "func": func,
+                        "result_dict": result_dict,
+                        "type": "failure"
+                    })
+                else:
+                    char = "."
+                    color = "green"
+        else:
+            char = "."
+            color = "green"
+        
+        # Print character inline with color (no newline)
+        console.print(f"[{color}]{char}[/{color}]", end="")
+        self.current_line += char
+    
+    def print_failures(self):
+        """Print detailed failure information"""
+        if self.current_file is not None:
+            console.print("") # Final newline
+            
+        if not self.failures:
+            return
+        
+        # console.print("\n")  # No extra newline needed as we added one above
+        
+        for i, failure in enumerate(self.failures, 1):
+            func = failure["func"]
+            result_dict = failure["result_dict"]
+            result = result_dict["result"]
+            failure_type = failure["type"]
+            
+            # Format like pytest: dataset::function_name
+            dataset = result_dict.get("dataset", "unknown")
+            func_name = func.func.__name__
+            
+            console.print(f"\n[red]{i}. {dataset}::{func_name}[/red]")
+            
+            if failure_type == "error":
+                error_msg = result.get("error", "Unknown error")
+                console.print(f"   [red]ERROR:[/red] {error_msg}")
+            elif failure_type == "failure":
+                # Show failing scores
+                if result.get("scores"):
+                    for score in result["scores"]:
+                        if score.get("passed") is False:
+                            key = score.get("key", "unknown")
+                            notes = score.get("notes", "")
+                            if notes:
+                                console.print(f"   [red]FAIL:[/red] {key} - {notes}")
+                            else:
+                                console.print(f"   [red]FAIL:[/red] {key}")
+            
+            # Show input/output if available
+            if result.get("input"):
+                console.print(f"   [dim]Input:[/dim] {result['input']}")
+            if result.get("output"):
+                console.print(f"   [dim]Output:[/dim] {result['output']}")
 
 
 @click.group()
@@ -58,21 +204,29 @@ def run(
     # Create runner
     runner = EvalRunner(concurrency=concurrency, verbose=verbose)
     
-    # Run evaluations with progress indicator
-    with console.status("[bold green]Running evaluations...", spinner="dots") as status:
-        try:
-            summary = runner.run(
-                path=path,
-                dataset=dataset,
-                labels=labels,
-                function_name=function_name,
-                output_file=output,
-                csv_file=csv,
-                verbose=verbose
-            )
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
+    # Create progress reporter
+    reporter = ProgressReporter()
+    
+    # Run evaluations with progress reporting
+    console.print("[bold green]Running evaluations...[/bold green]")
+    try:
+        summary = runner.run(
+            path=path,
+            dataset=dataset,
+            labels=labels,
+            function_name=function_name,
+            output_file=output,
+            csv_file=csv,
+            verbose=verbose,
+            on_start=reporter.on_start,
+            on_complete=reporter.on_complete
+        )
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    
+    # Print failure details if any
+    reporter.print_failures()
     
     # Display results
     if summary["total_evaluations"] == 0:
