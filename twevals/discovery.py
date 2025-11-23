@@ -80,6 +80,14 @@ class EvalDiscovery:
                 module.__file__ = str(file_path)  # Ensure __file__ is set
                 spec.loader.exec_module(module)
 
+                # Check for file-level defaults (twevals_defaults)
+                file_defaults = {}
+                if hasattr(module, 'twevals_defaults'):
+                    twevals_defaults = getattr(module, 'twevals_defaults')
+                    # Only use if it's a dict
+                    if isinstance(twevals_defaults, dict):
+                        file_defaults = twevals_defaults
+
                 # Find all EvalFunction instances
                 from twevals.parametrize import generate_eval_functions
 
@@ -99,6 +107,8 @@ class EvalDiscovery:
                                 line_number = 0  # Fallback for built-ins or issues
 
                             for func in generated_funcs:
+                                # Apply file defaults first
+                                self._apply_file_defaults(func, file_defaults)
                                 # If dataset is still default, use the filename
                                 if func.dataset == 'default':
                                     func.dataset = file_path.stem
@@ -111,6 +121,8 @@ class EvalDiscovery:
                             except (OSError, TypeError):
                                 line_number = 0  # Fallback for built-ins or issues
 
+                            # Apply file defaults first
+                            self._apply_file_defaults(obj, file_defaults)
                             # If dataset is still default, use the filename
                             if obj.dataset == 'default':
                                 obj.dataset = file_path.stem
@@ -140,3 +152,86 @@ class EvalDiscovery:
         for func in self.discovered_functions:
             labels.update(func.labels)
         return labels
+
+    def _apply_file_defaults(self, func: EvalFunction, file_defaults: dict):
+        """Apply file-level defaults to an EvalFunction instance.
+
+        Decorator values take precedence over file defaults.
+        File defaults are only applied if the decorator didn't set the value.
+
+        Edge cases handled:
+        - Deep copies mutable values (lists, dicts) to prevent shared mutation
+        - Deep merges metadata dicts (decorator + file defaults)
+        - Validates keys and warns about unknown parameters
+        - Supports all decorator params including evaluators, target
+        """
+        if not file_defaults:
+            return
+
+        import copy
+
+        # Valid keys that can be set in twevals_defaults
+        valid_keys = {
+            'dataset', 'labels', 'evaluators', 'target',
+            'input', 'reference', 'default_score_key',
+            'metadata', 'metadata_from_params'
+        }
+
+        # Warn about invalid keys
+        invalid_keys = set(file_defaults.keys()) - valid_keys
+        if invalid_keys:
+            print(f"Warning: Unknown keys in twevals_defaults: {', '.join(sorted(invalid_keys))}")
+
+        # Apply dataset if not set by decorator (and not 'default')
+        if 'dataset' in file_defaults:
+            # Only apply if the function's dataset is still the default value
+            if func.dataset == 'default':
+                func.dataset = file_defaults['dataset']
+
+        provided_labels = getattr(func, '_provided_labels', None)
+        provided_evaluators = getattr(func, '_provided_evaluators', None)
+        provided_metadata_from_params = getattr(func, '_provided_metadata_from_params', None)
+
+        # Apply labels if not set by decorator (None means not provided; empty list should override)
+        if 'labels' in file_defaults and provided_labels is None:
+            # Deep copy to prevent mutation
+            func.labels = copy.deepcopy(file_defaults['labels'])
+
+        # Apply evaluators if not set by decorator
+        if 'evaluators' in file_defaults and provided_evaluators is None:
+            # Deep copy to prevent mutation
+            func.evaluators = copy.deepcopy(file_defaults['evaluators'])
+
+        # Apply target if not set by decorator
+        if 'target' in file_defaults and func.target is None:
+            func.target = file_defaults['target']
+
+        # Apply metadata_from_params if not set by decorator
+        if 'metadata_from_params' in file_defaults and provided_metadata_from_params is None:
+            # Deep copy to prevent mutation
+            func.metadata_from_params = copy.deepcopy(file_defaults['metadata_from_params'])
+
+        # Handle metadata with deep merge
+        if 'metadata' in file_defaults:
+            file_metadata = file_defaults['metadata']
+            decorator_metadata = func.context_kwargs.get('metadata')
+
+            if decorator_metadata is None:
+                # No decorator metadata, use file defaults (deep copy)
+                func.context_kwargs['metadata'] = copy.deepcopy(file_metadata)
+            elif isinstance(file_metadata, dict) and isinstance(decorator_metadata, dict):
+                # Both are dicts, deep merge them
+                merged = copy.deepcopy(file_metadata)
+                merged.update(decorator_metadata)  # Decorator wins on conflicts
+                func.context_kwargs['metadata'] = merged
+            # else: decorator metadata is not a dict, keep it as-is (decorator wins)
+
+        # Apply other context_kwargs defaults
+        for key in ['default_score_key', 'input', 'reference']:
+            if key in file_defaults and func.context_kwargs.get(key) is None:
+                # Deep copy if mutable
+                value = file_defaults[key]
+                if isinstance(value, (list, dict)):
+                    func.context_kwargs[key] = copy.deepcopy(value)
+                else:
+                    func.context_kwargs[key] = value

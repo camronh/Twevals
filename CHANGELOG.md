@@ -2,6 +2,16 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a7 - 2025-11-23
+
+- Added: File-level defaults via `twevals_defaults` dictionary - set global properties (dataset, labels, metadata, etc.) at the top of test files that all tests inherit, similar to pytest's pytestmark pattern.
+- Added: Support for all decorator parameters in file defaults including evaluators, target, input, reference, default_score_key, metadata, and metadata_from_params.
+- Added: Deep merge for metadata - when both file defaults and decorator specify metadata, they are merged with decorator values taking precedence on conflicts.
+- Added: Deep copy of mutable values (lists, dicts) in file defaults to prevent shared mutation between tests.
+- Added: Validation and warnings for unknown keys in `twevals_defaults` dictionary.
+- Changed: `default_score_key` parameter default changed from "correctness" to None to enable file-level defaults, with "correctness" still applied as final fallback via EvalContext.
+- Tests: Added 17 comprehensive tests for file defaults including inheritance, overrides, deep merge, mutable value copying, and default_score_key priority chain.
+
 0.0.2a6 - 2025-11-23
 
 - Added: `target` parameter to `@eval` decorator allowing pre-hook functions that run before the evaluation function, enabling separation of agent/LLM invocation from evaluation logic.
