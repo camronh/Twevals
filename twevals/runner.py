@@ -13,9 +13,10 @@ from twevals.schemas import EvalResult, Score
 
 
 class EvalRunner:
-    def __init__(self, concurrency: int = 0, verbose: bool = False):
+    def __init__(self, concurrency: int = 0, verbose: bool = False, timeout: Optional[float] = None):
         self.concurrency = concurrency  # 0 means sequential
         self.verbose = verbose
+        self.timeout = timeout
         self.results: List[Dict] = []
 
     def _ensure_default_score(self, result: EvalResult) -> EvalResult:
@@ -74,6 +75,10 @@ class EvalRunner:
         if self.concurrency == 0:
             # Sequential execution
             for func in functions:
+                # Apply global timeout if set
+                if self.timeout is not None:
+                    func.timeout = self.timeout
+                
                 # Call on_start callback if provided
                 if on_start:
                     on_start(func)
@@ -99,6 +104,10 @@ class EvalRunner:
             # Concurrent execution
             tasks = []
             for func in functions:
+                # Apply global timeout if set
+                if self.timeout is not None:
+                    func.timeout = self.timeout
+
                 # Call on_start callback before creating task
                 if on_start:
                     on_start(func)
