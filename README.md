@@ -416,7 +416,7 @@ twevals run path/to/evals
 # Filtering and other common flags work here as well
 ```
 
-`run`-only flags: `-o/--output` (save JSON summary), `--csv` (save CSV).
+`run`-only flags: `-o/--output` (save JSON summary), `--csv` (save CSV), `--json` (output compact JSON to stdout).
 
 ## CLI reference
 
@@ -440,6 +440,7 @@ serve-only:
 run-only:
   -o, --output FILE       Save JSON summary
   --csv FILE              Save CSV results
+  --json                  Output compact JSON to stdout (machine-readable)
 ```
 
 ## Contributing

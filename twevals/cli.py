@@ -2,6 +2,7 @@ import click
 import sys
 import inspect
 import os
+import json
 from pathlib import Path
 from typing import Optional, List, Dict
 
@@ -13,6 +14,15 @@ from twevals.decorators import EvalFunction
 
 
 console = Console()
+
+
+def _remove_none(obj):
+    """Recursively remove None values from dictionaries"""
+    if isinstance(obj, dict):
+        return {k: _remove_none(v) for k, v in obj.items() if v is not None}
+    elif isinstance(obj, list):
+        return [_remove_none(v) for v in obj]
+    return obj
 
 
 class ProgressReporter:
@@ -171,6 +181,7 @@ def cli():
 @click.option('--csv', '-s', type=click.Path(dir_okay=False), help='Path to CSV file for results (include filename)')
 @click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
+@click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
 def run(
     path: str,
     dataset: Optional[str],
@@ -178,7 +189,8 @@ def run(
     output: Optional[str],
     csv: Optional[str],
     concurrency: int,
-    verbose: bool
+    verbose: bool,
+    json_mode: bool
 ):
     """Run evaluations in specified path
     
@@ -195,7 +207,10 @@ def run(
     # Validate that the file path portion exists
     path_obj = PathLib(path)
     if not path_obj.exists():
-        console.print(f"[red]Error: Path {path} does not exist[/red]")
+        if json_mode:
+            click.echo(json.dumps({"error": f"Path {path} does not exist"}))
+        else:
+            console.print(f"[red]Error: Path {path} does not exist[/red]")
         sys.exit(1)
     
     # Convert label tuple to list
@@ -205,10 +220,12 @@ def run(
     runner = EvalRunner(concurrency=concurrency, verbose=verbose)
     
     # Create progress reporter
-    reporter = ProgressReporter()
+    reporter = ProgressReporter() if not json_mode else None
     
     # Run evaluations with progress reporting
-    console.print("[bold green]Running evaluations...[/bold green]")
+    if not json_mode:
+        console.print("[bold green]Running evaluations...[/bold green]")
+    
     try:
         summary = runner.run(
             path=path,
@@ -218,13 +235,22 @@ def run(
             output_file=output,
             csv_file=csv,
             verbose=verbose,
-            on_start=reporter.on_start,
-            on_complete=reporter.on_complete
+            on_start=reporter.on_start if reporter else None,
+            on_complete=reporter.on_complete if reporter else None
         )
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        if json_mode:
+            click.echo(json.dumps({"error": str(e)}))
+        else:
+            console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)
     
+    # Handle JSON output
+    if json_mode:
+        summary_clean = _remove_none(summary)
+        click.echo(json.dumps(summary_clean, separators=(',', ':'), default=str))
+        return
+
     # Print failure details if any
     reporter.print_failures()
     
