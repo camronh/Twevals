@@ -8,6 +8,53 @@ from twevals.decorators import EvalFunction
 
 class TestParametrize:
 
+    def test_parametrize_data_visible_to_target(self):
+        captured_inputs = []
+        captured_metadata = []
+
+        def target(ctx):
+            captured_inputs.append(ctx.input)
+            captured_metadata.append(ctx.metadata)
+            ctx.add_output(ctx.input["prompt"] + "-out")
+
+        @eval(target=target)
+        @parametrize("prompt,expected", [
+            ("hello", "hello-out"),
+            ("world", "world-out"),
+        ])
+        def test_func(ctx, prompt, expected):
+            # Param data should be present in both input and metadata
+            assert ctx.input["prompt"] == prompt
+            assert ctx.metadata["expected"] == expected
+            return ctx.build()
+
+        funcs = generate_eval_functions(test_func)
+        results = [f() for f in funcs]
+
+        assert [r.output for r in results] == ["hello-out", "world-out"]
+        # Target sees per-case data
+        assert captured_inputs == [
+            {"prompt": "hello", "expected": "hello-out"},
+            {"prompt": "world", "expected": "world-out"},
+        ]
+        assert captured_metadata == [
+            {"prompt": "hello", "expected": "hello-out"},
+            {"prompt": "world", "expected": "world-out"},
+        ]
+
+    def test_parametrize_does_not_override_explicit_input(self):
+        @eval(input="my prompt")
+        @parametrize("temperature", [0.1, 0.2])
+        def test_func(ctx, temperature):
+            # Explicit decorator input should win over param payload
+            assert ctx.input == "my prompt"
+            return ctx.build()
+
+        funcs = generate_eval_functions(test_func)
+        for func in funcs:
+            result = func()
+            assert result.input == "my prompt"
+
     def test_simple_parametrize(self):
         """Test basic parametrization with tuples"""
         @eval(dataset="test")

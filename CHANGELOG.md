@@ -2,6 +2,16 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+0.0.2a6 - 2025-11-23
+
+- Added: `target` parameter to `@eval` decorator allowing pre-hook functions that run before the evaluation function, enabling separation of agent/LLM invocation from evaluation logic.
+- Added: Target hooks receive `EvalContext` and can populate output, metadata, and custom attributes before the eval function executes.
+- Added: Target hooks support both sync and async functions, with automatic latency tracking.
+- Added: Parametrize integration with targets - parametrized values are automatically available to target hooks via `ctx.input` and `ctx.metadata`.
+- Added: Target return value handling - targets can return dicts (treated as output payload) or EvalResult objects for flexible result injection.
+- Changed: Parametrize now defaults `ctx.input` to parametrized values when no explicit input is provided, making param data accessible to targets.
+- Tests: Added comprehensive unit tests for target functionality including output injection, error handling, async support, and parametrize integration.
+
 0.0.2a5 - 2025-11-22
 
 - Added: `--json` flag for `twevals run` command to output results as compact JSON to stdout, omitting null values for machine-readable output.

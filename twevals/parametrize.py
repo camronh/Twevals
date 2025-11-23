@@ -59,6 +59,15 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
             # No context, all params go to function
             function_params = params
 
+        # Build default input and metadata for targets/context
+        param_payload = function_params.copy() if function_params else None
+        # Respect explicit inputs first: param-set input > decorator input > param payload
+        default_input = context_kwargs.get('input', None)
+        if default_input is None:
+            default_input = eval_settings.context_kwargs.get('input') if eval_settings else None
+        if default_input is None:
+            default_input = param_payload
+
         # Create the wrapper based on whether base function is async
         # If base function has context param, wrapper must also have it
         if has_context:
@@ -111,28 +120,36 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
         # Copy over the eval decorator settings if they exist
         if eval_settings:
             eval_func = EvalFunction(
-                wrapper,
+                func=wrapper,
                 dataset=eval_settings.dataset,
                 labels=eval_settings.labels,
                 evaluators=eval_settings.evaluators,
+                target=eval_settings.target,
                 # Pass context fields from parametrize
-                input=context_kwargs.get('input', eval_settings.context_kwargs.get('input')),
+                input=default_input if default_input is not None else eval_settings.context_kwargs.get('input'),
                 reference=context_kwargs.get('reference', eval_settings.context_kwargs.get('reference')),
                 default_score_key=eval_settings.context_kwargs.get('default_score_key'),
                 metadata={
                     **(eval_settings.context_kwargs.get('metadata') or {}),
-                    **(context_kwargs.get('metadata') or {})
-                } if eval_settings.context_kwargs.get('metadata') or context_kwargs.get('metadata') else None,
+                    **(context_kwargs.get('metadata') or {}),
+                    **(function_params or {})
+                } if (eval_settings.context_kwargs.get('metadata') or context_kwargs.get('metadata') or function_params) else None,
                 metadata_from_params=eval_settings.metadata_from_params,
             )
         else:
             eval_func = EvalFunction(
-                wrapper,
-                None, None, None,
+                func=wrapper,
+                dataset=None,
+                labels=None,
+                evaluators=None,
+                target=None,
                 # Pass context fields from parametrize
-                input=context_kwargs.get('input'),
+                input=default_input if default_input is not None else context_kwargs.get('input'),
                 reference=context_kwargs.get('reference'),
-                metadata=context_kwargs.get('metadata'),
+                metadata={
+                    **(context_kwargs.get('metadata') or {}),
+                    **(function_params or {})
+                } if context_kwargs.get('metadata') or function_params else None,
             )
 
         functions.append(eval_func)

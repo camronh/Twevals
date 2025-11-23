@@ -1,4 +1,4 @@
-from twevals import eval, EvalResult, parametrize
+from twevals import eval, EvalResult, parametrize, EvalContext
 
 def custom_evaluator(result: EvalResult):
     """Custom evaluator to check if the reference output is in the output"""
@@ -92,8 +92,29 @@ def test_calculator(operation, a, b, expected):
         },
     )
 
+# Example 3: Parametrize + target hook (targets see param data in ctx.input/ctx.metadata)
+def target_run_agent(ctx: EvalContext):
+    ctx.trace_id = f"trace::{ctx.input['prompt']}"
+    ctx.add_output(
+        f"agent says: {ctx.input['prompt']}",
+        metadata={"trace_id": ctx.trace_id}
+    )
 
-# Example 3: Parametrize with test IDs for better reporting
+
+@eval(dataset="agent_calls", target=target_run_agent)
+@parametrize("prompt,expected_keyword", [
+    ("hello", "hello"),
+    ("status update", "status"),
+])
+def test_agent_target(ctx: EvalContext, prompt, expected_keyword):
+    """Target runs before eval, using parametrized input"""
+    assert expected_keyword in ctx.output
+    # ctx.metadata includes param data + target metadata
+    assert ctx.metadata["trace_id"].startswith("trace::")
+    return ctx.build()
+
+
+# Example 4: Parametrize with test IDs for better reporting
 @eval(dataset="qa_system")
 @parametrize(
     "question,context,expected_answer",
@@ -138,7 +159,7 @@ def test_qa_with_ids(question, context, expected_answer):
     )
 
 
-# Example 4: Multiple parametrize decorators (creates cartesian product)
+# Example 5: Multiple parametrize decorators (creates cartesian product)
 # Also async for good measure
 @eval(dataset="model_comparison")
 @parametrize("model", ["gpt-3.5", "gpt-4", "claude"])

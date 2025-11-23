@@ -15,6 +15,7 @@ class EvalFunction:
         dataset: Optional[str] = None,
         labels: Optional[List[str]] = None,
         evaluators: Optional[List[Callable]] = None,
+        target: Optional[Callable] = None,
         # Context injection parameters
         input: Any = None,
         reference: Any = None,
@@ -26,10 +27,13 @@ class EvalFunction:
         self.dataset = dataset if dataset is not None else self._infer_dataset_from_name(func)
         self.labels = labels or []
         self.evaluators = evaluators or []
+        self.target = target
         self.is_async = asyncio.iscoroutinefunction(func)
 
         # Context injection support
         self.context_param = self._detect_context_param(func)
+        if self.target and self.context_param is None:
+            raise ValueError("Target functions require the evaluation function to accept a context parameter")
         self.context_kwargs = {
             'input': input,
             'reference': reference,
@@ -61,6 +65,10 @@ class EvalFunction:
         # Start with decorator-provided values
         context_init = {k: v for k, v in self.context_kwargs.items() if v is not None}
 
+        # Default ctx.input to provided function kwargs if not explicitly set
+        if 'input' not in context_init and 'input' in kwargs:
+            context_init['input'] = kwargs['input']
+
         # Extract metadata_from_params if specified
         if self.metadata_from_params:
             if 'metadata' not in context_init:
@@ -70,6 +78,67 @@ class EvalFunction:
                     context_init['metadata'][param_name] = kwargs[param_name]
 
         return EvalContext(**context_init)
+
+    def _inject_target_result(self, target_result: Any, context: EvalContext) -> None:
+        """Apply target output to context in a flexible way"""
+        if target_result is None:
+            return
+
+        if isinstance(target_result, EvalContext):
+            # Target replaced/returned context directly
+            return
+
+        if isinstance(target_result, EvalResult):
+            context.add_output({
+                "output": target_result.output,
+                "latency": target_result.latency,
+                "run_data": target_result.run_data,
+                "metadata": target_result.metadata,
+            })
+            return
+
+        # Dict or any other value -> treat as output payload
+        if isinstance(target_result, dict):
+            context.add_output(target_result)
+        else:
+            context.add_output(target_result)
+
+    def _run_target_sync(self, context: EvalContext) -> Optional[EvalResult]:
+        """Run target function synchronously; return EvalResult on error"""
+        if not self.target:
+            return None
+
+        start = time.time()
+        try:
+            target_result = self.target(context)
+            self._inject_target_result(target_result, context)
+            if context.latency is None:
+                context.latency = time.time() - start
+        except Exception as e:
+            if context.latency is None:
+                context.latency = time.time() - start
+            return context.build_with_error(str(e))
+        return None
+
+    async def _run_target_async(self, context: EvalContext) -> Optional[EvalResult]:
+        """Run target function asynchronously; return EvalResult on error"""
+        if not self.target:
+            return None
+
+        start = time.time()
+        try:
+            if asyncio.iscoroutinefunction(self.target):
+                target_result = await self.target(context)
+            else:
+                target_result = self.target(context)
+            self._inject_target_result(target_result, context)
+            if context.latency is None:
+                context.latency = time.time() - start
+        except Exception as e:
+            if context.latency is None:
+                context.latency = time.time() - start
+            return context.build_with_error(str(e))
+        return None
 
     def _process_result(self, result: Any, context: Optional[EvalContext] = None) -> Union[EvalResult, List[EvalResult]]:
         """Process function result, handling EvalContext and auto-return"""
@@ -160,6 +229,11 @@ class EvalFunction:
             # Inject context as first argument
             args = (context,) + args
 
+            # Run target before main eval
+            target_error = await self._run_target_async(context)
+            if target_error:
+                return target_error
+
         # Measure only the main function execution time
         start = time.time()
         try:
@@ -206,6 +280,11 @@ class EvalFunction:
             context = self._create_context(kwargs)
             # Inject context as first argument
             args = (context,) + args
+
+            # Run target before main eval
+            target_error = self._run_target_sync(context)
+            if target_error:
+                return target_error
 
         # Measure only the main function execution time
         start = time.time()
@@ -298,6 +377,7 @@ def eval(
     dataset: Optional[str] = None,
     labels: Optional[List[str]] = None,
     evaluators: Optional[List[Callable]] = None,
+    target: Optional[Callable] = None,
     # Context injection parameters
     input: Any = None,
     reference: Any = None,
@@ -309,12 +389,20 @@ def eval(
     if callable(dataset) and labels is None and evaluators is None:
         # Called as @eval without parentheses
         func = dataset
-        return EvalFunction(func, None, None, None)
+        return EvalFunction(func, dataset=None, labels=None, evaluators=None, target=None)
 
     # Called as @eval() or @eval(dataset=..., labels=..., evaluators=...)
     def decorator(func: Callable):
         return EvalFunction(
-            func, dataset, labels, evaluators,
-            input, reference, default_score_key, metadata, metadata_from_params
+            func=func,
+            dataset=dataset,
+            labels=labels,
+            evaluators=evaluators,
+            target=target,
+            input=input,
+            reference=reference,
+            default_score_key=default_score_key,
+            metadata=metadata,
+            metadata_from_params=metadata_from_params,
         )
     return decorator
