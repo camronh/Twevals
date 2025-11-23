@@ -3,14 +3,16 @@ import sys
 import inspect
 import os
 import json
+import traceback
 from pathlib import Path
 from typing import Optional, List, Dict
 
 from rich.console import Console
 
 from twevals.runner import EvalRunner
-from twevals.formatters import format_results_table
+from twevals.formatters import format_results_table, format_eval_list_table
 from twevals.decorators import EvalFunction
+from twevals.discovery import EvalDiscovery
 
 
 console = Console()
@@ -148,6 +150,10 @@ class ProgressReporter:
             if failure_type == "error":
                 error_msg = result.get("error", "Unknown error")
                 console.print(f"   [red]ERROR:[/red] {error_msg}")
+                # Show traceback if available
+                if result.get("run_data") and result["run_data"].get("traceback"):
+                    console.print(f"   [dim]Traceback:[/dim]")
+                    console.print(f"   [dim]{result['run_data']['traceback']}[/dim]")
             elif failure_type == "failure":
                 # Show failing scores
                 if result.get("scores"):
@@ -159,7 +165,7 @@ class ProgressReporter:
                                 console.print(f"   [red]FAIL:[/red] {key} - {notes}")
                             else:
                                 console.print(f"   [red]FAIL:[/red] {key}")
-            
+
             # Show input/output if available
             if result.get("input"):
                 console.print(f"   [dim]Input:[/dim] {result['input']}")
@@ -182,6 +188,7 @@ def cli():
 @click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
 @click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
+@click.option('--list', 'list_mode', is_flag=True, help='List all evaluations without running them')
 def run(
     path: str,
     dataset: Optional[str],
@@ -190,7 +197,8 @@ def run(
     csv: Optional[str],
     concurrency: int,
     verbose: bool,
-    json_mode: bool
+    json_mode: bool,
+    list_mode: bool
 ):
     """Run evaluations in specified path
     
@@ -215,6 +223,69 @@ def run(
     
     # Convert label tuple to list
     labels = list(label) if label else None
+
+    if list_mode:
+        import csv as csv_module
+
+        eval_functions = EvalDiscovery().discover(
+            path=path,
+            dataset=dataset,
+            labels=labels,
+            function_name=function_name
+        )
+
+        if not eval_functions:
+            if json_mode:
+                click.echo(json.dumps({"evaluations": [], "total": 0}))
+            else:
+                console.print("[yellow]No evaluations found matching the criteria[/yellow]")
+            return
+
+        eval_info_list = [{
+            "function": func.__name__,
+            "dataset": func.dataset,
+            "labels": func.labels,
+            "input": func.context_kwargs.get('input'),
+            "reference": func.context_kwargs.get('reference'),
+            "metadata": func.context_kwargs.get('metadata'),
+            "evaluators": [e.__name__ for e in func.evaluators],
+            "target": func.target.__name__ if func.target else None,
+            "has_context": func.context_param is not None,
+        } for func in eval_functions]
+
+        if json_mode:
+            click.echo(json.dumps({
+                "evaluations": _remove_none(eval_info_list),
+                "total": len(eval_info_list)
+            }, separators=(',', ':'), default=str))
+            return
+
+        if csv:
+            with open(csv, 'w', newline='') as csvfile:
+                writer = csv_module.DictWriter(csvfile, fieldnames=[
+                    'function', 'dataset', 'labels', 'input', 'reference',
+                    'metadata', 'evaluators', 'target', 'has_context'
+                ])
+                writer.writeheader()
+                for info in eval_info_list:
+                    writer.writerow({
+                        'function': info['function'],
+                        'dataset': info['dataset'],
+                        'labels': ','.join(info['labels']),
+                        'input': json.dumps(info['input']) if info['input'] is not None else '',
+                        'reference': json.dumps(info['reference']) if info['reference'] is not None else '',
+                        'metadata': json.dumps(info['metadata']) if info['metadata'] else '',
+                        'evaluators': ','.join(info['evaluators']),
+                        'target': info['target'] or '',
+                        'has_context': 'yes' if info['has_context'] else 'no',
+                    })
+            console.print(f"[green]Evaluations list saved to: {csv}[/green]")
+            return
+
+        console.print(format_eval_list_table(eval_info_list))
+        console.print(f"\\n[bold]Total evaluations:[/bold] {len(eval_info_list)}")
+        console.print(f"[bold]Unique datasets:[/bold] {len(set(i['dataset'] for i in eval_info_list))}")
+        return
     
     # Create runner
     runner = EvalRunner(concurrency=concurrency, verbose=verbose)
@@ -242,9 +313,11 @@ def run(
         if json_mode:
             click.echo(json.dumps({"error": str(e)}))
         else:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error during runner.run(): {e}[/red]")
+            console.print("[red]Full traceback:[/red]")
+            console.print(traceback.format_exc())
         sys.exit(1)
-    
+
     # Handle JSON output
     if json_mode:
         summary_clean = _remove_none(summary)
@@ -253,12 +326,12 @@ def run(
 
     # Print failure details if any
     reporter.print_failures()
-    
+
     # Display results
     if summary["total_evaluations"] == 0:
         console.print("[yellow]No evaluations found matching the criteria[/yellow]")
         return
-    
+
     # Show results table (always, not just with verbose)
     if summary['results']:
         table = format_results_table(summary['results'])
