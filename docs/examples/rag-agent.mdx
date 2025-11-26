@@ -23,6 +23,18 @@ You want to evaluate:
 ```python
 from twevals import eval, parametrize, EvalContext
 
+async def run_agent(ctx: EvalContext):
+    results = await run_rag_agent(ctx.input)  # Run the agent
+
+    # Store the source docs in the context to be used in evaluation
+    # Can use arbitrary property names
+    ctx.my_source_docs = response.metadata["source_docs]
+
+    # Store the agent's response in ctx.output automatically
+    return results.response
+
+
+
 @eval(dataset="rag_qa")
 @parametrize("input,reference", [
     ("What is our refund policy?", "30-day money-back guarantee"),
@@ -33,29 +45,29 @@ from twevals import eval, parametrize, EvalContext
     # ... hundreds more rows
 ])
 async def test_rag_agent(ctx: EvalContext):
-    # Run the agent and capture both the answer and retrieved docs
-    result = await run_rag_agent(ctx.input)
-
-    ctx.add_output(result.answer)
-    ctx.metadata["retrieved_docs"] = result.documents
-    ctx.metadata["sources"] = result.sources
-
+    """Evaluate a RAG Agent for correctness and hallucinations"""
     # Check for hallucination using an LLM judge
-    hallucination_result = await hallucination_judge(
+
+    # Use an LLM-as-a-Judge to score the output for hallucination and provide it's reasoning
+    score, reasoning = await hallucination_judge( 
         answer=ctx.output,
-        sources=result.documents
+        sources=ctx.my_source_docs
     )
+
+    # Store hallucination score separately from default "correctness" score
     ctx.add_score(
         "hallucination",
-        passed=not hallucination_result.has_hallucination,
-        message=hallucination_result.explanation
+        passed=score,  # Assumes bool pass/fail here but could be replaced with `score=0.5` for example
+        note=reasoning
     )
 
-    # Check correctness against the reference
+    # Check correctness against the reference with another judge
     correctness_result = await correctness_judge(
         answer=ctx.output,
         reference=ctx.reference
     )
+
+    # Assert to use default key
     assert correctness_result.is_correct, correctness_result.explanation
 ```
 

@@ -3,38 +3,33 @@ title: Quickstart
 description: Get up and running with Twevals in under 5 minutes
 ---
 
-## Installation
-
-Install Twevals as a development dependency:
-
-<CodeGroup>
-
-```bash pip
-pip install twevals
-```
-
-```bash uv
-uv add twevals --dev
-```
-
-```bash poetry
-poetry add twevals --group dev
-```
-
-</CodeGroup>
-
 ## Your First Evaluation
 
-Create a file called `evals.py`:
+Create a file called `evals.py`.
+
+Create your `target` function first. The `target` is what we are actually evaluating. For example, if you're evaluating an agent, the `target` function
+would just be the wrapper logic to run the agent and return the results.
 
 ```python
 from twevals import eval, EvalContext
 
-@eval(dataset="my_first_evals")
-async def test_greeting(ctx: EvalContext):
-    ctx.input = "Hello, how are you?"
-    ctx.add_output(await my_agent(ctx.input))
+async def run_agent(ctx: EvalContext):
+  """Runs the agent"""
+  response = my_agent(ctx.input)  # Psuedocode to run the hypothetical agent using the input prompt
+  return response  # Stores the agent's response in the context of the eval under ctx.output
+```
 
+Then you can reuse this target across multiple evals.
+
+Next lets write our first evaluation function.
+
+```python
+@eval(
+  input="Hello, how are you?",  # Store input in context
+  target=run_agent  # Runs the agent using the `input` and stores the results in `ctx.output`
+)
+async def test_greeting(ctx: EvalContext):
+    """Evaluate the agent's greeting ability"""
     # Use assertions to score - just like pytest!
     assert "hello" in ctx.output.lower() or "hi" in ctx.output.lower(), \
         "Response should contain a greeting"
@@ -50,7 +45,10 @@ twevals evals.py
 
 You'll see a formatted table with your results:
 
-<img src="/assets/terminal-output.svg" alt="Terminal output showing eval results" />
+<img
+  src="/assets/terminal-output.svg"
+  alt="Terminal output showing eval results"
+/>
 
 ## Launch the Web UI
 
@@ -74,7 +72,7 @@ Use `@parametrize` to generate multiple evaluations from one function:
 ```python
 from twevals import eval, parametrize, EvalContext
 
-@eval(dataset="greetings")
+@eval(target=run_agent, dataset="greetings", labels=["production])
 @parametrize("input,reference", [
     ("Hello!", "friendly"),
     ("I need help urgently", "helpful"),
@@ -82,30 +80,16 @@ from twevals import eval, parametrize, EvalContext
 ])
 async def test_response_tone(ctx: EvalContext):
     # ctx.input and ctx.reference are auto-populated for these special names
-    ctx.add_output(await my_agent(ctx.input))
     tone = analyze_tone(ctx.output)
 
     assert tone == ctx.reference, f"Expected {ctx.reference} tone, got {tone}"
 ```
 
 <Note>
-Only special parameter names (`input`, `reference`, `metadata`, `run_data`, `latency`) auto-populate the context. For other parameters, include them in the function signature.
+  Only special parameter names (`input`, `reference`, `metadata`, `run_data`,
+  `latency`) auto-populate the context. For other parameters, include them in
+  the function signature.
 </Note>
-
-## Pre-populate Context
-
-For cleaner code, set inputs directly in the decorator:
-
-```python
-@eval(
-    input="What's the weather like?",
-    dataset="qa"
-)
-async def test_weather_query(ctx: EvalContext):
-    ctx.add_output(await my_agent(ctx.input))
-
-    assert "weather" in ctx.output.lower(), "Should mention weather"
-```
 
 ## Filter and Run Specific Tests
 
