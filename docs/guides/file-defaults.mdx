@@ -13,28 +13,33 @@ Define a `twevals_defaults` dictionary at the module level:
 # evals/customer_service.py
 
 twevals_defaults = {
-    "dataset": "customer_service",
     "labels": ["production"],
     "default_score_key": "quality",
 }
 
-@eval  # Inherits all defaults
+@eval  # Inherits defaults
 async def test_refund(ctx: EvalContext):
     ctx.input = "I want a refund"
     ctx.add_output(await agent(ctx.input))
-    ctx.add_score("refund" in ctx.output.lower())
+
+    assert "refund" in ctx.output.lower(), "Should acknowledge refund"
 
 @eval  # Also inherits defaults
 async def test_complaint(ctx: EvalContext):
     ctx.input = "Your product is broken"
     ctx.add_output(await agent(ctx.input))
-    ctx.add_score("sorry" in ctx.output.lower())
+
+    assert "sorry" in ctx.output.lower(), "Should express empathy"
 ```
 
 Both evaluations will have:
-- `dataset="customer_service"`
 - `labels=["production"]`
 - `default_score_key="quality"`
+- `dataset="customer_service"` (auto-inferred from filename)
+
+<Note>
+The `dataset` field is automatically inferred from the filename when not explicitly set. File-level `dataset` defaults only apply if the decorator's dataset is literally `"default"`.
+</Note>
 
 ## Overriding Defaults
 
@@ -64,7 +69,7 @@ async def test_edge_case(ctx: EvalContext):
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `dataset` | str | Default dataset name |
+| `dataset` | str | Default dataset name (rarely needed—auto-inferred from filename) |
 | `labels` | list[str] | Default labels |
 | `default_score_key` | str | Default score key |
 | `metadata` | dict | Default metadata |
@@ -88,9 +93,11 @@ async def test_refund(ctx: EvalContext):
 
 Decorator values override file defaults for the same keys.
 
-## Evaluators Merging
+## Evaluators Behavior
 
-Evaluators from file defaults and decorators are combined:
+<Warning>
+Evaluators from decorators **replace** file defaults—they are not merged.
+</Warning>
 
 ```python
 def file_evaluator(result):
@@ -103,9 +110,21 @@ twevals_defaults = {
     "evaluators": [file_evaluator]
 }
 
-@eval(evaluators=[specific_evaluator])
-async def test_example(ctx: EvalContext):
-    # Both evaluators will run
+@eval  # Uses file_evaluator from defaults
+async def test_uses_default(ctx: EvalContext):
+    ...
+
+@eval(evaluators=[specific_evaluator])  # REPLACES file_evaluator
+async def test_with_override(ctx: EvalContext):
+    # Only specific_evaluator runs, not file_evaluator
+    ...
+```
+
+To use both, explicitly include them:
+
+```python
+@eval(evaluators=[file_evaluator, specific_evaluator])
+async def test_with_both(ctx: EvalContext):
     ...
 ```
 
@@ -172,20 +191,24 @@ twevals_defaults = {
 
 # All evals inherit defaults
 @eval
-@parametrize("text,expected", [
+@parametrize("input,reference", [
     ("I love this!", "positive"),
     ("This is terrible", "negative"),
 ])
 async def test_basic_sentiment(ctx: EvalContext):
-    result = await analyze(ctx.text)
+    # ctx.input and ctx.reference are auto-populated (special names)
+    result = await analyze(ctx.input)
     ctx.add_output(result["label"])
     ctx.metadata["confidence"] = result["confidence"]
-    ctx.add_score(result["label"] == ctx.expected)
+
+    assert result["label"] == ctx.reference, \
+        f"Expected {ctx.reference}, got {result['label']}"
 
 @eval(labels=["ml", "nlp", "edge_cases"])
 async def test_sarcasm(ctx: EvalContext):
     ctx.input = "Oh great, another meeting"
     result = await analyze(ctx.input)
     ctx.add_output(result["label"])
-    ctx.add_score(result["label"] == "negative", "Detected sarcasm")
+
+    assert result["label"] == "negative", "Should detect sarcasm as negative"
 ```

@@ -35,9 +35,9 @@
   <text x="92" y="158" font-family="monospace" font-size="11" fill="#E5E7EB">ctx.add_output(</text>
   <text x="190" y="158" font-family="monospace" font-size="11" fill="#818CF8">await</text>
   <text x="225" y="158" font-family="monospace" font-size="11" fill="#E5E7EB"> agent())</text>
-  <text x="92" y="178" font-family="monospace" font-size="11" fill="#E5E7EB">ctx.add_score(</text>
-  <text x="188" y="178" font-family="monospace" font-size="11" fill="#34D399">True</text>
-  <text x="210" y="178" font-family="monospace" font-size="11" fill="#E5E7EB">)</text>
+  <text x="92" y="178" font-family="monospace" font-size="11" fill="#818CF8">assert</text>
+  <text x="132" y="178" font-family="monospace" font-size="11" fill="#E5E7EB">ctx.output,</text>
+  <text x="200" y="178" font-family="monospace" font-size="11" fill="#34D399">"should work"</text>
 
   <!-- Results panel -->
   <rect x="480" y="80" width="260" height="150" rx="8" fill="#1F2937" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.3))"/>

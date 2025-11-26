@@ -32,21 +32,15 @@ from twevals import eval, EvalContext
 
 @eval(dataset="my_first_evals")
 async def test_greeting(ctx: EvalContext):
-    # Set the input
     ctx.input = "Hello, how are you?"
+    ctx.add_output(await my_agent(ctx.input))
 
-    # Call your agent/LLM
-    response = await my_agent(ctx.input)
-
-    # Record the output
-    ctx.add_output(response)
-
-    # Score the result
-    ctx.add_score(
-        "hello" in response.lower() or "hi" in response.lower(),
-        "Response contains greeting"
-    )
+    # Use assertions to score - just like pytest!
+    assert "hello" in ctx.output.lower() or "hi" in ctx.output.lower(), \
+        "Response should contain a greeting"
 ```
+
+That's it! Assertions work like pytest - if they pass, your eval passes. If they fail, the assertion message becomes the failure reason.
 
 ## Run Your Evaluations
 
@@ -88,20 +82,23 @@ Use `@parametrize` to generate multiple evaluations from one function:
 ```python
 from twevals import eval, parametrize, EvalContext
 
-@eval(dataset="greetings", default_score_key="quality")
-@parametrize("input_text,expected_tone", [
+@eval(dataset="greetings")
+@parametrize("input,reference", [
     ("Hello!", "friendly"),
     ("I need help urgently", "helpful"),
     ("What's your return policy?", "informative"),
 ])
 async def test_response_tone(ctx: EvalContext):
-    response = await my_agent(ctx.input_text)
-    ctx.add_output(response)
+    # ctx.input and ctx.reference are auto-populated for these special names
+    ctx.add_output(await my_agent(ctx.input))
+    tone = analyze_tone(ctx.output)
 
-    # Your scoring logic here
-    tone = analyze_tone(response)
-    ctx.add_score(tone == ctx.expected_tone, f"Expected {ctx.expected_tone} tone")
+    assert tone == ctx.reference, f"Expected {ctx.reference} tone, got {tone}"
 ```
+
+<Note>
+Only special parameter names (`input`, `reference`, `metadata`, `run_data`, `latency`) auto-populate the context. For other parameters, include them in the function signature.
+</Note>
 
 ## Pre-populate Context
 
@@ -110,13 +107,12 @@ For cleaner code, set inputs directly in the decorator:
 ```python
 @eval(
     input="What's the weather like?",
-    reference="weather information",
-    dataset="qa",
-    default_score_key="relevance"
+    dataset="qa"
 )
 async def test_weather_query(ctx: EvalContext):
     ctx.add_output(await my_agent(ctx.input))
-    ctx.add_score("weather" in ctx.output.lower(), "Mentions weather")
+
+    assert "weather" in ctx.output.lower(), "Should mention weather"
 ```
 
 ## Filter and Run Specific Tests

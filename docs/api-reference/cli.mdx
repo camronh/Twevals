@@ -205,9 +205,12 @@ twevals evals/ -c 16 --timeout 120 -o results.json --json
 
 | Code | Meaning |
 |------|---------|
-| 0 | All evaluations passed |
-| 1 | One or more evaluations failed |
-| 2 | Error during execution |
+| 0 | Evaluations completed (regardless of pass/fail) |
+| Non-zero | Error during execution (bad path, exceptions, etc.) |
+
+<Note>
+The CLI does not currently set non-zero exit codes for failed evaluations—only for execution errors. Check the JSON output or summary for pass/fail status.
+</Note>
 
 ## Environment Variables
 

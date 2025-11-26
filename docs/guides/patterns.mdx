@@ -5,36 +5,36 @@ description: Common patterns for writing effective evaluations
 
 This guide covers proven patterns for structuring your evaluations.
 
-## Pattern 1: Simple Direct Approach
+## Pattern 1: Simple Assertion
 
-The most straightforward pattern—set everything inline:
+The most straightforward pattern—use assertions like pytest:
 
 ```python
-@eval(dataset="demo", default_score_key="correctness")
+@eval(dataset="demo")
 async def test_simple(ctx: EvalContext):
     ctx.input = "What is 2 + 2?"
-    ctx.reference = "4"
-
     ctx.add_output(await my_agent(ctx.input))
-    ctx.add_score(ctx.output == ctx.reference, "Exact match")
+
+    assert ctx.output == "4", f"Expected 4, got {ctx.output}"
 ```
 
-**Use when:** Quick one-off tests, exploring behavior.
+**Use when:** Most evaluations. This is the default approach.
 
 ## Pattern 2: Pre-populated Decorator
 
-The cleanest pattern—configure in the decorator:
+Configure inputs in the decorator for cleaner code:
 
 ```python
 @eval(
     input="What is the capital of France?",
     reference="Paris",
-    dataset="geography",
-    default_score_key="accuracy"
+    dataset="geography"
 )
 async def test_capital(ctx: EvalContext):
     ctx.add_output(await my_agent(ctx.input))
-    ctx.add_score(ctx.output == ctx.reference, "Match check")
+
+    assert ctx.output.lower() == ctx.reference.lower(), \
+        f"Expected {ctx.reference}, got {ctx.output}"
 ```
 
 **Use when:** Clean separation of test data from logic.
@@ -54,8 +54,8 @@ async def call_agent(ctx: EvalContext):
     dataset="qa"
 )
 async def test_weather(ctx: EvalContext):
-    # ctx.output already populated
-    ctx.add_score("weather" in ctx.output.lower(), "Contains answer")
+    # ctx.output already populated by target
+    assert "weather" in ctx.output.lower(), "Should mention weather"
 
 @eval(
     input="Tell me a joke",
@@ -63,11 +63,12 @@ async def test_weather(ctx: EvalContext):
     dataset="creative"
 )
 async def test_humor(ctx: EvalContext):
-    # Same agent, different scoring
-    ctx.add_score(len(ctx.output) > 20, "Reasonable length")
+    # Same agent, different assertions
+    assert len(ctx.output) > 20, "Response too short"
+    assert "?" not in ctx.output or "!" in ctx.output, "Should be a statement"
 ```
 
-**Use when:** Multiple tests with same agent, different scoring.
+**Use when:** Multiple tests with same agent, different assertions.
 
 ## Pattern 4: Multiple Results
 
@@ -111,15 +112,31 @@ Combine parametrize with context for clean data-driven tests:
 
 ```python
 @eval(dataset="sentiment", default_score_key="accuracy")
-@parametrize("text,expected", [
+@parametrize("input,reference", [
     ("I love this product!", "positive"),
     ("This is terrible", "negative"),
     ("It's okay I guess", "neutral"),
 ])
 async def test_sentiment(ctx: EvalContext):
-    detected = await analyze_sentiment(ctx.text)
-    ctx.add_output(detected)
-    ctx.add_score(detected == ctx.expected, f"Expected {ctx.expected}")
+    # ctx.input and ctx.reference are auto-populated (special names)
+    ctx.add_output(await analyze_sentiment(ctx.input))
+
+    assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
+```
+
+Or with custom parameter names (must be in function signature):
+
+```python
+@eval(dataset="sentiment", default_score_key="accuracy")
+@parametrize("text,expected", [
+    ("I love this product!", "positive"),
+    ("This is terrible", "negative"),
+])
+async def test_sentiment(ctx: EvalContext, text, expected):
+    ctx.input = text
+    ctx.add_output(await analyze_sentiment(text))
+
+    assert ctx.output == expected, f"Expected {expected}, got {ctx.output}"
 ```
 
 **Use when:** Testing many input/output pairs.
@@ -132,23 +149,24 @@ Share configuration across multiple evaluations:
 # evals/customer_service.py
 
 twevals_defaults = {
-    "dataset": "customer_service",
     "labels": ["production"],
-    "default_score_key": "quality",
     "metadata": {"department": "support"}
 }
 
-@eval  # Inherits all defaults
+@eval  # Inherits defaults, dataset inferred from filename
 async def test_refund(ctx: EvalContext):
     ctx.input = "I want a refund"
     ctx.add_output(await support_agent(ctx.input))
-    ctx.add_score("refund" in ctx.output.lower())
+
+    assert "refund" in ctx.output.lower(), "Should acknowledge refund"
 
 @eval  # Inherits defaults
 async def test_complaint(ctx: EvalContext):
     ctx.input = "Your product broke"
     ctx.add_output(await support_agent(ctx.input))
-    ctx.add_score("sorry" in ctx.output.lower())
+
+    assert "sorry" in ctx.output.lower() or "apologize" in ctx.output.lower(), \
+        "Should express empathy"
 
 @eval(labels=["experimental"])  # Override labels only
 async def test_edge_case(ctx: EvalContext):
@@ -159,31 +177,27 @@ async def test_edge_case(ctx: EvalContext):
 
 ## Pattern 7: Multi-Metric Evaluation
 
-Score multiple dimensions:
+Use `add_score()` when you need multiple named metrics or numeric scores:
 
 ```python
 @eval(dataset="qa")
 async def test_comprehensive(ctx: EvalContext):
     ctx.input = "Explain quantum computing"
-    ctx.reference = "superposition, entanglement, qubits"
+    ctx.add_output(await my_agent(ctx.input))
 
-    response = await my_agent(ctx.input)
-    ctx.add_output(response)
+    # Must-pass requirements as assertions
+    assert ctx.output is not None, "Got no output"
+    assert len(ctx.output) > 50, "Response too short"
 
-    # Accuracy
-    keywords = ctx.reference.split(", ")
-    matches = sum(1 for kw in keywords if kw in response.lower())
-    ctx.add_score(matches / len(keywords), f"{matches}/{len(keywords)} keywords", key="accuracy")
+    # Numeric/named metrics with add_score
+    keywords = ["quantum", "superposition", "qubit"]
+    matches = sum(1 for kw in keywords if kw in ctx.output.lower())
+    ctx.add_score(matches / len(keywords), f"{matches}/{len(keywords)} keywords", key="coverage")
 
-    # Brevity
-    ctx.add_score(len(response) < 500, f"Length: {len(response)}", key="brevity")
-
-    # Tone
-    is_professional = not any(w in response.lower() for w in ["lol", "idk", "tbh"])
-    ctx.add_score(is_professional, "Professional tone", key="tone")
+    ctx.add_score(len(ctx.output) < 500, f"Length: {len(ctx.output)}", key="brevity")
 ```
 
-**Use when:** Complex quality dimensions.
+**Use when:** You need numeric scores or multiple independent metrics.
 
 ## Pattern 8: Comparison Testing
 
@@ -194,26 +208,20 @@ Compare multiple approaches:
 @parametrize("model", ["gpt-4", "gpt-3.5", "claude-3"])
 async def test_model_comparison(ctx: EvalContext, model):
     ctx.input = "Explain recursion simply"
+    ctx.add_output(await call_model(model, ctx.input))
 
-    response = await call_model(model, ctx.input)
-    ctx.add_output(response)
-
-    # Same scoring for all models
-    ctx.add_score(
-        len(response) > 50,
-        key="completeness"
-    )
-    ctx.add_score(
-        "recursion" in response.lower(),
-        key="relevance"
-    )
+    # Same assertions for all models
+    assert len(ctx.output) > 50, "Response too short"
+    assert "recursion" in ctx.output.lower(), "Should mention recursion"
+    assert "function" in ctx.output.lower() or "call" in ctx.output.lower(), \
+        "Should explain the concept"
 ```
 
 **Use when:** Benchmarking models, comparing approaches.
 
 ## Pattern 9: Error Handling
 
-Gracefully handle failures:
+For robustness testing, you may want to catch specific errors:
 
 ```python
 @eval(dataset="robustness", timeout=10.0)
@@ -221,37 +229,32 @@ async def test_with_error_handling(ctx: EvalContext):
     ctx.input = "Complex query"
 
     try:
-        response = await my_agent(ctx.input)
-        ctx.add_output(response)
-        ctx.add_score(True, "Completed successfully")
+        ctx.add_output(await my_agent(ctx.input))
     except TimeoutError:
         ctx.add_output("TIMEOUT")
-        ctx.add_score(False, "Timed out", key="reliability")
+        assert False, "Agent timed out"
     except Exception as e:
         ctx.add_output(f"ERROR: {e}")
-        ctx.add_score(False, f"Exception: {e}", key="reliability")
+        assert False, f"Agent raised exception: {e}"
+
+    # If we get here, agent succeeded
+    assert len(ctx.output) > 0, "Empty response"
 ```
 
 **Use when:** Testing reliability, edge cases.
 
 ## Pattern 10: Context Manager
 
-For explicit control:
+For explicit control over the context lifecycle:
 
 ```python
 @eval(dataset="explicit")
 async def test_explicit_context():
-    with EvalContext(
-        input="test input",
-        default_score_key="quality"
-    ) as ctx:
-        response = await my_agent(ctx.input)
-        ctx.add_output(response)
+    with EvalContext(input="test input") as ctx:
+        ctx.add_output(await my_agent(ctx.input))
 
-        if response:
-            ctx.add_score(True, "Got response")
-        else:
-            ctx.add_score(False, "Empty response")
+        assert ctx.output, "Empty response"
+        assert len(ctx.output) > 10, "Response too short"
 
         return ctx
 ```
@@ -272,7 +275,14 @@ async def test_explicit_context():
 async def test_bad(ctx: EvalContext):
     ctx.input = "test"
     result = await my_agent(ctx.input)
-    ctx.add_score(True)  # Output not recorded!
+    assert result  # Output not recorded for debugging!
+
+# GOOD: Always add_output before assertions
+@eval(dataset="demo")
+async def test_good(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output(await my_agent(ctx.input))
+    assert ctx.output  # Now output is preserved
 ```
 
 ### Hardcoding in parametrize

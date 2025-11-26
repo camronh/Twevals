@@ -44,24 +44,26 @@ from twevals import eval, EvalContext
 async def test_refund_request(ctx: EvalContext):
     ctx.input = "I want a refund for my order"
     ctx.add_output(await my_agent(ctx.input))
-    ctx.add_score("refund" in ctx.output.lower(), "Contains refund mention")
+
+    assert "refund" in ctx.output.lower(), "Should mention refund"
+    assert len(ctx.output) > 20, "Response should be substantive"
 ```
 
-That's it. No config files. No boilerplate. Just write your evaluation logic and run it.
+That's it. No config files. No boilerplate. Just use assertions like you would in pytest.
 
 ## Key Features
 
 <AccordionGroup>
+  <Accordion title="Assertion-Based Scoring">
+    Use Python's `assert` statement to score—just like pytest. Failed assertions become failing scores with the message preserved.
+  </Accordion>
+
   <Accordion title="Code-First Approach">
     Write evaluations as Python functions with the `@eval` decorator. No YAML, no JSON configs, just code.
   </Accordion>
 
   <Accordion title="Smart Context Injection">
     The `EvalContext` automatically injects into your functions and handles result building for you.
-  </Accordion>
-
-  <Accordion title="Flexible Scoring">
-    Boolean pass/fail, numeric scores, multiple metrics per evaluation—use whatever makes sense.
   </Accordion>
 
   <Accordion title="Parametrized Tests">
@@ -82,16 +84,16 @@ That's it. No config files. No boilerplate. Just write your evaluation logic and
 ```python
 from twevals import eval, parametrize, EvalContext
 
-@eval(dataset="sentiment", default_score_key="accuracy")
-@parametrize("text,expected", [
+@eval(dataset="sentiment")
+@parametrize("input,reference", [
     ("I love this product!", "positive"),
     ("This is terrible", "negative"),
     ("It's okay I guess", "neutral"),
 ])
 async def test_sentiment_analysis(ctx: EvalContext):
-    result = await analyze_sentiment(ctx.text)
-    ctx.add_output(result)
-    ctx.add_score(result == ctx.expected, f"Expected {ctx.expected}")
+    ctx.add_output(await analyze_sentiment(ctx.input))
+
+    assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
 ```
 
 Run it:

@@ -16,7 +16,8 @@ from twevals import eval, EvalContext
 async def my_eval(ctx: EvalContext):
     ctx.input = "What is 2 + 2?"
     ctx.add_output(await my_agent(ctx.input))
-    ctx.add_score(ctx.output == "4", "Correct answer")
+
+    assert ctx.output == "4", f"Expected 4, got {ctx.output}"
 ```
 
 ## Setting Fields
@@ -51,12 +52,24 @@ When you pass a dictionary, `add_output()` automatically extracts:
 - `metadata` → merged with existing metadata
 - `run_data` → stored for debugging
 
-### Adding Scores
+### Scoring with Assertions
+
+The simplest way to score is with assertions:
 
 ```python
-# Boolean pass/fail
-ctx.add_score(True, "Validation passed")
+ctx.add_output(await my_agent(ctx.input))
 
+assert ctx.output is not None, "Got no output"
+assert "expected" in ctx.output.lower(), "Missing expected content"
+```
+
+Failed assertions become failing scores with the message as notes.
+
+### Advanced Scoring with add_score()
+
+For numeric scores or multiple named metrics:
+
+```python
 # Numeric score (0-1 range)
 ctx.add_score(0.85, "Confidence score")
 
@@ -80,8 +93,9 @@ When using `EvalContext`, you don't need to explicitly return anything:
 @eval(dataset="demo")
 async def my_eval(ctx: EvalContext):
     ctx.input = "test"
-    ctx.add_output("result")
-    ctx.add_score(True, "passed")
+    ctx.add_output(await my_agent(ctx.input))
+
+    assert ctx.output, "Got empty response"
     # No return needed - context auto-builds
 ```
 
@@ -101,12 +115,14 @@ Fields can be pre-populated via the `@eval` decorator:
 async def test_capital(ctx: EvalContext):
     # ctx.input and ctx.reference already set
     ctx.add_output(await my_agent(ctx.input))
-    ctx.add_score(ctx.output == ctx.reference)
+
+    assert ctx.output == ctx.reference, \
+        f"Expected {ctx.reference}, got {ctx.output}"
 ```
 
 ## Using set_params()
 
-For parametrized tests, `set_params()` intelligently routes parameters:
+The `set_params()` method sets `ctx.input` to the provided dict and merges values into `ctx.metadata`:
 
 ```python
 @eval(dataset="math")
@@ -115,13 +131,20 @@ For parametrized tests, `set_params()` intelligently routes parameters:
     ("multiply", 4, 5, 20),
 ])
 async def test_math(ctx: EvalContext, operation, a, b, expected):
+    # Store params as input and metadata
     ctx.set_params(operation=operation, a=a, b=b, expected=expected)
-    # Now ctx.operation, ctx.a, ctx.b, ctx.expected are all set
+    # ctx.input = {"operation": "add", "a": 2, "b": 3, "expected": 5}
+    # ctx.metadata includes the same values
 
     result = calculate(operation, a, b)
     ctx.add_output(result)
-    ctx.add_score(result == expected)
+
+    assert result == expected, f"Expected {expected}, got {result}"
 ```
+
+<Note>
+`set_params()` does **not** create arbitrary attributes like `ctx.operation`. Use the function arguments directly for custom parameters.
+</Note>
 
 ## Exception Safety
 
@@ -149,9 +172,10 @@ For explicit control, use the context manager:
 ```python
 @eval(dataset="demo")
 async def test_explicit():
-    with EvalContext(input="test", default_score_key="accuracy") as ctx:
+    with EvalContext(input="test") as ctx:
         ctx.add_output(await my_agent(ctx.input))
-        ctx.add_score(True, "passed")
+
+        assert ctx.output, "Got empty response"
         return ctx  # Explicit return
 ```
 
@@ -167,9 +191,9 @@ async def test_auto_pass(ctx: EvalContext):
     # No explicit score - auto-passes with key "correctness"
 ```
 
-## Dynamic Attributes
+## Using Parametrized Values
 
-You can set arbitrary attributes on the context:
+For parametrized tests with custom parameter names, include them in your function signature:
 
 ```python
 @eval(dataset="demo")
@@ -177,12 +201,18 @@ You can set arbitrary attributes on the context:
     ("I want a refund", "complaint"),
     ("Thank you!", "praise"),
 ])
-async def test_classification(ctx: EvalContext):
-    # ctx.prompt and ctx.expected_category auto-set by parametrize
-    response = await classify(ctx.prompt)
-    ctx.add_output(response)
-    ctx.add_score(response == ctx.expected_category)
+async def test_classification(ctx: EvalContext, prompt, expected_category):
+    # Parameters come from function arguments, not ctx attributes
+    ctx.input = prompt
+    ctx.add_output(await classify(prompt))
+
+    assert ctx.output == expected_category, \
+        f"Expected {expected_category}, got {ctx.output}"
 ```
+
+<Note>
+Only special names (`input`, `reference`, `metadata`, `run_data`, `latency`) auto-populate context fields. Other parameters must be in the function signature.
+</Note>
 
 ## API Reference
 

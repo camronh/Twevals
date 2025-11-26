@@ -20,13 +20,18 @@ def test_addition(ctx: EvalContext, a, b, expected):
     result = a + b
     ctx.input = f"{a} + {b}"
     ctx.add_output(result)
-    ctx.add_score(result == expected, f"Expected {expected}")
+
+    assert result == expected, f"Expected {expected}, got {result}"
 ```
 
-This generates three evaluations:
-- `test_addition[2-3-5]`
-- `test_addition[10-20-30]`
-- `test_addition[0-0-0]`
+This generates three evaluations with numeric IDs:
+- `test_addition[0]`
+- `test_addition[1]`
+- `test_addition[2]`
+
+<Note>
+Without custom `ids`, test variants are numbered sequentially. Use the `ids` parameter for readable names.
+</Note>
 
 ## Parameter Formats
 
@@ -78,55 +83,54 @@ def test_models(ctx: EvalContext, model, temperature):
     ...
 ```
 
-This generates 9 evaluations (3 models × 3 temperatures):
-- `test_models[gpt-4-0.0]`
-- `test_models[gpt-4-0.5]`
-- `test_models[gpt-4-1.0]`
-- `test_models[gpt-3.5-0.0]`
-- ... and so on
+This generates 9 evaluations (3 models × 3 temperatures) with numeric IDs:
+- `test_models[0]`
+- `test_models[1]`
+- ... through `test_models[8]`
+
+For readable names, provide `ids` on each decorator.
 
 ## Auto-Mapping to Context
 
-Parameters with special names automatically populate the context:
+Only parameters with these special names automatically populate the context:
 
-```python
-@eval(dataset="qa")
-@parametrize("input,reference,metadata", [
-    ("What is 2+2?", "4", {"difficulty": "easy"}),
-    ("What is the capital of France?", "Paris", {"difficulty": "medium"}),
-])
-def test_qa(ctx: EvalContext):
-    # ctx.input, ctx.reference, and ctx.metadata are auto-populated
-    ctx.add_output(await my_agent(ctx.input))
-    ctx.add_score(ctx.output == ctx.reference)
-```
-
-Special parameter names:
 - `input` → `ctx.input`
 - `reference` → `ctx.reference`
 - `metadata` → merged into `ctx.metadata`
+- `run_data` → `ctx.run_data`
+- `latency` → `ctx.latency`
 
-## Accessing Parameters
+```python
+@eval(dataset="qa")
+@parametrize("input,reference", [
+    ("What is 2+2?", "4"),
+    ("What is the capital of France?", "Paris"),
+])
+def test_qa(ctx: EvalContext):
+    # ctx.input and ctx.reference are auto-populated
+    ctx.add_output(await my_agent(ctx.input))
 
-Parameters are available in two ways:
+    assert ctx.output == ctx.reference, \
+        f"Expected {ctx.reference}, got {ctx.output}"
+```
 
-### As Function Arguments
+## Accessing Non-Special Parameters
+
+For parameters that aren't special context fields, you **must** include them in your function signature:
 
 ```python
 @parametrize("prompt,expected", [...])
 def test_example(ctx: EvalContext, prompt, expected):
-    # Use prompt and expected directly
+    # Parameters are passed as function arguments
+    ctx.input = prompt
+    ctx.add_output(process(prompt))
+
+    assert ctx.output == expected, f"Expected {expected}, got {ctx.output}"
 ```
 
-### As Context Attributes
-
-```python
-@parametrize("prompt,expected", [...])
-def test_example(ctx: EvalContext):
-    # Access via ctx.prompt and ctx.expected
-    result = process(ctx.prompt)
-    ctx.add_score(result == ctx.expected)
-```
+<Warning>
+Arbitrary parameters are **not** injected onto `ctx`. If you omit parameters from the function signature, you'll get "unexpected keyword argument" errors.
+</Warning>
 
 ## Running Specific Variants
 
@@ -156,10 +160,9 @@ twevals evals.py::test_math[2-3-5]
 ])
 async def test_sentiment(ctx: EvalContext, model, text, expected):
     ctx.metadata["text_length"] = len(text)
+    ctx.add_output(await analyze_sentiment(text, model=model))
 
-    result = await analyze_sentiment(text, model=model)
-    ctx.add_output(result)
-    ctx.add_score(result == expected, f"Expected {expected}")
+    assert ctx.output == expected, f"Expected {expected}, got {ctx.output}"
 ```
 
 ## Data-Driven Testing
@@ -179,7 +182,8 @@ async def test_qa(ctx: EvalContext, question, answer):
     ctx.input = question
     ctx.reference = answer
     ctx.add_output(await my_agent(question))
-    ctx.add_score(ctx.output == answer)
+
+    assert ctx.output == answer, f"Expected {answer}, got {ctx.output}"
 ```
 
 ## Example: Comprehensive Test Suite
@@ -195,9 +199,14 @@ PROMPTS = [
 
 @eval(dataset="intent_detection", default_score_key="accuracy")
 @parametrize("input,expected_intent,expected_sentiment", PROMPTS)
-async def test_intent(ctx: EvalContext):
+async def test_intent(ctx: EvalContext, expected_intent, expected_sentiment):
+    # ctx.input is auto-populated (special name)
+    # expected_intent and expected_sentiment come from function args
     result = await detect_intent(ctx.input)
     ctx.add_output(result)
-    ctx.add_score(result["intent"] == ctx.expected_intent, key="intent_accuracy")
-    ctx.add_score(result["sentiment"] == ctx.expected_sentiment, key="sentiment_accuracy")
+
+    assert result["intent"] == expected_intent, \
+        f"Expected intent {expected_intent}, got {result['intent']}"
+    assert result["sentiment"] == expected_sentiment, \
+        f"Expected sentiment {expected_sentiment}, got {result['sentiment']}"
 ```

@@ -138,8 +138,9 @@ The typical way—let `EvalContext` build it:
 @eval(dataset="demo")
 async def my_eval(ctx: EvalContext):
     ctx.input = "test"
-    ctx.add_output("result")
-    ctx.add_score(True, "passed")
+    ctx.add_output(await my_agent(ctx.input))
+
+    assert ctx.output, "Got empty response"
     # Returns EvalResult automatically
 ```
 
@@ -205,20 +206,28 @@ json_str = result.model_dump_json()
 
 ## Status Determination
 
-A result is considered "passed" if:
-1. No `error` field is set
-2. All scores have `passed=True` (or only have `value`)
+A result is considered "passed" if **any** score has `passed=True`:
 
 ```python
-# Passed
+# Passed - has a passing score
 EvalResult(input="x", output="y", scores=[{"key": "a", "passed": True}])
 
-# Failed - explicit failure
+# Passed - mixed scores, but at least one passes
+EvalResult(input="x", output="y", scores=[
+    {"key": "a", "passed": True},
+    {"key": "b", "passed": False}
+])
+
+# Failed - all scores fail
 EvalResult(input="x", output="y", scores=[{"key": "a", "passed": False}])
 
 # Failed - has error
 EvalResult(input="x", output="y", error="Something went wrong")
 ```
+
+<Note>
+The pass/fail logic checks if **any** score has `passed=True`, not if **all** scores pass. Mixed results with at least one passing score will show as passed.
+</Note>
 
 ## Complete Example
 

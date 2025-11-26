@@ -13,8 +13,9 @@ from twevals import eval, EvalContext
 @eval
 async def my_evaluation(ctx: EvalContext):
     ctx.input = "test"
-    ctx.add_output("result")
-    ctx.add_score(True)
+    ctx.add_output(await my_agent(ctx.input))
+
+    assert ctx.output is not None, "Got no response"
 ```
 
 With configuration:
@@ -22,7 +23,10 @@ With configuration:
 ```python
 @eval(dataset="customer_service", labels=["production"])
 async def test_refund_handling(ctx: EvalContext):
-    ...
+    ctx.input = "I want a refund"
+    ctx.add_output(await support_agent(ctx.input))
+
+    assert "refund" in ctx.output.lower(), "Should acknowledge refund"
 ```
 
 ## Configuration Options
@@ -76,20 +80,23 @@ Set context fields directly in the decorator:
 )
 async def test_arithmetic(ctx: EvalContext):
     ctx.add_output(await my_agent(ctx.input))
-    ctx.add_score(ctx.output == ctx.reference)
+
+    assert ctx.output == ctx.reference, \
+        f"Expected {ctx.reference}, got {ctx.output}"
 ```
 
 ### Default Score Key
 
-Specify the key for auto-added scores:
+Specify the key for scores (used when assertions fail or with `add_score()`):
 
 ```python
 @eval(default_score_key="accuracy")
 async def test_classification(ctx: EvalContext):
-    ctx.input = "test"
-    ctx.add_output("result")
-    ctx.add_score(True, "Classified correctly")
-    # Score will have key="accuracy"
+    ctx.input = "Classify this text"
+    ctx.add_output(await classifier(ctx.input))
+
+    assert ctx.output in ["positive", "negative", "neutral"], \
+        f"Invalid classification: {ctx.output}"
 ```
 
 ### Metadata from Parameters
@@ -134,10 +141,10 @@ def call_agent(ctx: EvalContext):
 )
 async def test_weather(ctx: EvalContext):
     # ctx.output already populated by target
-    ctx.add_score("weather" in ctx.output.lower())
+    assert "weather" in ctx.output.lower(), "Should mention weather"
 ```
 
-This separates agent invocation from scoring logic.
+This separates agent invocation from assertion logic.
 
 ### Evaluators
 
@@ -165,8 +172,6 @@ async def test_response(ctx: EvalContext):
     dataset="customer_service",
     labels=["production", "critical"],
     input="I want to cancel my subscription",
-    reference="cancellation flow",
-    default_score_key="quality",
     metadata={"category": "cancellation"},
     metadata_from_params=["urgency"],
     timeout=10.0,
@@ -174,9 +179,10 @@ async def test_response(ctx: EvalContext):
 )
 @parametrize("urgency", ["low", "high"])
 async def test_cancellation_handling(ctx: EvalContext, urgency):
-    response = await customer_agent(ctx.input, urgency=urgency)
-    ctx.add_output(response)
-    ctx.add_score("cancel" in response.lower(), "Addresses cancellation")
+    ctx.add_output(await customer_agent(ctx.input, urgency=urgency))
+
+    assert "cancel" in ctx.output.lower(), "Should address cancellation"
+    assert len(ctx.output) > 50, "Response too short"
 ```
 
 ## Sync and Async Support
@@ -188,13 +194,13 @@ Both work seamlessly:
 def test_sync(ctx: EvalContext):
     ctx.input = "test"
     ctx.add_output(sync_function(ctx.input))
-    ctx.add_score(True)
+    assert ctx.output, "Got empty response"
 
 @eval(dataset="async_tests")
 async def test_async(ctx: EvalContext):
     ctx.input = "test"
     ctx.add_output(await async_function(ctx.input))
-    ctx.add_score(True)
+    assert ctx.output, "Got empty response"
 ```
 
 ## Returning Multiple Results
