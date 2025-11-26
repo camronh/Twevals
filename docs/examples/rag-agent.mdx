@@ -18,6 +18,18 @@ You want to evaluate:
 - **Hallucination** — Is the answer grounded in the retrieved documents?
 - **Correctness** — Does the answer match the expected reference?
 
+```mermaid
+flowchart LR
+    A[Input] --> B[RAG Agent]
+    B --> C[Output]
+    B --> D[Source Docs]
+    C --> E[Correctness Judge]
+    D --> F[Hallucination Judge]
+    C --> F
+    E --> G[Scores]
+    F --> G
+```
+
 ## The Eval
 
 ```python
@@ -28,14 +40,14 @@ async def run_agent(ctx: EvalContext):
 
     # Store the source docs in the context to be used in evaluation
     # Can use arbitrary property names
-    ctx.my_source_docs = response.metadata["source_docs]
+    ctx.my_source_docs = results.metadata["source_docs"]
 
     # Store the agent's response in ctx.output automatically
     return results.response
 
 
 
-@eval(dataset="rag_qa")
+@eval(dataset="rag_qa", target=run_agent)
 @parametrize("input,reference", [
     ("What is our refund policy?", "30-day money-back guarantee"),
     ("How do I reset my password?", "Click 'Forgot Password' on the login page"),

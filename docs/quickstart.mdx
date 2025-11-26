@@ -72,7 +72,7 @@ Use `@parametrize` to generate multiple evaluations from one function:
 ```python
 from twevals import eval, parametrize, EvalContext
 
-@eval(target=run_agent, dataset="greetings", labels=["production])
+@eval(target=run_agent, dataset="greetings", labels=["production"])
 @parametrize("input,reference", [
     ("Hello!", "friendly"),
     ("I need help urgently", "helpful"),
