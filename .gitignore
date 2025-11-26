@@ -44,7 +44,6 @@ htmlcov/
 Thumbs.db
 
 # Project specific
-*.json
 !tests/fixtures/*.json
 results/
 .twevals/

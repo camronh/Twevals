@@ -1,0 +1,83 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Twevals",
+  "logo": {
+    "dark": "/assets/logo-dark.svg",
+    "light": "/assets/logo-light.svg"
+  },
+  "favicon": "/assets/favicon.svg",
+  "colors": {
+    "primary": "#6366F1",
+    "light": "#818CF8",
+    "dark": "#4F46E5",
+    "anchors": {
+      "from": "#6366F1",
+      "to": "#8B5CF6"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/twevals/twevals"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/quickstart"
+  },
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/twevals/twevals"
+    },
+    {
+      "name": "PyPI",
+      "icon": "python",
+      "url": "https://pypi.org/project/twevals"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": ["introduction", "setup", "quickstart"]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples/rag-agent",
+        "examples/granular-evals"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "core-concepts/eval-context",
+        "core-concepts/decorators",
+        "core-concepts/scoring",
+        "core-concepts/parametrize"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/examples",
+        "guides/patterns",
+        "guides/web-ui",
+        "guides/evaluators",
+        "guides/file-defaults"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/cli",
+        "api-reference/eval-result",
+        "api-reference/score"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/camronh/Twevals"
+  }
+}
