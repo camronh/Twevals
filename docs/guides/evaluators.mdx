@@ -1,0 +1,254 @@
+---
+title: Evaluators
+description: Post-processing functions that add automated scores
+---
+
+Evaluators are functions that run after an evaluation completes, adding additional scores based on the result.
+
+## Basic Evaluator
+
+An evaluator receives an `EvalResult` and returns a score dictionary:
+
+```python
+def check_length(result):
+    """Check if output meets minimum length."""
+    length = len(result.output)
+    return {
+        "key": "length",
+        "passed": length >= 50,
+        "notes": f"Length: {length} characters"
+    }
+
+@eval(dataset="demo", evaluators=[check_length])
+async def test_response(ctx: EvalContext):
+    ctx.input = "Explain recursion"
+    ctx.add_output(await my_agent(ctx.input))
+```
+
+## Multiple Evaluators
+
+Chain evaluators for multiple automated checks:
+
+```python
+def check_format(result):
+    is_json = result.output.startswith("{")
+    return {"key": "format", "passed": is_json}
+
+def check_keywords(result):
+    keywords = ["therefore", "because", "however"]
+    found = sum(1 for k in keywords if k in result.output.lower())
+    return {
+        "key": "reasoning",
+        "value": found / len(keywords),
+        "notes": f"Found {found}/{len(keywords)} reasoning words"
+    }
+
+def check_no_hallucination(result):
+    # Your hallucination detection logic
+    has_citation = "[source]" in result.output
+    return {"key": "grounded", "passed": has_citation}
+
+@eval(
+    dataset="qa",
+    evaluators=[check_format, check_keywords, check_no_hallucination]
+)
+async def test_answer(ctx: EvalContext):
+    ctx.input = "Why is the sky blue?"
+    ctx.add_output(await my_agent(ctx.input))
+```
+
+## Evaluator Patterns
+
+### Reference Comparison
+
+```python
+def exact_match(result):
+    """Check exact match with reference."""
+    if result.reference is None:
+        return None  # Skip if no reference
+
+    matches = result.output.strip() == result.reference.strip()
+    return {
+        "key": "exact_match",
+        "passed": matches,
+        "notes": "Exact match" if matches else "Mismatch"
+    }
+```
+
+### Semantic Similarity
+
+```python
+def semantic_similarity(result):
+    """Check semantic similarity using embeddings."""
+    if result.reference is None:
+        return None
+
+    similarity = compute_similarity(result.output, result.reference)
+    return {
+        "key": "semantic",
+        "value": similarity,
+        "passed": similarity > 0.8,
+        "notes": f"Similarity: {similarity:.2f}"
+    }
+```
+
+### LLM-as-Judge
+
+```python
+async def llm_judge(result):
+    """Use an LLM to evaluate quality."""
+    prompt = f"""
+    Rate this response on a scale of 1-10:
+
+    Question: {result.input}
+    Response: {result.output}
+
+    Return just the number.
+    """
+
+    score = int(await call_llm(prompt))
+    return {
+        "key": "llm_quality",
+        "value": score / 10,
+        "passed": score >= 7,
+        "notes": f"LLM score: {score}/10"
+    }
+```
+
+### Content Safety
+
+```python
+def safety_check(result):
+    """Check for harmful content."""
+    unsafe_patterns = ["violence", "hate", "explicit"]
+    found = [p for p in unsafe_patterns if p in result.output.lower()]
+
+    return {
+        "key": "safety",
+        "passed": len(found) == 0,
+        "notes": f"Flagged: {found}" if found else "Safe"
+    }
+```
+
+### JSON Validation
+
+```python
+import json
+
+def json_valid(result):
+    """Validate JSON output."""
+    try:
+        parsed = json.loads(result.output)
+        return {
+            "key": "json_valid",
+            "passed": True,
+            "notes": f"Valid JSON with {len(parsed)} keys"
+        }
+    except json.JSONDecodeError as e:
+        return {
+            "key": "json_valid",
+            "passed": False,
+            "notes": f"Invalid JSON: {e}"
+        }
+```
+
+## Reusable Evaluator Collections
+
+Create evaluator sets for different use cases:
+
+```python
+# evaluators.py
+
+def make_length_checker(min_len, max_len):
+    def check(result):
+        length = len(result.output)
+        return {
+            "key": "length",
+            "passed": min_len <= length <= max_len,
+            "notes": f"Length {length}, expected {min_len}-{max_len}"
+        }
+    return check
+
+# Standard evaluator sets
+QA_EVALUATORS = [
+    exact_match,
+    semantic_similarity,
+    make_length_checker(50, 500),
+]
+
+SAFETY_EVALUATORS = [
+    safety_check,
+    toxicity_check,
+    bias_check,
+]
+
+CREATIVE_EVALUATORS = [
+    make_length_checker(100, 2000),
+    originality_check,
+    engagement_score,
+]
+```
+
+Use them:
+
+```python
+from evaluators import QA_EVALUATORS, SAFETY_EVALUATORS
+
+@eval(dataset="qa", evaluators=QA_EVALUATORS + SAFETY_EVALUATORS)
+async def test_factual_qa(ctx: EvalContext):
+    ...
+```
+
+## Async Evaluators
+
+Evaluators can be async:
+
+```python
+async def async_evaluator(result):
+    """Async evaluator for API calls."""
+    response = await external_api.check(result.output)
+    return {
+        "key": "external_check",
+        "passed": response["approved"],
+        "notes": response["reason"]
+    }
+```
+
+## Returning None
+
+Return `None` to skip adding a score:
+
+```python
+def conditional_evaluator(result):
+    if result.reference is None:
+        return None  # No score added
+
+    # ... evaluation logic
+    return {"key": "comparison", "passed": True}
+```
+
+## Evaluator vs In-Function Scoring
+
+<AccordionGroup>
+  <Accordion title="Use evaluators when...">
+    - The check is reusable across many evaluations
+    - You need post-processing after all data is set
+    - External API calls that should be separate from main logic
+    - Standard checks (format, length, safety) that apply broadly
+  </Accordion>
+
+  <Accordion title="Use in-function scoring when...">
+    - The scoring logic is specific to this evaluation
+    - You need access to intermediate computation
+    - The score depends on test-specific context
+    - Simple one-off checks
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+1. **Keep evaluators focused**: One evaluator, one metric
+2. **Return meaningful notes**: Help debug failures
+3. **Handle edge cases**: Check for None values
+4. **Make them reusable**: Parameterize thresholds
+5. **Group related evaluators**: Create logical collections

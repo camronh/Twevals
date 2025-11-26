@@ -1,0 +1,233 @@
+---
+title: The @eval Decorator
+description: Configure and register evaluation functions
+---
+
+The `@eval` decorator is how you mark functions as evaluations. It handles registration, configuration, and result collection.
+
+## Basic Usage
+
+```python
+from twevals import eval, EvalContext
+
+@eval
+async def my_evaluation(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output("result")
+    ctx.add_score(True)
+```
+
+With configuration:
+
+```python
+@eval(dataset="customer_service", labels=["production"])
+async def test_refund_handling(ctx: EvalContext):
+    ...
+```
+
+## Configuration Options
+
+### Dataset
+
+Groups related evaluations together:
+
+```python
+@eval(dataset="sentiment_analysis")
+async def test_positive_sentiment(ctx: EvalContext):
+    ...
+
+@eval(dataset="sentiment_analysis")
+async def test_negative_sentiment(ctx: EvalContext):
+    ...
+```
+
+<Note>
+If not specified, dataset defaults to the filename (e.g., `evals.py` → `evals`).
+</Note>
+
+### Labels
+
+Tags for filtering:
+
+```python
+@eval(labels=["production", "fast"])
+async def test_quick_response(ctx: EvalContext):
+    ...
+
+@eval(labels=["experimental", "slow"])
+async def test_complex_reasoning(ctx: EvalContext):
+    ...
+```
+
+Filter with CLI:
+```bash
+twevals evals.py --label production
+```
+
+### Pre-populated Fields
+
+Set context fields directly in the decorator:
+
+```python
+@eval(
+    input="What is 2 + 2?",
+    reference="4",
+    metadata={"difficulty": "easy"}
+)
+async def test_arithmetic(ctx: EvalContext):
+    ctx.add_output(await my_agent(ctx.input))
+    ctx.add_score(ctx.output == ctx.reference)
+```
+
+### Default Score Key
+
+Specify the key for auto-added scores:
+
+```python
+@eval(default_score_key="accuracy")
+async def test_classification(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output("result")
+    ctx.add_score(True, "Classified correctly")
+    # Score will have key="accuracy"
+```
+
+### Metadata from Parameters
+
+Auto-extract parametrized values to metadata:
+
+```python
+@eval(metadata_from_params=["model", "temperature"])
+@parametrize("model,temperature,prompt", [
+    ("gpt-4", 0.0, "Hello"),
+    ("gpt-3.5", 0.7, "Hello"),
+])
+async def test_models(ctx: EvalContext, model, temperature, prompt):
+    # metadata automatically includes {"model": "gpt-4", "temperature": 0.0}
+    ...
+```
+
+### Timeout
+
+Set a maximum execution time:
+
+```python
+@eval(timeout=5.0)  # Fails if exceeds 5 seconds
+async def test_with_timeout(ctx: EvalContext):
+    ctx.input = "complex task"
+    ctx.add_output(await slow_agent(ctx.input))
+```
+
+On timeout, the evaluation fails with an error message.
+
+### Target Hook
+
+Run a function before the evaluation body:
+
+```python
+def call_agent(ctx: EvalContext):
+    ctx.add_output(my_agent(ctx.input))
+
+@eval(
+    input="What's the weather?",
+    target=call_agent
+)
+async def test_weather(ctx: EvalContext):
+    # ctx.output already populated by target
+    ctx.add_score("weather" in ctx.output.lower())
+```
+
+This separates agent invocation from scoring logic.
+
+### Evaluators
+
+Post-processing functions that add scores:
+
+```python
+def check_length(result):
+    return {
+        "key": "length",
+        "passed": len(result.output) > 10,
+        "notes": f"Output length: {len(result.output)}"
+    }
+
+@eval(evaluators=[check_length])
+async def test_response(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output(await my_agent(ctx.input))
+    # check_length runs after, adds "length" score
+```
+
+## Complete Example
+
+```python
+@eval(
+    dataset="customer_service",
+    labels=["production", "critical"],
+    input="I want to cancel my subscription",
+    reference="cancellation flow",
+    default_score_key="quality",
+    metadata={"category": "cancellation"},
+    metadata_from_params=["urgency"],
+    timeout=10.0,
+    evaluators=[check_tone, check_helpfulness]
+)
+@parametrize("urgency", ["low", "high"])
+async def test_cancellation_handling(ctx: EvalContext, urgency):
+    response = await customer_agent(ctx.input, urgency=urgency)
+    ctx.add_output(response)
+    ctx.add_score("cancel" in response.lower(), "Addresses cancellation")
+```
+
+## Sync and Async Support
+
+Both work seamlessly:
+
+```python
+@eval(dataset="sync_tests")
+def test_sync(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output(sync_function(ctx.input))
+    ctx.add_score(True)
+
+@eval(dataset="async_tests")
+async def test_async(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output(await async_function(ctx.input))
+    ctx.add_score(True)
+```
+
+## Returning Multiple Results
+
+Return a list of `EvalResult` objects for batch evaluations:
+
+```python
+from twevals import eval, EvalResult
+
+@eval(dataset="batch")
+def test_batch():
+    results = []
+    for prompt in ["hello", "hi", "hey"]:
+        output = my_agent(prompt)
+        results.append(EvalResult(
+            input=prompt,
+            output=output,
+            scores=[{"key": "valid", "passed": True}]
+        ))
+    return results
+```
+
+## All Options Reference
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `dataset` | str | Group name for the evaluation |
+| `labels` | list[str] | Tags for filtering |
+| `input` | Any | Pre-populate ctx.input |
+| `reference` | Any | Pre-populate ctx.reference |
+| `metadata` | dict | Pre-populate ctx.metadata |
+| `metadata_from_params` | list[str] | Auto-extract params to metadata |
+| `default_score_key` | str | Key for auto-added scores |
+| `timeout` | float | Max execution time in seconds |
+| `target` | callable | Pre-hook to run before evaluation |
+| `evaluators` | list[callable] | Post-processing score functions |

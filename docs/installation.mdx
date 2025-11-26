@@ -1,0 +1,85 @@
+---
+title: Installation
+description: Install Twevals in your Python project
+---
+
+## Requirements
+
+- Python 3.10 or higher
+
+## Install with pip
+
+```bash
+pip install twevals
+```
+
+## Install with uv (Recommended)
+
+[uv](https://github.com/astral-sh/uv) is a fast Python package manager. Install Twevals as a dev dependency:
+
+```bash
+uv add twevals --dev
+```
+
+## Install with Poetry
+
+```bash
+poetry add twevals --group dev
+```
+
+## Verify Installation
+
+```bash
+twevals --help
+```
+
+You should see:
+
+```
+Usage: twevals [OPTIONS] PATH
+
+  Run evaluations from the specified path.
+
+Options:
+  -d, --dataset TEXT      Filter by dataset(s)
+  -l, --label TEXT        Filter by label(s)
+  -c, --concurrency INT   Number of concurrent evals
+  --timeout FLOAT         Global timeout in seconds
+  -v, --verbose           Verbose output
+  ...
+```
+
+## Dependencies
+
+Twevals automatically installs these dependencies:
+
+| Package | Purpose |
+|---------|---------|
+| `pydantic` | Data validation and schemas |
+| `click` | Command-line interface |
+| `rich` | Formatted terminal output |
+| `fastapi` | Web UI server |
+| `uvicorn` | ASGI server |
+| `jinja2` | UI templates |
+
+## Development Installation
+
+To contribute to Twevals:
+
+```bash
+git clone https://github.com/twevals/twevals.git
+cd twevals
+uv sync
+```
+
+Run tests:
+
+```bash
+uv run pytest
+```
+
+Run the examples:
+
+```bash
+uv run twevals examples --serve
+```

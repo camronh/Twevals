@@ -1,0 +1,166 @@
+---
+title: Quickstart
+description: Get up and running with Twevals in under 5 minutes
+---
+
+## Installation
+
+Install Twevals as a development dependency:
+
+<CodeGroup>
+
+```bash pip
+pip install twevals
+```
+
+```bash uv
+uv add twevals --dev
+```
+
+```bash poetry
+poetry add twevals --group dev
+```
+
+</CodeGroup>
+
+## Your First Evaluation
+
+Create a file called `evals.py`:
+
+```python
+from twevals import eval, EvalContext
+
+@eval(dataset="my_first_evals")
+async def test_greeting(ctx: EvalContext):
+    # Set the input
+    ctx.input = "Hello, how are you?"
+
+    # Call your agent/LLM
+    response = await my_agent(ctx.input)
+
+    # Record the output
+    ctx.add_output(response)
+
+    # Score the result
+    ctx.add_score(
+        "hello" in response.lower() or "hi" in response.lower(),
+        "Response contains greeting"
+    )
+```
+
+## Run Your Evaluations
+
+```bash
+twevals evals.py
+```
+
+You'll see a formatted table with your results:
+
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                     my_first_evals                            ┃
+┣━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┫
+┃ Name                ┃ Status   ┃ Score    ┃ Latency           ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ test_greeting       │ ✓ passed │ 1.0      │ 0.23s             │
+└─────────────────────┴──────────┴──────────┴───────────────────┘
+```
+
+## Launch the Web UI
+
+Add the `--serve` flag to open an interactive web interface:
+
+```bash
+twevals evals.py --serve
+```
+
+This opens a browser at `http://127.0.0.1:8000` where you can:
+
+- View all evaluation results in a filterable table
+- Expand rows to see inputs, outputs, and metadata
+- Edit scores, labels, and annotations inline
+- Export results to JSON or CSV
+
+## Add More Test Cases
+
+Use `@parametrize` to generate multiple evaluations from one function:
+
+```python
+from twevals import eval, parametrize, EvalContext
+
+@eval(dataset="greetings", default_score_key="quality")
+@parametrize("input_text,expected_tone", [
+    ("Hello!", "friendly"),
+    ("I need help urgently", "helpful"),
+    ("What's your return policy?", "informative"),
+])
+async def test_response_tone(ctx: EvalContext):
+    response = await my_agent(ctx.input_text)
+    ctx.add_output(response)
+
+    # Your scoring logic here
+    tone = analyze_tone(response)
+    ctx.add_score(tone == ctx.expected_tone, f"Expected {ctx.expected_tone} tone")
+```
+
+## Pre-populate Context
+
+For cleaner code, set inputs directly in the decorator:
+
+```python
+@eval(
+    input="What's the weather like?",
+    reference="weather information",
+    dataset="qa",
+    default_score_key="relevance"
+)
+async def test_weather_query(ctx: EvalContext):
+    ctx.add_output(await my_agent(ctx.input))
+    ctx.add_score("weather" in ctx.output.lower(), "Mentions weather")
+```
+
+## Filter and Run Specific Tests
+
+```bash
+# Run a specific function
+twevals evals.py::test_greeting
+
+# Filter by dataset
+twevals evals.py --dataset greetings
+
+# Filter by labels
+twevals evals.py --label production
+
+# Run with concurrency
+twevals evals.py --concurrency 4
+```
+
+## Export Results
+
+```bash
+# Save JSON summary
+twevals evals.py --output results.json
+
+# Export to CSV
+twevals evals.py --csv results.csv
+
+# Output compact JSON to stdout
+twevals evals.py --json
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="EvalContext" icon="code" href="/core-concepts/eval-context">
+    Learn about the builder pattern that powers Twevals
+  </Card>
+  <Card title="Decorators" icon="at" href="/core-concepts/decorators">
+    Master the @eval decorator and its options
+  </Card>
+  <Card title="Scoring" icon="chart-simple" href="/core-concepts/scoring">
+    Understand flexible scoring systems
+  </Card>
+  <Card title="Patterns" icon="diagram-project" href="/guides/patterns">
+    See common evaluation patterns
+  </Card>
+</CardGroup>

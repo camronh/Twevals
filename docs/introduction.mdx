@@ -1,0 +1,105 @@
+---
+title: Introduction
+description: A pytest-inspired evaluation framework for LLMs and AI agents
+---
+
+<img
+  className="block dark:hidden"
+  src="/assets/hero-light.svg"
+  alt="Twevals Hero"
+/>
+<img
+  className="hidden dark:block"
+  src="/assets/hero-dark.svg"
+  alt="Twevals Hero"
+/>
+
+# What is Twevals?
+
+Twevals is a lightweight, code-first evaluation framework for testing AI agents and LLM applications. Write evaluations like you write tests.
+
+<CardGroup cols={2}>
+  <Card title="Pytest-Inspired" icon="flask-vial">
+    Familiar patterns for Python developers. Use decorators, parametrize tests, and run from the CLI.
+  </Card>
+  <Card title="Simple by Design" icon="sparkles">
+    Minimal boilerplate, sensible defaults, and an intuitive API that gets out of your way.
+  </Card>
+  <Card title="Built-in Web UI" icon="browser">
+    View, filter, edit, and export results without separate tools. No setup required.
+  </Card>
+  <Card title="Production Ready" icon="rocket">
+    Concurrent execution, timeouts, error handling, and flexible scoring systems.
+  </Card>
+</CardGroup>
+
+## Why Twevals?
+
+Most evaluation frameworks require configuration files, complex setup, or force you into rigid patterns. Twevals takes a different approach:
+
+```python
+from twevals import eval, EvalContext
+
+@eval(dataset="customer_service")
+async def test_refund_request(ctx: EvalContext):
+    ctx.input = "I want a refund for my order"
+    ctx.add_output(await my_agent(ctx.input))
+    ctx.add_score("refund" in ctx.output.lower(), "Contains refund mention")
+```
+
+That's it. No config files. No boilerplate. Just write your evaluation logic and run it.
+
+## Key Features
+
+<AccordionGroup>
+  <Accordion title="Code-First Approach">
+    Write evaluations as Python functions with the `@eval` decorator. No YAML, no JSON configs, just code.
+  </Accordion>
+
+  <Accordion title="Smart Context Injection">
+    The `EvalContext` automatically injects into your functions and handles result building for you.
+  </Accordion>
+
+  <Accordion title="Flexible Scoring">
+    Boolean pass/fail, numeric scores, multiple metrics per evaluation—use whatever makes sense.
+  </Accordion>
+
+  <Accordion title="Parametrized Tests">
+    Generate hundreds of test cases from a single function with `@parametrize`.
+  </Accordion>
+
+  <Accordion title="Web UI Included">
+    Pass `--serve` and get a full-featured UI for viewing, filtering, and editing results.
+  </Accordion>
+
+  <Accordion title="Async Support">
+    Works seamlessly with both sync and async functions. Just write your code naturally.
+  </Accordion>
+</AccordionGroup>
+
+## Quick Example
+
+```python
+from twevals import eval, parametrize, EvalContext
+
+@eval(dataset="sentiment", default_score_key="accuracy")
+@parametrize("text,expected", [
+    ("I love this product!", "positive"),
+    ("This is terrible", "negative"),
+    ("It's okay I guess", "neutral"),
+])
+async def test_sentiment_analysis(ctx: EvalContext):
+    result = await analyze_sentiment(ctx.text)
+    ctx.add_output(result)
+    ctx.add_score(result == ctx.expected, f"Expected {ctx.expected}")
+```
+
+Run it:
+
+```bash
+twevals examples/ --serve
+```
+
+<Card title="Ready to start?" icon="play" href="/quickstart">
+  Follow our quickstart guide to set up Twevals in under 5 minutes.
+</Card>

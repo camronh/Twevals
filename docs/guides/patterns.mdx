@@ -1,0 +1,299 @@
+---
+title: Evaluation Patterns
+description: Common patterns for writing effective evaluations
+---
+
+This guide covers proven patterns for structuring your evaluations.
+
+## Pattern 1: Simple Direct Approach
+
+The most straightforward pattern—set everything inline:
+
+```python
+@eval(dataset="demo", default_score_key="correctness")
+async def test_simple(ctx: EvalContext):
+    ctx.input = "What is 2 + 2?"
+    ctx.reference = "4"
+
+    ctx.add_output(await my_agent(ctx.input))
+    ctx.add_score(ctx.output == ctx.reference, "Exact match")
+```
+
+**Use when:** Quick one-off tests, exploring behavior.
+
+## Pattern 2: Pre-populated Decorator
+
+The cleanest pattern—configure in the decorator:
+
+```python
+@eval(
+    input="What is the capital of France?",
+    reference="Paris",
+    dataset="geography",
+    default_score_key="accuracy"
+)
+async def test_capital(ctx: EvalContext):
+    ctx.add_output(await my_agent(ctx.input))
+    ctx.add_score(ctx.output == ctx.reference, "Match check")
+```
+
+**Use when:** Clean separation of test data from logic.
+
+## Pattern 3: Target Hook
+
+Separate agent invocation from scoring:
+
+```python
+async def call_agent(ctx: EvalContext):
+    """Reusable agent caller."""
+    ctx.add_output(await my_agent(ctx.input))
+
+@eval(
+    input="What's the weather like?",
+    target=call_agent,
+    dataset="qa"
+)
+async def test_weather(ctx: EvalContext):
+    # ctx.output already populated
+    ctx.add_score("weather" in ctx.output.lower(), "Contains answer")
+
+@eval(
+    input="Tell me a joke",
+    target=call_agent,
+    dataset="creative"
+)
+async def test_humor(ctx: EvalContext):
+    # Same agent, different scoring
+    ctx.add_score(len(ctx.output) > 20, "Reasonable length")
+```
+
+**Use when:** Multiple tests with same agent, different scoring.
+
+## Pattern 4: Multiple Results
+
+Return multiple results from one function:
+
+```python
+from twevals import eval, EvalResult
+
+@eval(dataset="batch")
+def test_batch_prompts():
+    prompts = [
+        ("Hello", "greeting"),
+        ("Goodbye", "farewell"),
+        ("Help me", "support"),
+    ]
+
+    results = []
+    for prompt, expected_intent in prompts:
+        output = my_agent(prompt)
+        detected = detect_intent(output)
+
+        results.append(EvalResult(
+            input=prompt,
+            output=output,
+            reference=expected_intent,
+            scores=[{
+                "key": "intent",
+                "passed": detected == expected_intent,
+                "notes": f"Detected: {detected}"
+            }]
+        ))
+
+    return results
+```
+
+**Use when:** Dynamic test case generation, external data sources.
+
+## Pattern 5: Parametrized with Context
+
+Combine parametrize with context for clean data-driven tests:
+
+```python
+@eval(dataset="sentiment", default_score_key="accuracy")
+@parametrize("text,expected", [
+    ("I love this product!", "positive"),
+    ("This is terrible", "negative"),
+    ("It's okay I guess", "neutral"),
+])
+async def test_sentiment(ctx: EvalContext):
+    detected = await analyze_sentiment(ctx.text)
+    ctx.add_output(detected)
+    ctx.add_score(detected == ctx.expected, f"Expected {ctx.expected}")
+```
+
+**Use when:** Testing many input/output pairs.
+
+## Pattern 6: File-Level Defaults
+
+Share configuration across multiple evaluations:
+
+```python
+# evals/customer_service.py
+
+twevals_defaults = {
+    "dataset": "customer_service",
+    "labels": ["production"],
+    "default_score_key": "quality",
+    "metadata": {"department": "support"}
+}
+
+@eval  # Inherits all defaults
+async def test_refund(ctx: EvalContext):
+    ctx.input = "I want a refund"
+    ctx.add_output(await support_agent(ctx.input))
+    ctx.add_score("refund" in ctx.output.lower())
+
+@eval  # Inherits defaults
+async def test_complaint(ctx: EvalContext):
+    ctx.input = "Your product broke"
+    ctx.add_output(await support_agent(ctx.input))
+    ctx.add_score("sorry" in ctx.output.lower())
+
+@eval(labels=["experimental"])  # Override labels only
+async def test_edge_case(ctx: EvalContext):
+    ...
+```
+
+**Use when:** Many evaluations share configuration.
+
+## Pattern 7: Multi-Metric Evaluation
+
+Score multiple dimensions:
+
+```python
+@eval(dataset="qa")
+async def test_comprehensive(ctx: EvalContext):
+    ctx.input = "Explain quantum computing"
+    ctx.reference = "superposition, entanglement, qubits"
+
+    response = await my_agent(ctx.input)
+    ctx.add_output(response)
+
+    # Accuracy
+    keywords = ctx.reference.split(", ")
+    matches = sum(1 for kw in keywords if kw in response.lower())
+    ctx.add_score(matches / len(keywords), f"{matches}/{len(keywords)} keywords", key="accuracy")
+
+    # Brevity
+    ctx.add_score(len(response) < 500, f"Length: {len(response)}", key="brevity")
+
+    # Tone
+    is_professional = not any(w in response.lower() for w in ["lol", "idk", "tbh"])
+    ctx.add_score(is_professional, "Professional tone", key="tone")
+```
+
+**Use when:** Complex quality dimensions.
+
+## Pattern 8: Comparison Testing
+
+Compare multiple approaches:
+
+```python
+@eval(dataset="model_comparison", metadata_from_params=["model"])
+@parametrize("model", ["gpt-4", "gpt-3.5", "claude-3"])
+async def test_model_comparison(ctx: EvalContext, model):
+    ctx.input = "Explain recursion simply"
+
+    response = await call_model(model, ctx.input)
+    ctx.add_output(response)
+
+    # Same scoring for all models
+    ctx.add_score(
+        len(response) > 50,
+        key="completeness"
+    )
+    ctx.add_score(
+        "recursion" in response.lower(),
+        key="relevance"
+    )
+```
+
+**Use when:** Benchmarking models, comparing approaches.
+
+## Pattern 9: Error Handling
+
+Gracefully handle failures:
+
+```python
+@eval(dataset="robustness", timeout=10.0)
+async def test_with_error_handling(ctx: EvalContext):
+    ctx.input = "Complex query"
+
+    try:
+        response = await my_agent(ctx.input)
+        ctx.add_output(response)
+        ctx.add_score(True, "Completed successfully")
+    except TimeoutError:
+        ctx.add_output("TIMEOUT")
+        ctx.add_score(False, "Timed out", key="reliability")
+    except Exception as e:
+        ctx.add_output(f"ERROR: {e}")
+        ctx.add_score(False, f"Exception: {e}", key="reliability")
+```
+
+**Use when:** Testing reliability, edge cases.
+
+## Pattern 10: Context Manager
+
+For explicit control:
+
+```python
+@eval(dataset="explicit")
+async def test_explicit_context():
+    with EvalContext(
+        input="test input",
+        default_score_key="quality"
+    ) as ctx:
+        response = await my_agent(ctx.input)
+        ctx.add_output(response)
+
+        if response:
+            ctx.add_score(True, "Got response")
+        else:
+            ctx.add_score(False, "Empty response")
+
+        return ctx
+```
+
+**Use when:** Need explicit lifecycle control.
+
+## Anti-Patterns to Avoid
+
+<Warning>
+**Don't do these:**
+</Warning>
+
+### Forgetting to set output
+
+```python
+# BAD: No output recorded
+@eval(dataset="demo")
+async def test_bad(ctx: EvalContext):
+    ctx.input = "test"
+    result = await my_agent(ctx.input)
+    ctx.add_score(True)  # Output not recorded!
+```
+
+### Hardcoding in parametrize
+
+```python
+# BAD: Defeats the purpose
+@eval(dataset="demo")
+@parametrize("x", [1])
+def test_single(ctx: EvalContext, x):
+    ...  # Just use a regular eval
+```
+
+### Overly complex evaluators
+
+```python
+# BAD: Logic should be in the eval function
+def complex_evaluator(result):
+    # 50 lines of logic...
+    pass
+
+# GOOD: Keep evaluators simple
+def check_format(result):
+    return {"key": "format", "passed": result.output.startswith("{")}
+```

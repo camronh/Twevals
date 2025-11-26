@@ -1,0 +1,222 @@
+---
+title: Scoring
+description: Flexible scoring systems for your evaluations
+---
+
+Twevals provides a flexible scoring system that supports boolean pass/fail, numeric scores, and multiple metrics per evaluation.
+
+## Score Structure
+
+Each score has:
+
+```python
+{
+    "key": "metric_name",    # Required: identifier for the metric
+    "value": 0.95,           # Optional: numeric score (typically 0-1)
+    "passed": True,          # Optional: boolean pass/fail
+    "notes": "Explanation"   # Optional: human-readable notes
+}
+```
+
+<Note>
+Every score must have at least one of `value` or `passed`.
+</Note>
+
+## Adding Scores
+
+### Boolean Scores
+
+```python
+@eval(dataset="demo", default_score_key="correctness")
+async def test_boolean(ctx: EvalContext):
+    ctx.input = "What is 2 + 2?"
+    ctx.add_output(await my_agent(ctx.input))
+
+    # Simple pass/fail
+    ctx.add_score(ctx.output == "4", "Exact match check")
+```
+
+Result:
+```json
+{
+    "key": "correctness",
+    "passed": true,
+    "notes": "Exact match check"
+}
+```
+
+### Numeric Scores
+
+```python
+@eval(dataset="demo", default_score_key="confidence")
+async def test_numeric(ctx: EvalContext):
+    ctx.input = "Classify this text"
+    result = await classifier(ctx.input)
+
+    ctx.add_output(result["label"])
+    ctx.add_score(result["confidence"], "Model confidence")
+```
+
+Result:
+```json
+{
+    "key": "confidence",
+    "value": 0.87,
+    "notes": "Model confidence"
+}
+```
+
+### Multiple Scores
+
+```python
+@eval(dataset="qa")
+async def test_multiple_metrics(ctx: EvalContext):
+    ctx.input = "What is the capital of France?"
+    ctx.reference = "Paris"
+    ctx.add_output(await my_agent(ctx.input))
+
+    # Different metrics
+    ctx.add_score(
+        ctx.output == ctx.reference,
+        "Exact match",
+        key="accuracy"
+    )
+    ctx.add_score(
+        len(ctx.output) < 100,
+        "Response is concise",
+        key="brevity"
+    )
+    ctx.add_score(
+        calculate_semantic_similarity(ctx.output, ctx.reference),
+        "Semantic similarity",
+        key="similarity"
+    )
+```
+
+## Automatic Scoring
+
+### Default Pass
+
+If no score is explicitly added, Twevals auto-adds a passing score:
+
+```python
+@eval(dataset="demo", default_score_key="correctness")
+async def test_no_explicit_score(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output("result")
+    # No add_score() call - auto-passes
+```
+
+### Assertion-Based Scoring
+
+Failed assertions become failing scores (not errors):
+
+```python
+@eval(dataset="validation", default_score_key="correctness")
+async def test_with_assertion(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output(await my_agent(ctx.input))
+
+    # If this fails, creates a failing score
+    assert ctx.output == ctx.reference, "Output mismatch"
+
+    ctx.add_score(True, "All assertions passed")
+```
+
+## Evaluators
+
+Evaluators are post-processing functions that add scores after the evaluation completes:
+
+```python
+def check_format(result):
+    """Check if output follows expected format."""
+    is_valid = result.output.startswith("{") and result.output.endswith("}")
+    return {
+        "key": "format",
+        "passed": is_valid,
+        "notes": "Valid JSON format" if is_valid else "Invalid format"
+    }
+
+def check_length(result):
+    """Check output length."""
+    length = len(result.output)
+    return {
+        "key": "length",
+        "value": min(length / 500, 1.0),  # Normalize to 0-1
+        "passed": 50 < length < 500,
+        "notes": f"Length: {length} characters"
+    }
+
+@eval(dataset="demo", evaluators=[check_format, check_length])
+async def test_with_evaluators(ctx: EvalContext):
+    ctx.input = "Generate a JSON response"
+    ctx.add_output(await my_agent(ctx.input))
+```
+
+Evaluators receive the built `EvalResult` and return a score dictionary.
+
+## Score Aggregation
+
+When viewing results, scores are typically aggregated:
+
+- **Pass rate**: Percentage of `passed=True` scores
+- **Average value**: Mean of numeric `value` scores
+- **By key**: Group and aggregate by score key
+
+The Web UI displays aggregated metrics in the results table.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use meaningful keys">
+    Choose score keys that describe what you're measuring:
+    ```python
+    ctx.add_score(is_correct, key="factual_accuracy")
+    ctx.add_score(is_polite, key="tone_appropriateness")
+    ctx.add_score(confidence, key="model_confidence")
+    ```
+  </Accordion>
+
+  <Accordion title="Include notes for debugging">
+    Notes help understand failures:
+    ```python
+    ctx.add_score(
+        is_valid,
+        f"Expected {expected}, got {actual}",
+        key="accuracy"
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Normalize numeric scores">
+    Keep values in 0-1 range for consistency:
+    ```python
+    normalized = min(raw_score / max_possible, 1.0)
+    ctx.add_score(normalized, key="quality")
+    ```
+  </Accordion>
+
+  <Accordion title="Combine boolean and numeric">
+    Use both for nuanced metrics:
+    ```python
+    return {
+        "key": "relevance",
+        "value": similarity_score,
+        "passed": similarity_score > 0.7,
+        "notes": f"Similarity: {similarity_score:.2f}"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Score Schema Reference
+
+```python
+class Score:
+    key: str           # Required: metric identifier
+    value: float       # Optional: numeric score
+    passed: bool       # Optional: pass/fail status
+    notes: str         # Optional: explanation
+```
+
+At least one of `value` or `passed` must be provided.
