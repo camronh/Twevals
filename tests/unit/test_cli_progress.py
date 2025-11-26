@@ -18,7 +18,7 @@ def test_pass():
     return EvalResult(input="p", output="p")
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_pass.py'])
+            result = self.runner.invoke(cli, ['test_pass.py'])
             assert result.exit_code == 0
             # Should see "Running evaluations..." followed by a dot
             assert "Running evaluations" in result.output
@@ -42,7 +42,7 @@ def test_fail():
     return EvalResult(input="f", output="f", scores={"key": "c", "passed": False})
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_fail.py'])
+            result = self.runner.invoke(cli, ['test_fail.py'])
             assert result.exit_code == 0
             # Should see F for failure in progress output
             assert "Running evaluations" in result.output
@@ -67,7 +67,7 @@ def test_error():
     raise ValueError("boom")
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_error.py'])
+            result = self.runner.invoke(cli, ['test_error.py'])
             assert result.exit_code == 0
             # Should see E for error in progress output
             assert "Running evaluations" in result.output

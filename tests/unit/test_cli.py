@@ -19,7 +19,7 @@ class TestCLI:
         assert 'lightweight evaluation framework' in result.output
     
     def test_run_command_help(self):
-        result = self.runner.invoke(cli, ['run', '--help'])
+        result = self.runner.invoke(cli, ['--help'])
         assert result.exit_code == 0
         assert '--dataset' in result.output
         assert '--label' in result.output
@@ -40,7 +40,7 @@ def test_cli():
     return EvalResult(input="cli", output="test")
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_eval.py'])
+            result = self.runner.invoke(cli, ['test_eval.py'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
             assert 'Total Evaluations: 1' in result.output
@@ -61,7 +61,7 @@ def test_two():
     return EvalResult(input="2", output="2")
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_dataset.py', '--dataset', 'dataset1'])
+            result = self.runner.invoke(cli, ['test_dataset.py', '--dataset', 'dataset1'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
             assert 'Total Evaluations: 1' in result.output
@@ -82,7 +82,7 @@ def test_dev():
     return EvalResult(input="d", output="d")
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_labels.py', '--label', 'prod'])
+            result = self.runner.invoke(cli, ['test_labels.py', '--label', 'prod'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
     
@@ -107,7 +107,7 @@ def test_c():
 """)
             
             result = self.runner.invoke(cli, [
-                'run', 'test_multi_labels.py',
+                'test_multi_labels.py',
                 '--label', 'a',
                 '--label', 'b'
             ])
@@ -131,7 +131,7 @@ def test_json():
 """)
             
             result = self.runner.invoke(cli, [
-                'run', 'test_json.py',
+                'test_json.py',
                 '--output', 'results.json'
             ])
             assert result.exit_code == 0
@@ -157,7 +157,7 @@ def test_csv():
 """)
 
             result = self.runner.invoke(cli, [
-                'run', 'test_csv.py',
+                'test_csv.py',
                 '--csv', 'results.csv'
             ])
             assert result.exit_code == 0
@@ -182,7 +182,7 @@ def test_both():
 """)
 
             result = self.runner.invoke(cli, [
-                'run', 'test_both.py',
+                'test_both.py',
                 '--output', 'results.json',
                 '--csv', 'results.csv'
             ])
@@ -206,7 +206,7 @@ def test_verbose():
     return EvalResult(input="v", output="verbose", scores={"key": "test", "passed": True})
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_verbose.py', '--verbose'])
+            result = self.runner.invoke(cli, ['test_verbose.py', '--verbose'])
             assert result.exit_code == 0
             # Verbose shows print statements
             assert 'This should show with verbose' in result.output
@@ -230,7 +230,7 @@ def test_2():
 """)
             
             result = self.runner.invoke(cli, [
-                'run', 'test_concurrent.py',
+                'test_concurrent.py',
                 '--concurrency', '2'
             ])
             assert result.exit_code == 0
@@ -246,7 +246,7 @@ def regular_function():
     return "not an eval"
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_empty.py'])
+            result = self.runner.invoke(cli, ['test_empty.py'])
             assert result.exit_code == 0
             assert 'No evaluations found' in result.output
     
@@ -262,11 +262,11 @@ def test_error():
     raise ValueError("Test error")
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_error.py'])
+            result = self.runner.invoke(cli, ['test_error.py'])
             assert result.exit_code == 0  # Should still complete
             assert 'Errors: 1' in result.output
     
     def test_run_nonexistent_path(self):
-        result = self.runner.invoke(cli, ['run', 'nonexistent.py'])
+        result = self.runner.invoke(cli, ['nonexistent.py'])
         assert result.exit_code == 1  # Error code for missing file
         assert 'does not exist' in result.output

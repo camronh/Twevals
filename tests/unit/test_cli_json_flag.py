@@ -25,7 +25,7 @@ def test_json_flag():
     )
 """)
             
-            result = self.runner.invoke(cli, ['run', 'test_json_flag.py', '--json'])
+            result = self.runner.invoke(cli, ['test_json_flag.py', '--json'])
             assert result.exit_code == 0
             
             # Verify output is strictly JSON
@@ -57,7 +57,7 @@ def test_json_flag():
             with open('test_empty.py', 'w') as f:
                 f.write("pass")
                 
-            result = self.runner.invoke(cli, ['run', 'test_empty.py', '--json'])
+            result = self.runner.invoke(cli, ['test_empty.py', '--json'])
             assert result.exit_code == 0
             
             data = json.loads(result.output)
@@ -72,7 +72,7 @@ from twevals import eval, EvalResult
 @eval()
 def test(): return EvalResult(input="i", output="o")
 """)
-            result = self.runner.invoke(cli, ['run', 'test_compact.py', '--json'])
+            result = self.runner.invoke(cli, ['test_compact.py', '--json'])
             # Check for no newlines in the JSON part (it might be one line)
             # But CLI usually adds a newline at end of output.
             # We check that indentation is not used.

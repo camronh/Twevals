@@ -30,7 +30,7 @@ async def test_async_2():
 """)
             
             # Run with concurrency enabled and verbose=False (default)
-            result = self.runner.invoke(cli, ['run', 'test_conc.py', '--concurrency', '2'])
+            result = self.runner.invoke(cli, ['test_conc.py', '--concurrency', '2'])
             
             assert result.exit_code == 0
             # The table and summary should be present in the output

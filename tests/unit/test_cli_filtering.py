@@ -17,7 +17,7 @@ def func_a(): return EvalResult(input='a', output='a')
 def func_b(): return EvalResult(input='b', output='b')
 """)
             
-            result = runner.invoke(cli, ['run', 'test_cli_filter.py::func_a'])
+            result = runner.invoke(cli, ['test_cli_filter.py::func_a'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
             assert 'Total Evaluations: 1' in result.output
@@ -36,13 +36,13 @@ def param_func(val): return EvalResult(input=str(val), output=str(val))
 """)
             
             # Test running base name (should run all variants)
-            result = runner.invoke(cli, ['run', 'test_cli_param.py::param_func'])
+            result = runner.invoke(cli, ['test_cli_param.py::param_func'])
             assert result.exit_code == 0
             assert 'Total Functions: 2' in result.output
             assert 'Total Evaluations: 2' in result.output
             
             # Test running specific variant
-            result = runner.invoke(cli, ['run', 'test_cli_param.py::param_func[0]'])
+            result = runner.invoke(cli, ['test_cli_param.py::param_func[0]'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
             assert 'Total Evaluations: 1' in result.output
@@ -58,14 +58,14 @@ from twevals import eval, EvalResult
 def existing_func(): return EvalResult(input='a', output='b')
 """)
             
-            result = runner.invoke(cli, ['run', 'test_cli_nonexistent.py::non_existent'])
+            result = runner.invoke(cli, ['test_cli_nonexistent.py::non_existent'])
             assert result.exit_code == 0
             assert 'No evaluations found' in result.output
 
     def test_cli_run_nonexistent_file(self):
         """Test CLI handles non-existent file path in file::func syntax"""
         runner = CliRunner()
-        result = runner.invoke(cli, ['run', 'nonexistent.py::func'])
+        result = runner.invoke(cli, ['nonexistent.py::func'])
         assert result.exit_code == 1
         assert 'does not exist' in result.output
 
@@ -85,7 +85,7 @@ def func_b(): return EvalResult(input='b', output='b')
 """)
             
             result = runner.invoke(cli, [
-                'run', 'test_cli_combo.py::func_a',
+                'test_cli_combo.py::func_a',
                 '--dataset', 'ds1'
             ])
             assert result.exit_code == 0

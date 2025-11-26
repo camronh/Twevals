@@ -29,12 +29,12 @@ def _remove_none(obj):
 
 class ProgressReporter:
     """Pytest-style progress reporter for evaluation runs"""
-    
+
     def __init__(self):
         self.failures: List[Dict] = []
         self.current_line = ""
         self.current_file = None
-    
+
     def _get_file_display(self, func: EvalFunction) -> str:
         """Get the display name for the file containing the function"""
         try:
@@ -55,7 +55,7 @@ class ProgressReporter:
                     return Path(module.__file__).name
             # Final fallback: use dataset name
             return func.dataset
-    
+
     def on_start(self, func: EvalFunction):
         """Called when an evaluation starts"""
         # In sequential mode, we could print the header here.
@@ -68,7 +68,7 @@ class ProgressReporter:
             console.print(f"{file_display} ", end="")
             self.current_file = file_display
             self.current_line = ""
-    
+
     def on_complete(self, func: EvalFunction, result_dict: Dict):
         """Called when an evaluation completes"""
         # Ensure we're on the right file line (in case on_start didn't catch it or out of order - though runner is ordered)
@@ -81,7 +81,7 @@ class ProgressReporter:
             self.current_line = ""
 
         result = result_dict["result"]
-        
+
         # Determine status character and color
         if result.get("error"):
             char = "E"
@@ -94,7 +94,7 @@ class ProgressReporter:
         elif result.get("scores"):
             # Check if any score has passed=True
             passed = any(
-                score.get("passed") is True 
+                score.get("passed") is True
                 for score in result["scores"]
             )
             if passed:
@@ -103,7 +103,7 @@ class ProgressReporter:
             else:
                 # Check if there are explicit failures
                 failed = any(
-                    score.get("passed") is False 
+                    score.get("passed") is False
                     for score in result["scores"]
                 )
                 if failed:
@@ -120,33 +120,33 @@ class ProgressReporter:
         else:
             char = "."
             color = "green"
-        
+
         # Print character inline with color (no newline)
         console.print(f"[{color}]{char}[/{color}]", end="")
         self.current_line += char
-    
+
     def print_failures(self):
         """Print detailed failure information"""
         if self.current_file is not None:
             console.print("") # Final newline
-            
+
         if not self.failures:
             return
-        
+
         # console.print("\n")  # No extra newline needed as we added one above
-        
+
         for i, failure in enumerate(self.failures, 1):
             func = failure["func"]
             result_dict = failure["result_dict"]
             result = result_dict["result"]
             failure_type = failure["type"]
-            
+
             # Format like pytest: dataset::function_name
             dataset = result_dict.get("dataset", "unknown")
             func_name = func.func.__name__
-            
+
             console.print(f"\n[red]{i}. {dataset}::{func_name}[/red]")
-            
+
             if failure_type == "error":
                 error_msg = result.get("error", "Unknown error")
                 console.print(f"   [red]ERROR:[/red] {error_msg}")
@@ -173,14 +173,9 @@ class ProgressReporter:
                 console.print(f"   [dim]Output:[/dim] {result['output']}")
 
 
-@click.group()
-def cli():
-    """Twevals - A lightweight evaluation framework for AI/LLM testing"""
-    pass
-
-
-@cli.command()
+@click.command()
 @click.argument('path', type=str)
+# Run options
 @click.option('--dataset', '-d', help='Run evaluations for specific dataset(s), comma-separated')
 @click.option('--label', '-l', multiple=True, help='Run evaluations with specific label(s)')
 @click.option('--output', '-o', type=click.Path(dir_okay=False), help='Path to JSON file for results')
@@ -190,7 +185,15 @@ def cli():
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
 @click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
 @click.option('--list', 'list_mode', is_flag=True, help='List all evaluations without running them')
-def run(
+@click.option('--limit', type=int, help='Limit the number of evaluations to run')
+# Serve options
+@click.option('--serve', is_flag=True, help='Serve a web UI to browse results')
+@click.option('--dev', is_flag=True, help='Enable hot-reload for development (watches repo for changes)')
+@click.option('--results-dir', default='.twevals/runs', help='Directory for JSON results storage')
+@click.option('--host', default='127.0.0.1', help='Host interface for the web server')
+@click.option('--port', default=8000, type=int, help='Port for the web server')
+@click.option('--quiet', '-q', is_flag=True, help='Reduce logging; hide access logs')
+def cli(
     path: str,
     dataset: Optional[str],
     label: tuple,
@@ -200,20 +203,29 @@ def run(
     timeout: Optional[float],
     verbose: bool,
     json_mode: bool,
-    list_mode: bool
+    list_mode: bool,
+    limit: Optional[int],
+    serve: bool,
+    dev: bool,
+    results_dir: str,
+    host: str,
+    port: int,
+    quiet: bool,
 ):
-    """Run evaluations in specified path
-    
+    """Twevals - A lightweight evaluation framework for AI/LLM testing
+
+    Run evaluations: twevals evals.py
+
     Path can include function name filter: file.py::function_name
     """
     from pathlib import Path as PathLib
-    
+
     # Parse path to extract file path and optional function name
     function_name = None
     if '::' in path:
         file_path, function_name = path.rsplit('::', 1)
         path = file_path
-    
+
     # Validate that the file path portion exists
     path_obj = PathLib(path)
     if not path_obj.exists():
@@ -222,10 +234,27 @@ def run(
         else:
             console.print(f"[red]Error: Path {path} does not exist[/red]")
         sys.exit(1)
-    
+
     # Convert label tuple to list
     labels = list(label) if label else None
 
+    # Handle serve mode
+    if serve:
+        _serve(
+            path=path,
+            dataset=dataset,
+            labels=labels,
+            concurrency=concurrency,
+            dev=dev,
+            results_dir=results_dir,
+            host=host,
+            port=port,
+            verbose=verbose,
+            quiet=quiet,
+        )
+        return
+
+    # Handle list mode
     if list_mode:
         import csv as csv_module
 
@@ -235,6 +264,9 @@ def run(
             labels=labels,
             function_name=function_name
         )
+
+        if limit is not None:
+            eval_functions = eval_functions[:limit]
 
         if not eval_functions:
             if json_mode:
@@ -288,17 +320,17 @@ def run(
         console.print(f"\\n[bold]Total evaluations:[/bold] {len(eval_info_list)}")
         console.print(f"[bold]Unique datasets:[/bold] {len(set(i['dataset'] for i in eval_info_list))}")
         return
-    
-    # Create runner
+
+    # Run evaluations (default behavior)
     runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
-    
+
     # Create progress reporter
     reporter = ProgressReporter() if not json_mode else None
-    
+
     # Run evaluations with progress reporting
     if not json_mode:
         console.print("[bold green]Running evaluations...[/bold green]")
-    
+
     try:
         summary = runner.run(
             path=path,
@@ -309,7 +341,8 @@ def run(
             csv_file=csv,
             verbose=verbose,
             on_start=reporter.on_start if reporter else None,
-            on_complete=reporter.on_complete if reporter else None
+            on_complete=reporter.on_complete if reporter else None,
+            limit=limit
         )
     except Exception as e:
         if json_mode:
@@ -338,19 +371,19 @@ def run(
     if summary['results']:
         table = format_results_table(summary['results'])
         console.print(table)
-    
+
     # Print summary below table
     console.print("\n[bold]Evaluation Summary[/bold]")
     console.print(f"Total Functions: {summary['total_functions']}")
     console.print(f"Total Evaluations: {summary['total_evaluations']}")
     console.print(f"Errors: {summary['total_errors']}")
-    
+
     if summary['total_with_scores'] > 0:
         console.print(f"Passed: {summary['total_passed']}/{summary['total_with_scores']}")
-    
+
     if summary['average_latency'] > 0:
         console.print(f"Average Latency: {summary['average_latency']:.3f}s")
-    
+
     # Output file notification
     if output:
         console.print(f"\n[green]Results saved to: {output}[/green]")
@@ -358,21 +391,10 @@ def run(
         console.print(f"[green]Results saved to: {csv}[/green]")
 
 
-@cli.command()
-@click.argument('path', type=click.Path(exists=True))
-@click.option('--dataset', '-d', help='Run evaluations for specific dataset(s), comma-separated')
-@click.option('--label', '-l', multiple=True, help='Run evaluations with specific label(s)')
-@click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
-@click.option('--dev', is_flag=True, help='Enable hot-reload for development (watches repo for changes)')
-@click.option('--results-dir', default='.twevals/runs', help='Directory for JSON results storage')
-@click.option('--host', default='127.0.0.1', help='Host interface for the web server')
-@click.option('--port', default=8000, type=int, help='Port for the web server')
-@click.option('--verbose', '-v', is_flag=True, help='Show detailed server logs')
-@click.option('--quiet', '-q', is_flag=True, help='Reduce logging; hide access logs')
-def serve(
+def _serve(
     path: str,
-    dataset: str | None,
-    label: tuple,
+    dataset: Optional[str],
+    labels: Optional[List[str]],
     concurrency: int,
     dev: bool,
     results_dir: str,
@@ -382,9 +404,6 @@ def serve(
     quiet: bool,
 ):
     """Serve a web UI to browse results."""
-
-    labels = list(label) if label else None
-
     try:
         from twevals.server import create_app
         import uvicorn

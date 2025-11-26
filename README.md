@@ -18,7 +18,7 @@ Look at the [examples](examples/) directory for runnable snippets.
 Run the demo suite and open the UI:
 
 ```bash
-twevals serve examples
+twevals examples --serve
 ```
 
 ![UI screenshot](assets/ui.png)
@@ -29,7 +29,8 @@ twevals serve examples
 - Edit datasets, labels, scores, metadata, or annotations inline; changes persist to JSON.
 - Actions menu: refresh, rerun the suite, export JSON/CSV.
 
-Common `serve` flags: `--dataset`, `--label`, `-c/--concurrency`, `--dev`, `--host`, `--port`, `-q/--quiet`, `-v/--verbose`.
+Common flags: `--dataset`, `--label`, `-c/--concurrency`, `-q/--quiet`, `-v/--verbose`.
+Serve-specific: `--serve`, `--dev`, `--host`, `--port`.
 
 ## Authoring evals
 
@@ -477,20 +478,20 @@ def test_with_evaluator(ctx: EvalContext):
 Skip the UI and save results to disk:
 
 ```bash
-twevals run path/to/evals
-# Run specific function: twevals run path/to/evals.py::function_name
-# Run parametrized variant: twevals run path/to/evals.py::function_name[param_id]
+twevals path/to/evals
+# Run specific function: twevals path/to/evals.py::function_name
+# Run parametrized variant: twevals path/to/evals.py::function_name[param_id]
 # Filtering and other common flags work here as well
 ```
 
-`run`-only flags: `-o/--output` (save JSON summary), `--csv` (save CSV), `--json` (output compact JSON to stdout), `--list` (list evaluations without running).
+Run-only flags: `-o/--output` (save JSON summary), `--csv` (save CSV), `--json` (output compact JSON to stdout), `--list` (list evaluations without running), `--limit` (limit number of evals).
 
 ## CLI reference
 
 ```
-twevals serve <path>   # run evals once and launch the web UI
-twevals run <path>     # run without UI
-twevals run <path>::<function>  # run specific function (e.g., tests.py::my_eval)
+twevals <path>                  # run evals (default behavior)
+twevals <path> --serve          # run evals and launch web UI
+twevals <path>::<function>      # run specific function (e.g., tests.py::my_eval)
 
 Common flags:
   -d, --dataset TEXT      Filter by dataset(s)
@@ -500,16 +501,17 @@ Common flags:
   -q, --quiet             Reduce logs
   -v, --verbose           Verbose logs
 
-serve-only:
-  --dev                   Enable hot reload
-  --host TEXT             Host interface (default 127.0.0.1)
-  --port INT              Port (default 8000)
-
-run-only:
+Run flags:
   -o, --output FILE       Save JSON summary
   --csv FILE              Save CSV results
   --json                  Output compact JSON to stdout (machine-readable)
   --list                  List evaluations without running
+  --limit INT             Limit number of evaluations to run
+
+Serve flags (use with --serve):
+  --dev                   Enable hot reload
+  --host TEXT             Host interface (default 127.0.0.1)
+  --port INT              Port (default 8000)
 ```
 
 ## Contributing
@@ -524,5 +526,5 @@ uv run black .
 Helpful demo:
 
 ```bash
-uv run twevals serve examples
+uv run twevals examples --serve
 ```
