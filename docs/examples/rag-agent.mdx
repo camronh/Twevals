@@ -1,0 +1,118 @@
+---
+title: RAG Agent Evaluation
+description: Evaluating a retrieval-augmented generation agent with parametrized datasets
+---
+
+# RAG Agent Evaluation
+
+This example shows a common pattern: evaluating a RAG agent across a dataset of question-answer pairs, checking for both hallucination and correctness.
+
+## The Setup
+
+You have a RAG agent that:
+1. Takes a user question
+2. Retrieves relevant documents
+3. Generates an answer grounded in those documents
+
+You want to evaluate:
+- **Hallucination** — Is the answer grounded in the retrieved documents?
+- **Correctness** — Does the answer match the expected reference?
+
+## The Eval
+
+```python
+from twevals import eval, parametrize, EvalContext
+
+@eval(dataset="rag_qa")
+@parametrize("input,reference", [
+    ("What is our refund policy?", "30-day money-back guarantee"),
+    ("How do I reset my password?", "Click 'Forgot Password' on the login page"),
+    ("What payment methods do you accept?", "Visa, Mastercard, and PayPal"),
+    ("How long does shipping take?", "3-5 business days for standard shipping"),
+    ("Can I change my order after placing it?", "Within 1 hour of placing the order"),
+    # ... hundreds more rows
+])
+async def test_rag_agent(ctx: EvalContext):
+    # Run the agent and capture both the answer and retrieved docs
+    result = await run_rag_agent(ctx.input)
+
+    ctx.add_output(result.answer)
+    ctx.metadata["retrieved_docs"] = result.documents
+    ctx.metadata["sources"] = result.sources
+
+    # Check for hallucination using an LLM judge
+    hallucination_result = await hallucination_judge(
+        answer=ctx.output,
+        sources=result.documents
+    )
+    ctx.add_score(
+        "hallucination",
+        passed=not hallucination_result.has_hallucination,
+        message=hallucination_result.explanation
+    )
+
+    # Check correctness against the reference
+    correctness_result = await correctness_judge(
+        answer=ctx.output,
+        reference=ctx.reference
+    )
+    assert correctness_result.is_correct, correctness_result.explanation
+```
+
+## What's Happening
+
+**Parametrized dataset** — The `@parametrize` decorator creates one eval run per row. Each row sets `ctx.input` and `ctx.reference` automatically.
+
+**Target function inline** — We call `run_rag_agent()` directly in the eval function. No separate `@target` decorator needed (though you could use one if you prefer).
+
+**Storing context for analysis** — We save the retrieved documents to `ctx.metadata`. This shows up in the results JSON and Web UI, so you can debug retrieval issues.
+
+**Multiple scoring criteria** — We use `ctx.add_score()` for hallucination (a named score) and `assert` for correctness (the default score). Both appear in your results.
+
+**LLM-as-judge** — The `hallucination_judge` and `correctness_judge` are placeholder functions representing whatever LLM judge you're using (OpenAI, Anthropic, your own prompts, etc.).
+
+## Running It
+
+```bash
+# Run just this eval
+twevals evals/rag_agent.py
+
+# Run with the web UI
+twevals evals/rag_agent.py --serve
+
+# Run verbosely to see each result
+twevals evals/rag_agent.py --verbose
+```
+
+## Example Results
+
+After running, you'll have a JSON file with structured results:
+
+```json
+{
+  "dataset": "rag_qa",
+  "results": [
+    {
+      "input": "What is our refund policy?",
+      "output": "We offer a 30-day money-back guarantee on all purchases.",
+      "reference": "30-day money-back guarantee",
+      "metadata": {
+        "retrieved_docs": ["policy.md: section 4.2..."],
+        "sources": ["policy.md"]
+      },
+      "scores": {
+        "hallucination": {
+          "passed": true,
+          "message": "Answer is fully grounded in retrieved documents"
+        },
+        "default": {
+          "passed": true,
+          "message": null
+        }
+      }
+    }
+  ]
+}
+```
+
+Your coding agent can read this JSON, analyze patterns, identify which questions have retrieval issues, and suggest improvements—all without leaving the terminal.

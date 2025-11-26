@@ -1,5 +1,5 @@
 ---
-title: Introduction
+title: Twevals
 description: A pytest-inspired evaluation framework for LLMs and AI agents
 ---
 
@@ -14,72 +14,46 @@ description: A pytest-inspired evaluation framework for LLMs and AI agents
   alt="Twevals Hero"
 />
 
-# What is Twevals?
 
 Twevals is a lightweight, code-first evaluation framework for testing AI agents and LLM applications. Write evaluations like you write tests.
 
-<CardGroup cols={2}>
-  <Card title="Pytest-Inspired" icon="flask-vial">
-    Familiar patterns for Python developers. Use decorators, parametrize tests, and run from the CLI.
+
+#### Existing eval frameworks are frustrating:
+
+<CardGroup cols={3}>
+  <Card title="Too Opinionated" icon="lock" color="#9ca3af">
+    One function per dataset, rigid patterns. No way to run different logic per test case.
   </Card>
-  <Card title="Simple by Design" icon="sparkles">
-    Minimal boilerplate, sensible defaults, and an intuitive API that gets out of your way.
+  <Card title="Cloud-Based" icon="cloud" color="#9ca3af">
+    Datasets in the cloud. No version control. Code and data live in different places.
   </Card>
-  <Card title="Built-in Web UI" icon="browser">
-    View, filter, edit, and export results without separate tools. No setup required.
-  </Card>
-  <Card title="Production Ready" icon="rocket">
-    Concurrent execution, timeouts, error handling, and flexible scoring systems.
+  <Card title="UI-Based" icon="display" color="#9ca3af">
+    Your coding agent can't run evals, analyze results, or iterate on datasets.
   </Card>
 </CardGroup>
 
-## Why Twevals?
+**Pytest isn't the answer either.** Tests are pass/fail—evals are for *analysis*. You want to see all results, latency, cost, comparisons over time. Pytest doesn't do that.
 
-Most evaluation frameworks require configuration files, complex setup, or force you into rigid patterns. Twevals takes a different approach:
+**Twevals is different:** minimal, flexible, agent-friendly. Everything lives locally as code and JSON.
 
-```python
-from twevals import eval, EvalContext
-
-@eval(dataset="customer_service")
-async def test_refund_request(ctx: EvalContext):
-    ctx.input = "I want a refund for my order"
-    ctx.add_output(await my_agent(ctx.input))
-
-    assert "refund" in ctx.output.lower(), "Should mention refund"
-    assert len(ctx.output) > 20, "Response should be substantive"
-```
-
-That's it. No config files. No boilerplate. Just use assertions like you would in pytest.
-
-## Key Features
-
-<AccordionGroup>
-  <Accordion title="Assertion-Based Scoring">
-    Use Python's `assert` statement to score—just like pytest. Failed assertions become failing scores with the message preserved.
-  </Accordion>
-
-  <Accordion title="Code-First Approach">
-    Write evaluations as Python functions with the `@eval` decorator. No YAML, no JSON configs, just code.
-  </Accordion>
-
-  <Accordion title="Smart Context Injection">
-    The `EvalContext` automatically injects into your functions and handles result building for you.
-  </Accordion>
-
-  <Accordion title="Parametrized Tests">
-    Generate hundreds of test cases from a single function with `@parametrize`.
-  </Accordion>
-
-  <Accordion title="Web UI Included">
-    Pass `--serve` and get a full-featured UI for viewing, filtering, and editing results.
-  </Accordion>
-
-  <Accordion title="Async Support">
-    Works seamlessly with both sync and async functions. Just write your code naturally.
-  </Accordion>
-</AccordionGroup>
+<CardGroup cols={2}>
+  <Card title="Pytest-Inspired" icon="flask-vial">
+    Use `assert`, parametrized tests, CLI-first workflow.
+  </Card>
+  <Card title="Fully Flexible" icon="sliders">
+    From parametrized datasets to per-test custom logic. Mix and match.
+  </Card>
+  <Card title="Local & Version-Controlled" icon="code-branch">
+    Code and data together. Full git history. No cloud sync.
+  </Card>
+  <Card title="Agent-Friendly" icon="robot">
+    Your coding agent can run, analyze, and iterate on evals.
+  </Card>
+</CardGroup>
 
 ## Quick Example
+
+Evaluating a simple sentiment analyzer against a ground truth dataset:
 
 ```python
 from twevals import eval, parametrize, EvalContext
@@ -95,11 +69,10 @@ async def test_sentiment_analysis(ctx: EvalContext):
 
     assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
 ```
-
-Run it:
+Run with Web UI enabled for human review:
 
 ```bash
-twevals examples/ --serve
+twevals sentiment_evals.py --concurrency 7 --serve
 ```
 
 <Card title="Ready to start?" icon="play" href="/quickstart">
