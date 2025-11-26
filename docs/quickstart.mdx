@@ -1,0 +1,138 @@
+---
+title: Quickstart
+description: Get up and running with Twevals in under 5 minutes
+---
+
+## Your First Evaluation
+
+Create a file called `evals.py`.
+
+Create your `target` function first. The `target` is what we are actually evaluating. For example, if you're evaluating an agent, the `target` function
+would just be the wrapper logic to run the agent and return the results.
+
+```python
+from twevals import eval, EvalContext
+
+async def run_agent(ctx: EvalContext):
+  """Runs the agent"""
+  response = my_agent(ctx.input)  # Psuedocode to run the hypothetical agent using the input prompt
+  return response  # Stores the agent's response in the context of the eval under ctx.output
+```
+
+Then you can reuse this target across multiple evals.
+
+Next lets write our first evaluation function.
+
+```python
+@eval(
+  input="Hello, how are you?",  # Store input in context
+  target=run_agent  # Runs the agent using the `input` and stores the results in `ctx.output`
+)
+async def test_greeting(ctx: EvalContext):
+    """Evaluate the agent's greeting ability"""
+    # Use assertions to score - just like pytest!
+    assert "hello" in ctx.output.lower() or "hi" in ctx.output.lower(), \
+        "Response should contain a greeting"
+```
+
+That's it! Assertions work like pytest - if they pass, your eval passes. If they fail, the assertion message becomes the failure reason.
+
+## Run Your Evaluations
+
+```bash
+twevals evals.py
+```
+
+You'll see a formatted table with your results:
+
+<img
+  src="/assets/terminal-output.svg"
+  alt="Terminal output showing eval results"
+/>
+
+## Launch the Web UI
+
+Add the `--serve` flag to open an interactive web interface:
+
+```bash
+twevals evals.py --serve
+```
+
+This opens a browser at `http://127.0.0.1:8000` where you can:
+
+- View all evaluation results in a filterable table
+- Expand rows to see inputs, outputs, and metadata
+- Edit scores, labels, and annotations inline
+- Export results to JSON or CSV
+
+## Add More Test Cases
+
+Use `@parametrize` to generate multiple evaluations from one function:
+
+```python
+from twevals import eval, parametrize, EvalContext
+
+@eval(target=run_agent, dataset="greetings", labels=["production"])
+@parametrize("input,reference", [
+    ("Hello!", "friendly"),
+    ("I need help urgently", "helpful"),
+    ("What's your return policy?", "informative"),
+])
+async def test_response_tone(ctx: EvalContext):
+    # ctx.input and ctx.reference are auto-populated for these special names
+    tone = analyze_tone(ctx.output)
+
+    assert tone == ctx.reference, f"Expected {ctx.reference} tone, got {tone}"
+```
+
+<Note>
+  Only special parameter names (`input`, `reference`, `metadata`, `run_data`,
+  `latency`) auto-populate the context. For other parameters, include them in
+  the function signature.
+</Note>
+
+## Filter and Run Specific Tests
+
+```bash
+# Run a specific function
+twevals evals.py::test_greeting
+
+# Filter by dataset
+twevals evals.py --dataset greetings
+
+# Filter by labels
+twevals evals.py --label production
+
+# Run with concurrency
+twevals evals.py --concurrency 4
+```
+
+## Export Results
+
+```bash
+# Save JSON summary
+twevals evals.py --output results.json
+
+# Export to CSV
+twevals evals.py --csv results.csv
+
+# Output compact JSON to stdout
+twevals evals.py --json
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="EvalContext" icon="code" href="/core-concepts/eval-context">
+    Learn about the builder pattern that powers Twevals
+  </Card>
+  <Card title="Decorators" icon="at" href="/core-concepts/decorators">
+    Master the @eval decorator and its options
+  </Card>
+  <Card title="Scoring" icon="chart-simple" href="/core-concepts/scoring">
+    Understand flexible scoring systems
+  </Card>
+  <Card title="Patterns" icon="diagram-project" href="/guides/patterns">
+    See common evaluation patterns
+  </Card>
+</CardGroup>

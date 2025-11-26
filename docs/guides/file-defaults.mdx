@@ -1,0 +1,214 @@
+---
+title: File-Level Defaults
+description: Share configuration across evaluations in a file
+---
+
+Use file-level defaults to share common configuration across all evaluations in a file.
+
+## Basic Usage
+
+Define a `twevals_defaults` dictionary at the module level:
+
+```python
+# evals/customer_service.py
+
+twevals_defaults = {
+    "labels": ["production"],
+    "default_score_key": "quality",
+}
+
+@eval  # Inherits defaults
+async def test_refund(ctx: EvalContext):
+    ctx.input = "I want a refund"
+    ctx.add_output(await agent(ctx.input))
+
+    assert "refund" in ctx.output.lower(), "Should acknowledge refund"
+
+@eval  # Also inherits defaults
+async def test_complaint(ctx: EvalContext):
+    ctx.input = "Your product is broken"
+    ctx.add_output(await agent(ctx.input))
+
+    assert "sorry" in ctx.output.lower(), "Should express empathy"
+```
+
+Both evaluations will have:
+- `labels=["production"]`
+- `default_score_key="quality"`
+- `dataset="customer_service"` (auto-inferred from filename)
+
+<Note>
+The `dataset` field is automatically inferred from the filename when not explicitly set. File-level `dataset` defaults only apply if the decorator's dataset is literally `"default"`.
+</Note>
+
+## Overriding Defaults
+
+Override specific fields in individual decorators:
+
+```python
+twevals_defaults = {
+    "dataset": "customer_service",
+    "labels": ["production"],
+    "default_score_key": "quality",
+}
+
+@eval  # Uses all defaults
+async def test_standard(ctx: EvalContext):
+    ...
+
+@eval(labels=["experimental"])  # Override labels only
+async def test_new_feature(ctx: EvalContext):
+    ...
+
+@eval(dataset="edge_cases", labels=["debug"])  # Override multiple
+async def test_edge_case(ctx: EvalContext):
+    ...
+```
+
+## Supported Default Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dataset` | str | Default dataset name (rarely needed—auto-inferred from filename) |
+| `labels` | list[str] | Default labels |
+| `default_score_key` | str | Default score key |
+| `metadata` | dict | Default metadata |
+| `timeout` | float | Default timeout |
+| `evaluators` | list | Default evaluators |
+
+## Metadata Merging
+
+File defaults and decorator metadata are merged:
+
+```python
+twevals_defaults = {
+    "metadata": {"environment": "test", "version": "1.0"}
+}
+
+@eval(metadata={"category": "refunds"})
+async def test_refund(ctx: EvalContext):
+    # metadata = {"environment": "test", "version": "1.0", "category": "refunds"}
+    ...
+```
+
+Decorator values override file defaults for the same keys.
+
+## Evaluators Behavior
+
+<Warning>
+Evaluators from decorators **replace** file defaults—they are not merged.
+</Warning>
+
+```python
+def file_evaluator(result):
+    return {"key": "file_check", "passed": True}
+
+def specific_evaluator(result):
+    return {"key": "specific_check", "passed": True}
+
+twevals_defaults = {
+    "evaluators": [file_evaluator]
+}
+
+@eval  # Uses file_evaluator from defaults
+async def test_uses_default(ctx: EvalContext):
+    ...
+
+@eval(evaluators=[specific_evaluator])  # REPLACES file_evaluator
+async def test_with_override(ctx: EvalContext):
+    # Only specific_evaluator runs, not file_evaluator
+    ...
+```
+
+To use both, explicitly include them:
+
+```python
+@eval(evaluators=[file_evaluator, specific_evaluator])
+async def test_with_both(ctx: EvalContext):
+    ...
+```
+
+## Organizing by File
+
+Structure your evaluations by domain:
+
+```
+evals/
+├── customer_service.py    # dataset="customer_service"
+├── technical_support.py   # dataset="technical_support"
+├── sales.py               # dataset="sales"
+└── edge_cases.py          # dataset="edge_cases"
+```
+
+Each file sets its own defaults:
+
+```python
+# evals/technical_support.py
+
+twevals_defaults = {
+    "dataset": "technical_support",
+    "labels": ["production", "technical"],
+    "default_score_key": "helpfulness",
+    "metadata": {"department": "engineering"},
+    "timeout": 30.0,  # Technical queries may take longer
+}
+
+@eval
+async def test_debug_help(ctx: EvalContext):
+    ...
+
+@eval
+async def test_installation_guide(ctx: EvalContext):
+    ...
+```
+
+## Complete Example
+
+```python
+# evals/sentiment_analysis.py
+
+from twevals import eval, parametrize, EvalContext
+
+# Shared evaluators
+def check_confidence(result):
+    if hasattr(result, 'metadata') and 'confidence' in result.metadata:
+        conf = result.metadata['confidence']
+        return {
+            "key": "high_confidence",
+            "passed": conf > 0.8,
+            "notes": f"Confidence: {conf:.2f}"
+        }
+    return None
+
+# File-level defaults
+twevals_defaults = {
+    "dataset": "sentiment_analysis",
+    "labels": ["ml", "nlp"],
+    "default_score_key": "accuracy",
+    "metadata": {"model_version": "v2.1"},
+    "evaluators": [check_confidence],
+}
+
+# All evals inherit defaults
+@eval
+@parametrize("input,reference", [
+    ("I love this!", "positive"),
+    ("This is terrible", "negative"),
+])
+async def test_basic_sentiment(ctx: EvalContext):
+    # ctx.input and ctx.reference are auto-populated (special names)
+    result = await analyze(ctx.input)
+    ctx.add_output(result["label"])
+    ctx.metadata["confidence"] = result["confidence"]
+
+    assert result["label"] == ctx.reference, \
+        f"Expected {ctx.reference}, got {result['label']}"
+
+@eval(labels=["ml", "nlp", "edge_cases"])
+async def test_sarcasm(ctx: EvalContext):
+    ctx.input = "Oh great, another meeting"
+    result = await analyze(ctx.input)
+    ctx.add_output(result["label"])
+
+    assert result["label"] == "negative", "Should detect sarcasm as negative"
+```

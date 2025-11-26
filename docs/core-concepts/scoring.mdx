@@ -1,0 +1,209 @@
+---
+title: Scoring
+description: Score evaluations using assertions, just like pytest
+---
+
+Twevals uses assertions as the primary way to score evaluations. If you've written pytest tests, you already know how to score in Twevals.
+
+## Assertions (The Default Way)
+
+Use Python's `assert` statement to validate your outputs:
+
+```python
+@eval(dataset="qa")
+async def test_answer_quality(ctx: EvalContext):
+    ctx.input = "What is the capital of France?"
+    ctx.add_output(await my_agent(ctx.input))
+
+    assert "paris" in ctx.output.lower(), "Should mention Paris"
+```
+
+When assertions pass, your eval passes. When they fail, the assertion message becomes the failure reason in your results.
+
+### Multiple Assertions
+
+Chain assertions to check multiple conditions:
+
+```python
+@eval(dataset="customer_service")
+async def test_refund_response(ctx: EvalContext):
+    ctx.input = "I want a refund"
+    ctx.add_output(await support_agent(ctx.input))
+
+    assert len(ctx.output) > 20, "Response too short"
+    assert "refund" in ctx.output.lower(), "Should acknowledge refund request"
+    assert "sorry" in ctx.output.lower() or "apologize" in ctx.output.lower(), \
+        "Should express empathy"
+```
+
+### Comparing to Reference
+
+Use `ctx.reference` for expected output comparisons:
+
+```python
+@eval(input="2 + 2", reference="4", dataset="math")
+async def test_arithmetic(ctx: EvalContext):
+    ctx.add_output(await calculator(ctx.input))
+
+    assert ctx.output == ctx.reference, \
+        f"Expected {ctx.reference}, got {ctx.output}"
+```
+
+### With Parametrize
+
+Assertions work naturally with parametrized tests:
+
+```python
+@eval(dataset="sentiment")
+@parametrize("input,reference", [
+    ("I love this!", "positive"),
+    ("This is terrible", "negative"),
+    ("It's okay", "neutral"),
+])
+async def test_sentiment(ctx: EvalContext):
+    ctx.add_output(await classify_sentiment(ctx.input))
+
+    assert ctx.output == ctx.reference, \
+        f"Expected {ctx.reference}, got {ctx.output}"
+```
+
+## How Assertions Become Scores
+
+When an assertion fails:
+1. The eval doesn't crash - it's caught gracefully
+2. A failing score is created with the assertion message as notes
+3. Your `ctx.input` and `ctx.output` are preserved for debugging
+
+```python
+# If this assertion fails:
+assert ctx.output == "Paris", "Wrong capital"
+
+# It creates this score:
+{
+    "key": "correctness",
+    "passed": False,
+    "notes": "Wrong capital"
+}
+```
+
+When all assertions pass, a passing score is automatically added.
+
+---
+
+## add_score() (For Advanced Cases)
+
+Use `add_score()` when you need more control than assertions provide:
+
+- **Numeric scores** (confidence values, similarity scores)
+- **Multiple named metrics** per evaluation
+- **Non-binary scoring** (partial credit)
+
+### Numeric Scores
+
+```python
+@eval(dataset="classification")
+async def test_with_confidence(ctx: EvalContext):
+    ctx.input = "Classify this text"
+    result = await classifier(ctx.input)
+
+    ctx.add_output(result["label"])
+    ctx.add_score(result["confidence"], "Model confidence")
+```
+
+### Multiple Named Metrics
+
+```python
+@eval(dataset="qa")
+async def test_comprehensive(ctx: EvalContext):
+    ctx.input = "Explain quantum computing"
+    ctx.add_output(await my_agent(ctx.input))
+
+    # Different metrics with different keys
+    ctx.add_score(
+        "quantum" in ctx.output.lower(),
+        "Mentions quantum",
+        key="relevance"
+    )
+    ctx.add_score(
+        len(ctx.output) < 500,
+        f"Length: {len(ctx.output)}",
+        key="brevity"
+    )
+    ctx.add_score(
+        calculate_similarity(ctx.output, reference),
+        "Semantic similarity",
+        key="similarity"
+    )
+```
+
+### Combining Assertions and add_score
+
+You can use both in the same eval:
+
+```python
+@eval(dataset="demo")
+async def test_mixed(ctx: EvalContext):
+    ctx.input = "Generate a summary"
+    ctx.add_output(await summarizer(ctx.input))
+
+    # Must-pass requirements as assertions
+    assert ctx.output is not None, "Got no output"
+    assert len(ctx.output) > 10, "Output too short"
+
+    # Numeric quality metric
+    ctx.add_score(quality_score(ctx.output), "Quality score", key="quality")
+```
+
+---
+
+## Evaluators (Post-Processing)
+
+Evaluators are functions that run after the eval completes and add additional scores:
+
+```python
+def check_format(result):
+    """Check if output is valid JSON."""
+    try:
+        json.loads(result.output)
+        return {"key": "format", "passed": True}
+    except:
+        return {"key": "format", "passed": False, "notes": "Invalid JSON"}
+
+@eval(dataset="api", evaluators=[check_format])
+async def test_json_response(ctx: EvalContext):
+    ctx.input = "Get user data"
+    ctx.add_output(await api_call(ctx.input))
+
+    assert "user" in ctx.output, "Should contain user data"
+```
+
+Evaluators are useful for reusable checks across many evals.
+
+---
+
+## Score Structure Reference
+
+Each score has:
+
+```python
+{
+    "key": "metric_name",    # Identifier (default: "correctness")
+    "value": 0.95,           # Optional: numeric score (0-1 range)
+    "passed": True,          # Optional: boolean pass/fail
+    "notes": "Explanation"   # Optional: human-readable notes
+}
+```
+
+<Note>
+Every score must have at least one of `value` or `passed`.
+</Note>
+
+## When to Use What
+
+| Scenario | Use |
+|----------|-----|
+| Simple pass/fail checks | `assert` |
+| Multiple conditions that must all pass | Multiple `assert` statements |
+| Numeric confidence/similarity scores | `add_score(0.85, ...)` |
+| Multiple independent metrics | `add_score(..., key="metric_name")` |
+| Reusable checks across evals | Evaluators |

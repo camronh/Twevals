@@ -89,7 +89,11 @@ def format_eval_list_table(eval_info_list: List[Dict[str, Any]]) -> Table:
     def fmt(val, max_len):
         if val is None:
             return ""
-        s = json.dumps(val) if isinstance(val, (dict, list)) else str(val)
+        try:
+            s = json.dumps(val) if isinstance(val, (dict, list)) else str(val)
+        except (TypeError, ValueError):
+            # Fall back to str() for non-JSON-serializable objects
+            s = str(val)
         return s if len(s) <= max_len else s[:max_len-3] + "..."
 
     table = Table(

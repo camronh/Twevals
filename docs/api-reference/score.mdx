@@ -1,0 +1,253 @@
+---
+title: Score
+description: The scoring data structure for evaluation metrics
+---
+
+`Score` represents a single metric or assessment within an evaluation result.
+
+## Schema
+
+```python
+class Score:
+    key: str              # Required: metric identifier
+    value: float = None   # Optional: numeric score
+    passed: bool = None   # Optional: pass/fail status
+    notes: str = None     # Optional: explanation
+```
+
+<Note>
+At least one of `value` or `passed` must be provided.
+</Note>
+
+## Fields
+
+### key (required)
+
+A string identifier for the metric. Use descriptive names:
+
+```python
+{"key": "accuracy"}
+{"key": "response_time"}
+{"key": "format_valid"}
+{"key": "contains_keywords"}
+```
+
+### value (optional)
+
+A numeric score, typically in the 0-1 range:
+
+```python
+{"key": "confidence", "value": 0.95}
+{"key": "similarity", "value": 0.82}
+{"key": "quality", "value": 0.7}
+```
+
+### passed (optional)
+
+A boolean indicating pass/fail:
+
+```python
+{"key": "format_valid", "passed": True}
+{"key": "safety_check", "passed": False}
+```
+
+### notes (optional)
+
+Human-readable explanation:
+
+```python
+{
+    "key": "accuracy",
+    "passed": True,
+    "notes": "Output matches reference exactly"
+}
+
+{
+    "key": "length",
+    "passed": False,
+    "notes": "Response too short: 15 chars, expected 50+"
+}
+```
+
+## Score Types
+
+### Boolean Score
+
+Simple pass/fail:
+
+```python
+{"key": "correct", "passed": True}
+{"key": "format_valid", "passed": False, "notes": "Missing closing bracket"}
+```
+
+### Numeric Score
+
+Continuous metric:
+
+```python
+{"key": "confidence", "value": 0.87}
+{"key": "similarity", "value": 0.92, "notes": "Cosine similarity"}
+```
+
+### Combined Score
+
+Both numeric and boolean:
+
+```python
+{
+    "key": "quality",
+    "value": 0.75,
+    "passed": True,  # Passes threshold
+    "notes": "Score: 0.75 (threshold: 0.6)"
+}
+```
+
+## Creating Scores
+
+### Via add_score()
+
+The recommended way:
+
+```python
+@eval(dataset="demo", default_score_key="accuracy")
+async def my_eval(ctx: EvalContext):
+    # Boolean with notes
+    ctx.add_score(True, "Exact match")
+
+    # Numeric
+    ctx.add_score(0.85, "Confidence score", key="confidence")
+
+    # Boolean with custom key
+    ctx.add_score(output.is_valid, "Valid format", key="format")
+```
+
+### Direct Construction
+
+For evaluators or manual creation:
+
+```python
+score = {
+    "key": "semantic_similarity",
+    "value": compute_similarity(output, reference),
+    "passed": similarity > 0.8,
+    "notes": f"Similarity: {similarity:.2f}"
+}
+```
+
+## Multiple Scores
+
+An evaluation can have multiple scores:
+
+```python
+@eval(dataset="qa")
+async def test_answer(ctx: EvalContext):
+    ctx.input = "What is Python?"
+    ctx.add_output(await agent(ctx.input))
+
+    ctx.add_score(is_correct, "Factually correct", key="accuracy")
+    ctx.add_score(is_concise, "Under 100 words", key="brevity")
+    ctx.add_score(confidence, "Model confidence", key="confidence")
+    ctx.add_score(is_safe, "No harmful content", key="safety")
+```
+
+Result:
+```json
+{
+    "scores": [
+        {"key": "accuracy", "passed": true, "notes": "Factually correct"},
+        {"key": "brevity", "passed": true, "notes": "Under 100 words"},
+        {"key": "confidence", "value": 0.92, "notes": "Model confidence"},
+        {"key": "safety", "passed": true, "notes": "No harmful content"}
+    ]
+}
+```
+
+## Score Aggregation
+
+The CLI and Web UI aggregate scores:
+
+| Aggregation | Description |
+|-------------|-------------|
+| Pass Rate | % of scores where `passed=True` |
+| Average | Mean of all `value` scores |
+| By Key | Group scores by key for analysis |
+
+## Default Score Key
+
+Set via decorator to name auto-created scores:
+
+```python
+@eval(default_score_key="correctness")
+async def my_eval(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output("result")
+    ctx.add_score(True, "All checks passed")
+    # Score will have key="correctness"
+```
+
+## Auto-Scoring
+
+If no score is added, Twevals creates one automatically:
+
+```python
+@eval(dataset="demo", default_score_key="success")
+async def test_no_explicit_score(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output("result")
+    # Auto-adds: {"key": "success", "passed": True}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use consistent key names">
+    ```python
+    # Good - consistent naming
+    ctx.add_score(..., key="accuracy")
+    ctx.add_score(..., key="format_valid")
+    ctx.add_score(..., key="response_time")
+
+    # Avoid - inconsistent
+    ctx.add_score(..., key="Accuracy")
+    ctx.add_score(..., key="is_format_valid")
+    ctx.add_score(..., key="responseTime")
+    ```
+  </Accordion>
+
+  <Accordion title="Include meaningful notes">
+    ```python
+    # Good - explains the result
+    ctx.add_score(
+        False,
+        f"Expected '{expected}', got '{actual}'",
+        key="accuracy"
+    )
+
+    # Less helpful
+    ctx.add_score(False, "Failed", key="accuracy")
+    ```
+  </Accordion>
+
+  <Accordion title="Normalize numeric scores">
+    ```python
+    # Good - 0-1 range
+    ctx.add_score(similarity / 100, key="similarity")
+
+    # Harder to interpret
+    ctx.add_score(similarity, key="similarity")  # 0-100 range
+    ```
+  </Accordion>
+
+  <Accordion title="Combine value and passed">
+    ```python
+    # Useful for thresholded metrics
+    score = 0.75
+    ctx.add_score(
+        score,
+        f"Score: {score} (threshold: 0.7)",
+        key="quality"
+    )
+    # Also set passed based on threshold
+    ```
+  </Accordion>
+</AccordionGroup>

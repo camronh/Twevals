@@ -1,0 +1,80 @@
+---
+title: Twevals
+description: A pytest-inspired evaluation framework for LLMs and AI agents
+---
+
+<img
+  className="block dark:hidden"
+  src="/assets/hero-light.svg"
+  alt="Twevals Hero"
+/>
+<img
+  className="hidden dark:block"
+  src="/assets/hero-dark.svg"
+  alt="Twevals Hero"
+/>
+
+
+Twevals is a lightweight, code-first evaluation framework for testing AI agents and LLM applications. Write evaluations like you write tests.
+
+
+#### Existing eval frameworks are frustrating:
+
+<CardGroup cols={3}>
+  <Card title="Too Opinionated" icon="lock" color="#9ca3af">
+    One function per dataset, rigid patterns. No way to run different logic per test case.
+  </Card>
+  <Card title="Cloud-Based" icon="cloud" color="#9ca3af">
+    Datasets in the cloud. No version control. Code and data live in different places.
+  </Card>
+  <Card title="UI-Based" icon="display" color="#9ca3af">
+    Your coding agent can't run evals, analyze results, or iterate on datasets.
+  </Card>
+</CardGroup>
+
+**Pytest isn't the answer either.** Tests are pass/fail—evals are for *analysis*. You want to see all results, latency, cost, comparisons over time. Pytest doesn't do that.
+
+**Twevals is different:** minimal, flexible, agent-friendly. Everything lives locally as code and JSON.
+
+<CardGroup cols={2}>
+  <Card title="Pytest-Inspired" icon="flask-vial">
+    Use `assert`, parametrized tests, CLI-first workflow.
+  </Card>
+  <Card title="Fully Flexible" icon="sliders">
+    From parametrized datasets to per-test custom logic. Mix and match.
+  </Card>
+  <Card title="Local & Version-Controlled" icon="code-branch">
+    Code and data together. Full git history. No cloud sync.
+  </Card>
+  <Card title="Agent-Friendly" icon="robot">
+    Your coding agent can run, analyze, and iterate on evals.
+  </Card>
+</CardGroup>
+
+## Quick Example
+
+Evaluating a simple sentiment analyzer against a ground truth dataset:
+
+```python
+from twevals import eval, parametrize, EvalContext
+
+@eval(dataset="sentiment")
+@parametrize("input,reference", [
+    ("I love this product!", "positive"),
+    ("This is terrible", "negative"),
+    ("It's okay I guess", "neutral"),
+])
+async def test_sentiment_analysis(ctx: EvalContext):
+    ctx.add_output(await analyze_sentiment(ctx.input))
+
+    assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
+```
+Run with Web UI enabled for human review:
+
+```bash
+twevals sentiment_evals.py --concurrency 7 --serve
+```
+
+<Card title="Ready to start?" icon="play" href="/quickstart">
+  Follow our quickstart guide to set up Twevals in under 5 minutes.
+</Card>

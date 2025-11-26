@@ -1,0 +1,267 @@
+---
+title: EvalResult
+description: The immutable result object for evaluations
+---
+
+`EvalResult` is the immutable data structure that represents a completed evaluation.
+
+## Schema
+
+```python
+class EvalResult:
+    input: Any              # Required: test input
+    output: Any             # Required: system output
+    reference: Any = None   # Optional: expected output
+    scores: list[Score] = []  # Optional: list of scores
+    error: str = None       # Optional: error message
+    latency: float = None   # Optional: execution time in seconds
+    metadata: dict = {}     # Optional: custom metadata
+    run_data: dict = {}     # Optional: debug/trace data
+```
+
+## Fields
+
+### input (required)
+
+The input provided to the system under test.
+
+```python
+EvalResult(
+    input="What is the capital of France?",
+    output="Paris"
+)
+```
+
+Can be any type: string, dict, list, etc.
+
+### output (required)
+
+The output produced by the system.
+
+```python
+EvalResult(
+    input="2 + 2",
+    output={"answer": 4, "confidence": 0.99}
+)
+```
+
+### reference (optional)
+
+The expected or reference output for comparison.
+
+```python
+EvalResult(
+    input="What is 2 + 2?",
+    output="4",
+    reference="4"
+)
+```
+
+### scores (optional)
+
+List of `Score` objects representing evaluation metrics.
+
+```python
+EvalResult(
+    input="test",
+    output="result",
+    scores=[
+        {"key": "accuracy", "passed": True},
+        {"key": "latency", "value": 0.95}
+    ]
+)
+```
+
+### error (optional)
+
+Error message if the evaluation failed with an exception.
+
+```python
+EvalResult(
+    input="test",
+    output=None,
+    error="TimeoutError: Evaluation exceeded 5.0 seconds"
+)
+```
+
+### latency (optional)
+
+Execution time in seconds. Automatically measured by Twevals.
+
+```python
+EvalResult(
+    input="test",
+    output="result",
+    latency=0.234
+)
+```
+
+### metadata (optional)
+
+Custom metadata for filtering and analysis.
+
+```python
+EvalResult(
+    input="test",
+    output="result",
+    metadata={
+        "model": "gpt-4",
+        "temperature": 0.7,
+        "category": "factual"
+    }
+)
+```
+
+### run_data (optional)
+
+Debug and trace information. Not displayed in main UI views.
+
+```python
+EvalResult(
+    input="test",
+    output="result",
+    run_data={
+        "tokens_used": 150,
+        "api_calls": 2,
+        "trace_id": "abc123"
+    }
+)
+```
+
+## Creating Results
+
+### From EvalContext
+
+The typical way—let `EvalContext` build it:
+
+```python
+@eval(dataset="demo")
+async def my_eval(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output(await my_agent(ctx.input))
+
+    assert ctx.output, "Got empty response"
+    # Returns EvalResult automatically
+```
+
+### Direct Construction
+
+For batch operations or custom flows:
+
+```python
+from twevals import EvalResult
+
+result = EvalResult(
+    input="What is 2 + 2?",
+    output="4",
+    reference="4",
+    scores=[{"key": "accuracy", "passed": True}],
+    metadata={"difficulty": "easy"}
+)
+```
+
+### Multiple Results
+
+Return a list from an evaluation:
+
+```python
+@eval(dataset="batch")
+def test_batch():
+    return [
+        EvalResult(input="a", output="1"),
+        EvalResult(input="b", output="2"),
+        EvalResult(input="c", output="3"),
+    ]
+```
+
+## Accessing Fields
+
+Results are immutable after creation:
+
+```python
+result = EvalResult(input="test", output="result")
+
+print(result.input)    # "test"
+print(result.output)   # "result"
+print(result.latency)  # None (not set)
+```
+
+## Serialization
+
+Results serialize to JSON automatically:
+
+```python
+result = EvalResult(
+    input="test",
+    output="result",
+    scores=[{"key": "accuracy", "passed": True}]
+)
+
+# To dict
+data = result.model_dump()
+
+# To JSON string
+json_str = result.model_dump_json()
+```
+
+## Status Determination
+
+A result is considered "passed" if **any** score has `passed=True`:
+
+```python
+# Passed - has a passing score
+EvalResult(input="x", output="y", scores=[{"key": "a", "passed": True}])
+
+# Passed - mixed scores, but at least one passes
+EvalResult(input="x", output="y", scores=[
+    {"key": "a", "passed": True},
+    {"key": "b", "passed": False}
+])
+
+# Failed - all scores fail
+EvalResult(input="x", output="y", scores=[{"key": "a", "passed": False}])
+
+# Failed - has error
+EvalResult(input="x", output="y", error="Something went wrong")
+```
+
+<Note>
+The pass/fail logic checks if **any** score has `passed=True`, not if **all** scores pass. Mixed results with at least one passing score will show as passed.
+</Note>
+
+## Complete Example
+
+```python
+from twevals import EvalResult
+
+result = EvalResult(
+    input={
+        "question": "What is the capital of France?",
+        "context": "Geography quiz"
+    },
+    output="The capital of France is Paris.",
+    reference="Paris",
+    scores=[
+        {
+            "key": "accuracy",
+            "passed": True,
+            "notes": "Correct answer"
+        },
+        {
+            "key": "brevity",
+            "value": 0.7,
+            "notes": "Could be more concise"
+        }
+    ],
+    latency=0.234,
+    metadata={
+        "model": "gpt-4",
+        "temperature": 0.0,
+        "category": "geography"
+    },
+    run_data={
+        "tokens": 45,
+        "api_latency": 0.189
+    }
+)
+```

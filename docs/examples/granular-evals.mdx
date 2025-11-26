@@ -1,0 +1,142 @@
+---
+title: Granular Evals
+description: When each test case needs its own logic
+---
+
+# Granular Evals
+
+Sometimes you can't parametrize. Each test case has unique logic—different ways of deriving ground truth, different validation. Twevals handles this naturally.
+
+## The Problem
+
+You're evaluating an agent that handles diverse tasks. Each test case:
+- Derives ground truth from a different source
+- Has custom validation logic
+
+With most frameworks, you'd need a separate dataset for each. With Twevals, you just write functions.
+
+```mermaid
+flowchart TD
+    subgraph "Same Target"
+        T[run_agent]
+    end
+    subgraph "Different Ground Truth"
+        A[Weather API]
+        B[Stock API]
+        C[Calendar API]
+        D[Math]
+    end
+    T --> E1[test_weather]
+    T --> E2[test_stock]
+    T --> E3[test_calendar]
+    T --> E4[test_factorial]
+    A --> E1
+    B --> E2
+    C --> E3
+    D --> E4
+```
+
+## The Eval
+
+```python
+from twevals import eval, EvalContext
+
+async def run_agent(ctx: EvalContext):
+    """Shared target function for all evals"""
+    response = await agent.run(ctx.input)
+    return response
+
+
+@eval(
+    dataset="agent_tasks",
+    input="What's the weather in Tokyo?",
+    target=run_agent
+)
+async def test_weather_lookup(ctx: EvalContext):
+    # Get ground truth from the actual weather API
+    actual_weather = await weather_api.get_current("Tokyo")
+    ctx.reference = f"{actual_weather.temp}°F, {actual_weather.condition}"
+
+    assert str(actual_weather.temp) in ctx.output, "Should mention temperature"
+    assert actual_weather.condition.lower() in ctx.output.lower(), "Should mention conditions"
+
+
+@eval(
+    dataset="agent_tasks",
+    input="What's Apple's stock price?",
+    target=run_agent
+)
+async def test_stock_price(ctx: EvalContext):
+    # Get ground truth from the stock API
+    actual_price = await stock_api.get_price("AAPL")
+    ctx.reference = f"${actual_price:.2f}"
+
+    # Allow some tolerance since prices change
+    mentioned_price = extract_price_from_text(ctx.output)
+    diff = abs(mentioned_price - actual_price)
+    assert diff < 5, f"Price ${mentioned_price} too far from actual ${actual_price}"
+
+
+@eval(
+    dataset="agent_tasks",
+    input="Book a meeting with John tomorrow at 2pm",
+    target=run_agent
+)
+async def test_calendar_booking(ctx: EvalContext):
+    # Check the calendar API to verify the booking was made
+    bookings = await calendar_api.get_bookings(date="tomorrow")
+    john_booking = next((b for b in bookings if "john" in b.attendees.lower()), None)
+
+    ctx.reference = "Meeting booked with John at 2:00 PM"
+    ctx.booking_details = john_booking  # Store for debugging
+
+    assert john_booking is not None, "Booking should exist in calendar"
+    assert john_booking.time == "14:00", f"Wrong time: {john_booking.time}"
+
+
+@eval(
+    dataset="agent_tasks",
+    input="Calculate the factorial of 10",
+    target=run_agent
+)
+async def test_factorial(ctx: EvalContext):
+    import math
+    ctx.reference = str(math.factorial(10))  # 3628800
+
+    assert ctx.reference in ctx.output, f"Should contain {ctx.reference}"
+```
+
+## What's Happening
+
+**Same target, different validation** — All evals share `run_agent` but each derives ground truth differently: weather API, stock API, calendar check, or pure computation.
+
+**Same dataset** — All four evals write to `"agent_tasks"`. You get one unified result set.
+
+**Input in decorator** — Each eval declares its input upfront in the `@eval` decorator.
+
+**Custom validation per test** — Weather checks temperature mentions, stock allows tolerance, calendar verifies side effects. Each test validates what matters.
+
+## Running It
+
+```bash
+# Run all agent_tasks evals
+twevals evals/agent_tasks.py --serve
+
+# Run just one specific test
+twevals evals/agent_tasks.py::test_weather_lookup
+
+# Run with verbose output
+twevals evals/agent_tasks.py --verbose
+```
+
+## When to Use This Pattern
+
+Use granular evals when:
+- Each test needs different external data sources for ground truth
+- Validation logic varies significantly per test
+- You're testing diverse agent capabilities in one suite
+
+Use parametrized evals when:
+- All test cases share the same logic
+- You have a large dataset of input/output pairs
+- Ground truth is known upfront

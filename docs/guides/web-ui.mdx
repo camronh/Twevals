@@ -1,0 +1,170 @@
+---
+title: Web UI
+description: View, filter, edit, and export results in your browser
+---
+
+Twevals includes a built-in web interface for exploring evaluation results.
+
+## Launching the UI
+
+Add the `--serve` flag to any run:
+
+```bash
+twevals evals.py --serve
+```
+
+This runs your evaluations and opens `http://127.0.0.1:8000` in your browser.
+
+## Features
+
+### Results Table
+
+The main view shows all evaluation results in a sortable, filterable table:
+
+| Column | Description |
+|--------|-------------|
+| Name | Evaluation function name |
+| Status | Pass/Fail status |
+| Score | Aggregate score value |
+| Latency | Execution time |
+| Dataset | Dataset grouping |
+| Labels | Applied labels |
+
+### Expanding Rows
+
+Click any row to expand and see full details:
+
+- **Input**: The test input
+- **Output**: The system output
+- **Reference**: Expected output (if set)
+- **Scores**: All scores with keys, values, and notes
+- **Metadata**: Custom metadata fields
+- **Run Data**: Debug/trace information
+- **Annotations**: Manual notes added via UI
+
+### Inline Editing
+
+Edit fields directly in the expanded view:
+
+- **Dataset**: Reassign to different dataset
+- **Labels**: Add or remove labels
+- **Scores**: Adjust scores or add new ones
+- **Metadata**: Add custom fields
+- **Annotations**: Add notes for review
+
+Changes are saved to the results file.
+
+### Filtering
+
+Filter results by:
+
+- **Status**: Pass, Fail, Error
+- **Dataset**: Select specific datasets
+- **Labels**: Filter by tags
+- **Search**: Text search across all fields
+
+### Sorting
+
+Click column headers to sort:
+
+- Name (alphabetical)
+- Status (pass/fail)
+- Score (numeric)
+- Latency (fastest/slowest)
+
+### Actions
+
+<CardGroup cols={3}>
+  <Card title="Refresh" icon="rotate">
+    Reload results from disk
+  </Card>
+  <Card title="Rerun" icon="play">
+    Re-execute the evaluation suite
+  </Card>
+  <Card title="Export" icon="download">
+    Download as JSON or CSV
+  </Card>
+</CardGroup>
+
+## Custom Port
+
+Specify a different port:
+
+```bash
+twevals evals.py --serve --port 3000
+```
+
+## Results Storage
+
+Results are saved to `.twevals/runs/` with ISO timestamps:
+
+```
+.twevals/
+└── runs/
+    ├── 2024-01-15T10-30-00Z.json
+    ├── 2024-01-15T14-45-00Z.json
+    └── latest.json  # Copy of most recent run
+```
+
+The UI loads from `latest.json` by default.
+
+## Workflow Tips
+
+<AccordionGroup>
+  <Accordion title="Iterative Development">
+    Keep the UI open while developing. After code changes:
+    1. Run `twevals evals.py` in terminal
+    2. Click "Refresh" in UI to see new results
+  </Accordion>
+
+  <Accordion title="Review Failed Tests">
+    Filter by "Fail" status to focus on failures. Expand rows to see inputs/outputs and understand why.
+  </Accordion>
+
+  <Accordion title="Annotate for Team">
+    Add annotations to flag results for team review. Export annotated results for sharing.
+  </Accordion>
+
+  <Accordion title="Compare Runs">
+    Open multiple results files by navigating to different run timestamps in `.twevals/runs/`.
+  </Accordion>
+</AccordionGroup>
+
+## Export Formats
+
+### JSON Export
+
+Full structured data:
+
+```json
+{
+  "run_id": "2024-01-15T10-30-00Z",
+  "results": [
+    {
+      "name": "test_greeting",
+      "input": "Hello",
+      "output": "Hi there!",
+      "scores": [{"key": "quality", "passed": true}],
+      ...
+    }
+  ]
+}
+```
+
+### CSV Export
+
+Flattened for spreadsheets:
+
+```csv
+name,input,output,status,score,latency,dataset
+test_greeting,Hello,Hi there!,passed,1.0,0.23,greetings
+```
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `r` | Refresh results |
+| `e` | Export menu |
+| `f` | Focus filter |
+| `Esc` | Close expanded row |

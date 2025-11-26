@@ -157,11 +157,15 @@ class EvalRunner:
         csv_file: Optional[str] = None,
         verbose: bool = False,
         on_start: Optional[Callable[[EvalFunction], None]] = None,
-        on_complete: Optional[Callable[[EvalFunction, Dict], None]] = None
+        on_complete: Optional[Callable[[EvalFunction, Dict], None]] = None,
+        limit: Optional[int] = None
     ) -> Dict:
         # Discover functions
         discovery = EvalDiscovery()
         functions = discovery.discover(path, dataset, labels, function_name)
+
+        if limit is not None:
+            functions = functions[:limit]
         
         if not functions:
             return {

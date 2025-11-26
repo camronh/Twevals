@@ -1,0 +1,234 @@
+---
+title: EvalContext
+description: The builder pattern that powers evaluation result construction
+---
+
+The `EvalContext` is the heart of Twevals. It's a mutable builder that accumulates evaluation data as you discover it, then builds into an immutable `EvalResult`.
+
+## Basic Usage
+
+When your function accepts a parameter named `ctx`, `context`, or `carrier`, Twevals automatically injects an `EvalContext`:
+
+```python
+from twevals import eval, EvalContext
+
+@eval(dataset="demo")
+async def my_eval(ctx: EvalContext):
+    ctx.input = "What is 2 + 2?"
+    ctx.add_output(await my_agent(ctx.input))
+
+    assert ctx.output == "4", f"Expected 4, got {ctx.output}"
+```
+
+## Setting Fields
+
+### Input and Reference
+
+```python
+ctx.input = "Your test input"
+ctx.reference = "Expected output"  # Optional
+```
+
+### Adding Output
+
+The `add_output()` method intelligently extracts data:
+
+```python
+# Simple string output
+ctx.add_output("The answer is 4")
+
+# Dict with structured data
+ctx.add_output({
+    "output": "The answer is 4",
+    "latency": 0.5,
+    "metadata": {"model": "gpt-4"},
+    "run_data": {"tokens": 150}
+})
+```
+
+When you pass a dictionary, `add_output()` automatically extracts:
+- `output` → stored as the output
+- `latency` → stored as latency
+- `metadata` → merged with existing metadata
+- `run_data` → stored for debugging
+
+### Scoring with Assertions
+
+The simplest way to score is with assertions:
+
+```python
+ctx.add_output(await my_agent(ctx.input))
+
+assert ctx.output is not None, "Got no output"
+assert "expected" in ctx.output.lower(), "Missing expected content"
+```
+
+Failed assertions become failing scores with the message as notes.
+
+### Advanced Scoring with add_score()
+
+For numeric scores or multiple named metrics:
+
+```python
+# Numeric score (0-1 range)
+ctx.add_score(0.85, "Confidence score")
+
+# Multiple scores with different keys
+ctx.add_score(True, "Format correct", key="format")
+ctx.add_score(0.9, "Relevance score", key="relevance")
+```
+
+### Setting Metadata
+
+```python
+ctx.metadata["model"] = "gpt-4"
+ctx.metadata["temperature"] = 0.7
+```
+
+## Auto-Return Behavior
+
+When using `EvalContext`, you don't need to explicitly return anything:
+
+```python
+@eval(dataset="demo")
+async def my_eval(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output(await my_agent(ctx.input))
+
+    assert ctx.output, "Got empty response"
+    # No return needed - context auto-builds
+```
+
+The context automatically builds into an `EvalResult` when the function completes.
+
+## Pre-populated Context
+
+Fields can be pre-populated via the `@eval` decorator:
+
+```python
+@eval(
+    input="What is the capital of France?",
+    reference="Paris",
+    dataset="geography",
+    metadata={"category": "capitals"}
+)
+async def test_capital(ctx: EvalContext):
+    # ctx.input and ctx.reference already set
+    ctx.add_output(await my_agent(ctx.input))
+
+    assert ctx.output == ctx.reference, \
+        f"Expected {ctx.reference}, got {ctx.output}"
+```
+
+## Using set_params()
+
+The `set_params()` method sets `ctx.input` to the provided dict and merges values into `ctx.metadata`:
+
+```python
+@eval(dataset="math")
+@parametrize("operation,a,b,expected", [
+    ("add", 2, 3, 5),
+    ("multiply", 4, 5, 20),
+])
+async def test_math(ctx: EvalContext, operation, a, b, expected):
+    # Store params as input and metadata
+    ctx.set_params(operation=operation, a=a, b=b, expected=expected)
+    # ctx.input = {"operation": "add", "a": 2, "b": 3, "expected": 5}
+    # ctx.metadata includes the same values
+
+    result = calculate(operation, a, b)
+    ctx.add_output(result)
+
+    assert result == expected, f"Expected {expected}, got {result}"
+```
+
+<Note>
+`set_params()` does **not** create arbitrary attributes like `ctx.operation`. Use the function arguments directly for custom parameters.
+</Note>
+
+## Exception Safety
+
+If your evaluation throws an exception, partial data is preserved:
+
+```python
+@eval(dataset="demo")
+async def test_with_error(ctx: EvalContext):
+    ctx.input = "test input"
+    ctx.add_output(await my_agent(ctx.input))
+
+    # If this fails, input and output are still recorded
+    assert ctx.output == "expected"
+```
+
+The resulting `EvalResult` will have:
+- `input` and `output` preserved
+- `error` field with the exception message
+- A failing score automatically added
+
+## Context Manager Pattern
+
+For explicit control, use the context manager:
+
+```python
+@eval(dataset="demo")
+async def test_explicit():
+    with EvalContext(input="test") as ctx:
+        ctx.add_output(await my_agent(ctx.input))
+
+        assert ctx.output, "Got empty response"
+        return ctx  # Explicit return
+```
+
+## Default Scoring
+
+If no score is added, Twevals auto-adds a passing score:
+
+```python
+@eval(dataset="demo", default_score_key="correctness")
+async def test_auto_pass(ctx: EvalContext):
+    ctx.input = "test"
+    ctx.add_output("result")
+    # No explicit score - auto-passes with key "correctness"
+```
+
+## Using Parametrized Values
+
+For parametrized tests with custom parameter names, include them in your function signature:
+
+```python
+@eval(dataset="demo")
+@parametrize("prompt,expected_category", [
+    ("I want a refund", "complaint"),
+    ("Thank you!", "praise"),
+])
+async def test_classification(ctx: EvalContext, prompt, expected_category):
+    # Parameters come from function arguments, not ctx attributes
+    ctx.input = prompt
+    ctx.add_output(await classify(prompt))
+
+    assert ctx.output == expected_category, \
+        f"Expected {expected_category}, got {ctx.output}"
+```
+
+<Note>
+Only special names (`input`, `reference`, `metadata`, `run_data`, `latency`) auto-populate context fields. Other parameters must be in the function signature.
+</Note>
+
+## API Reference
+
+| Method | Description |
+|--------|-------------|
+| `add_output(data)` | Smart extraction of output, latency, metadata, run_data |
+| `add_score(value, notes, key)` | Add a score (boolean or numeric) |
+| `set_params(**kwargs)` | Set multiple fields at once |
+| `build()` | Convert to immutable EvalResult |
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `input` | Any | The test input |
+| `output` | Any | The system output |
+| `reference` | Any | Expected output (optional) |
+| `metadata` | dict | Custom metadata |
+| `run_data` | dict | Debug/trace data |
+| `latency` | float | Execution time |
+| `scores` | list | List of Score objects |

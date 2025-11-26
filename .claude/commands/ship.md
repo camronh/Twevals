@@ -27,14 +27,14 @@ Follow these steps in order:
 - Preserve existing changelog entries below
 
 
-## 4. Update README.md (Only If Needed)
-- Review if changes require README updates
+## 4. Update Documentation (Only If Needed)
+- Review if changes require README or documentation (docs/) updates
 - Update ONLY if new features need documentation or existing feature docs are outdated
 - When updating:
   - Rewrite relevant sections to be current
   - Do NOT mention "this is an update" or "changed from old version"
   - Just make the content reflect current state
-- Skip README updates for:
+- Skip README and documentation updates for:
   - Internal refactoring
   - Bug fixes that don't change user-facing behavior
   - Minor changes
