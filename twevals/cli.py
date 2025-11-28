@@ -1,3 +1,4 @@
+import asyncio
 import click
 import sys
 import inspect
@@ -6,6 +7,7 @@ import json
 import traceback
 from pathlib import Path
 from typing import Optional, List, Dict
+from threading import Lock, Thread
 
 from rich.console import Console
 
@@ -246,6 +248,8 @@ def cli(
             labels=labels,
             concurrency=concurrency,
             dev=dev,
+            function_name=function_name,
+            limit=limit,
             results_dir=results_dir,
             host=host,
             port=port,
@@ -397,6 +401,8 @@ def _serve(
     labels: Optional[List[str]],
     concurrency: int,
     dev: bool,
+    function_name: Optional[str],
+    limit: Optional[int],
     results_dir: str,
     host: str,
     port: int,
@@ -414,27 +420,98 @@ def _serve(
     # Always create a fresh run on startup
     from twevals.storage import ResultsStore
 
+    discovery = EvalDiscovery()
+    functions = discovery.discover(
+        path=path,
+        dataset=dataset,
+        labels=labels,
+        function_name=function_name,
+    )
+
+    if limit is not None:
+        functions = functions[:limit]
+
+    runner = EvalRunner(concurrency=concurrency, verbose=verbose)
     store = ResultsStore(results_dir)
     run_id = store.generate_run_id()
-    run_path = store.run_path(run_id)
 
-    # Create runner and execute evaluations, writing to JSON
-    runner = EvalRunner(concurrency=concurrency, verbose=verbose)
-    with console.status("[bold green]Running evaluations...", spinner="dots") as status:
+    # Seed a pending run immediately so the UI has rows to render
+    def _pending_result(func: EvalFunction) -> Dict:
+        return {
+            "function": func.func.__name__,
+            "dataset": func.dataset,
+            "labels": func.labels,
+            "result": {
+                "input": func.context_kwargs.get("input"),
+                "reference": func.context_kwargs.get("reference"),
+                "metadata": func.context_kwargs.get("metadata"),
+                "output": None,
+                "error": None,
+                "scores": None,
+                "latency": None,
+                "run_data": None,
+                "annotation": None,
+                "annotations": None,
+                "status": "pending",
+            },
+        }
+
+    pending_results = [_pending_result(f) for f in functions]
+    current_results = list(pending_results)
+    initial_summary = runner._calculate_summary(current_results)
+    initial_summary["results"] = current_results
+    store.save_run(initial_summary, run_id)
+
+    # Stream updates to disk as results finish
+    results_lock = Lock()
+    func_index = {id(func): idx for idx, func in enumerate(functions)}
+
+    def _persist():
+        summary = runner._calculate_summary(current_results)
+        summary["results"] = current_results
+        store.save_run(summary, run_id)
+
+    def _on_start(func: EvalFunction):
+        idx = func_index.get(id(func))
+        if idx is None:
+            return
+        with results_lock:
+            current_results[idx]["result"]["status"] = "running"
+            _persist()
+
+    def _on_complete(func: EvalFunction, result_dict: Dict):
+        idx = func_index.get(id(func))
+        status = "error" if result_dict.get("result", {}).get("error") else "completed"
+        result_dict.setdefault("result", {})["status"] = status
+        with results_lock:
+            if idx is not None and idx < len(current_results):
+                current_results[idx] = result_dict
+            else:
+                current_results.append(result_dict)
+            _persist()
+
+    def _run_evals():
         try:
-            summary = runner.run(
-                path=path,
-                dataset=dataset,
-                labels=labels,
-                output_file=str(run_path),
-                verbose=verbose,
-            )
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            sys.exit(1)
+            async def _execute():
+                await runner.run_all_async(
+                    functions,
+                    on_start=_on_start,
+                    on_complete=_on_complete,
+                )
+                _persist()
 
-    # Update latest.json portable copy
-    store.save_run(summary, run_id)
+            asyncio.run(_execute())
+        except Exception as e:
+            console.print(f"[red]Error during evaluation run: {e}[/red]")
+            console.print(traceback.format_exc())
+        else:
+            console.print("[green]Background evaluation run complete.[/green]")
+
+    # Kick off evaluations in the background so the UI can load immediately
+    if functions:
+        Thread(target=_run_evals, daemon=True).start()
+    else:
+        console.print("[yellow]No evaluations found; serving UI with an empty run.[/yellow]")
 
     app = create_app(
         results_dir=results_dir,
@@ -444,10 +521,14 @@ def _serve(
         labels=labels,
         concurrency=concurrency,
         verbose=verbose,
+        function_name=function_name,
+        limit=limit,
     )
     # Friendly startup message
     url = f"http://{host}:{port}"
     console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
+    if functions:
+        console.print("[cyan]Evaluations are running in the background; rows will update live as they finish.[/cyan]")
     console.print("Press Ctrl+C to stop\n")
 
     # Control logging verbosity
@@ -473,6 +554,10 @@ def _serve(
             _os.environ["TWEVALS_LABELS"] = _json.dumps(labels)
         _os.environ["TWEVALS_CONCURRENCY"] = str(concurrency)
         _os.environ["TWEVALS_VERBOSE"] = "1" if verbose else "0"
+        if function_name:
+            _os.environ["TWEVALS_FUNCTION_NAME"] = str(function_name)
+        if limit is not None:
+            _os.environ["TWEVALS_LIMIT"] = str(limit)
 
         uvicorn.run(
             "twevals.server:load_app_from_env",

@@ -1447,6 +1447,20 @@
         }
       });
 
+      // Lightweight live refresh when runs are still pending
+      let liveUpdateTimer = null;
+      function scheduleLiveRefresh() {
+        if (liveUpdateTimer) {
+          clearTimeout(liveUpdateTimer);
+          liveUpdateTimer = null;
+        }
+        const hasPending = document.querySelector('[data-status="pending"], [data-status="running"]');
+        if (!hasPending) return;
+        liveUpdateTimer = setTimeout(() => {
+          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+        }, 1200);
+      }
+
       // HTMX after swap handler
       document.addEventListener("htmx:afterSwap", function (e) {
         if (e.target.id === "results") {
@@ -1462,6 +1476,7 @@
           if (window.restoreExpandedRow) restoreExpandedRow();
           wireActionsMenu();
           try { populateScoreKeySelects(); applyAllFilters(); } catch {}
+          scheduleLiveRefresh();
         }
       });
     </script>

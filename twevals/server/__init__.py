@@ -24,6 +24,8 @@ def create_app(
     labels: Optional[List[str]] = None,
     concurrency: int = 0,
     verbose: bool = False,
+    function_name: Optional[str] = None,
+    limit: Optional[int] = None,
 ) -> FastAPI:
     """Create a FastAPI application serving evaluation results from JSON files."""
 
@@ -37,6 +39,8 @@ def create_app(
     app.state.path = path
     app.state.dataset = dataset
     app.state.labels = labels
+    app.state.function_name = function_name
+    app.state.limit = limit
     app.state.concurrency = concurrency
     app.state.verbose = verbose
 
@@ -123,6 +127,8 @@ def create_app(
                 path=app.state.path,
                 dataset=app.state.dataset,
                 labels=app.state.labels,
+                function_name=app.state.function_name,
+                limit=app.state.limit,
                 verbose=app.state.verbose,
             )
         except Exception as e:
@@ -211,6 +217,9 @@ def load_app_from_env() -> FastAPI:  # pragma: no cover (exercised in dev)
     labels = _json.loads(labels_env) if labels_env else None
     concurrency = int(os.environ.get("TWEVALS_CONCURRENCY", "0"))
     verbose = os.environ.get("TWEVALS_VERBOSE", "0") == "1"
+    function_name = os.environ.get("TWEVALS_FUNCTION_NAME") or None
+    limit_env = os.environ.get("TWEVALS_LIMIT")
+    limit = int(limit_env) if limit_env is not None else None
 
     return create_app(
         results_dir=results_dir,
@@ -220,4 +229,6 @@ def load_app_from_env() -> FastAPI:  # pragma: no cover (exercised in dev)
         labels=labels,
         concurrency=concurrency,
         verbose=verbose,
+        function_name=function_name,
+        limit=limit,
     )

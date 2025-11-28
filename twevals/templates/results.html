@@ -1,5 +1,11 @@
-{% set ns = namespace(tests=summary.total_evaluations, passed=0, failed=0) %}
+{% set ns = namespace(tests=summary.total_evaluations, passed=0, failed=0, pending=0, running=0) %}
 {% for r in summary.results %}
+  {% set status = r.result.status if r.result and r.result.status is defined else None %}
+  {% if status == 'pending' %}
+    {% set ns.pending = ns.pending + 1 %}
+  {% elif status == 'running' %}
+    {% set ns.running = ns.running + 1 %}
+  {% endif %}
   {% set p = namespace(pass=false, fail=false) %}
   {% if r.result and r.result.scores %}
     {% for s in r.result.scores %}
@@ -241,10 +247,61 @@
   }
 
   /* Function name */
+  .fn-name-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .fn-name {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 500;
     color: var(--accent-amber, #f59e0b);
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .status-pill::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+  }
+
+  .status-pill.pending {
+    background: rgba(234, 179, 8, 0.15);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    color: var(--warning, #eab308);
+  }
+
+  .status-pill.running {
+    background: rgba(6, 182, 212, 0.15);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    color: var(--info, #06b6d4);
+  }
+
+  .status-pill.completed {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--success, #10b981);
+  }
+
+  .status-pill.error {
+    background: rgba(244, 63, 94, 0.15);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+    color: var(--error, #f43f5e);
   }
 
   /* Labels */
@@ -694,6 +751,16 @@
     <div class="stat-card-label">Total Tests</div>
     <div class="stat-card-value">{{ summary.total_evaluations }}</div>
   </div>
+  {% set pending_total = ns.pending + ns.running %}
+  {% if pending_total > 0 %}
+  <div class="stat-card warning">
+    <div class="stat-card-label">Pending</div>
+    <div class="stat-card-value">{{ pending_total }}</div>
+    <div class="stat-card-secondary">
+      {% if ns.running > 0 %}{{ ns.running }} running{% else %}Waiting to start{% endif %}
+    </div>
+  </div>
+  {% endif %}
   {% if summary.average_latency > 0 %}
   <div class="stat-card">
     <div class="stat-card-label">Avg Latency</div>
@@ -730,13 +797,24 @@
   <tbody>
     {% for r in summary.results %}
     {% set row_id = loop.index0 %}
-    <tr data-row="main" data-row-id="{{ row_id }}">
+    {% set status = r.result.status or 'completed' %}
+    {% set is_pending = status in ['pending', 'running'] %}
+    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}">
       <td>
         <button class="expand-btn" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
           <span class="icon">▸</span>
         </button>
       </td>
-      <td data-col="function"><span class="fn-name">{{ r.function }}</span></td>
+      <td data-col="function">
+        <div class="fn-name-wrapper">
+          <span class="fn-name">{{ r.function }}</span>
+          {% if status in ['pending', 'running'] %}
+            <span class="status-pill {{ status }}">{{ 'Running' if status == 'running' else 'Pending' }}</span>
+          {% elif status == 'error' %}
+            <span class="status-pill error">Error</span>
+          {% endif %}
+        </div>
+      </td>
       <td data-col="dataset">{{ r.dataset }}</td>
       <td data-col="labels">
         {% if r.labels %}
@@ -756,7 +834,9 @@
         {% endif %}
       </td>
       <td data-col="output" title="{% if r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% endif %}">
-        {% if r.result.output %}
+        {% if is_pending %}
+          <span class="muted-text">Pending…</span>
+        {% elif r.result.output %}
           {{ r.result.output }}
         {% elif r.result.error %}
           <span class="error-text">{{ r.result.error }}</span>
@@ -765,14 +845,18 @@
         {% endif %}
       </td>
       <td data-col="error">
-        {% if r.result.error %}
+        {% if is_pending %}
+          <span class="muted-text">Pending…</span>
+        {% elif r.result.error %}
           <span class="error-text">{{ r.result.error }}</span>
         {% else %}
           <span class="muted-text">—</span>
         {% endif %}
       </td>
       <td data-col="scores">
-        {% if r.result.scores %}
+        {% if is_pending %}
+          <span class="muted-text">Pending…</span>
+        {% elif r.result.scores %}
           {% set max_show = 3 %}
           <div style="display: flex; flex-wrap: wrap; gap: 4px;">
             {% for s in r.result.scores %}
@@ -808,7 +892,7 @@
             <span class="latency-badge slow">{{ label }}s</span>
           {% endif %}
         {% else %}
-          <span class="muted-text">—</span>
+          <span class="muted-text">{% if is_pending %}Pending…{% else %}—{% endif %}</span>
         {% endif %}
       </td>
     </tr>
@@ -834,6 +918,12 @@
             <!-- Metadata fields -->
             <div class="detail-grid view-section">
               <div class="detail-field">
+                <span class="detail-field-label">Status</span>
+                <span class="detail-field-value">
+                  <span class="status-pill {{ status }}">{{ status.capitalize() }}</span>
+                </span>
+              </div>
+              <div class="detail-field">
                 <span class="detail-field-label">Dataset</span>
                 <span class="detail-field-value">{{ r.dataset or '—' }}</span>
               </div>
@@ -847,11 +937,25 @@
               </div>
               <div class="detail-field">
                 <span class="detail-field-label">Latency</span>
-                <span class="detail-field-value mono">{% if r.result.latency is not none %}{{ r.result.latency | round(3) }}s{% else %}—{% endif %}</span>
+                <span class="detail-field-value mono">
+                  {% if is_pending %}
+                    Pending…
+                  {% elif r.result.latency is not none %}
+                    {{ r.result.latency | round(3) }}s
+                  {% else %}
+                    —
+                  {% endif %}
+                </span>
               </div>
               <div class="detail-field">
                 <span class="detail-field-label">Error</span>
-                <span class="detail-field-value {% if r.result.error %}error-text{% endif %}">{{ r.result.error or '—' }}</span>
+                <span class="detail-field-value {% if r.result.error %}error-text{% endif %}">
+                  {% if is_pending %}
+                    Pending…
+                  {% else %}
+                    {{ r.result.error or '—' }}
+                  {% endif %}
+                </span>
               </div>
             </div>
 
@@ -887,7 +991,7 @@
                     <svg class="check-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-output-{{ row_id }}">{{ r.result.output }}</pre>
+                <pre id="pre-output-{{ row_id }}">{% if is_pending %}Pending…{% elif r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% else %}—{% endif %}</pre>
               </div>
               <div class="data-block">
                 <div class="data-block-header">

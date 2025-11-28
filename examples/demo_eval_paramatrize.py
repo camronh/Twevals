@@ -185,7 +185,3 @@ async def test_model_temperatures(model, temperature):
         }
     )
 
-# Hypothetical
-async def main():
-    # Run the eval
-    results = await test_model_temperatures()
