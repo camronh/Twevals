@@ -668,9 +668,9 @@
               <label class="column-toggle"><input type="checkbox" data-col="dataset" checked /><span>Dataset</span></label>
               <label class="column-toggle"><input type="checkbox" data-col="labels" checked /><span>Labels</span></label>
               <label class="column-toggle"><input type="checkbox" data-col="input" checked /><span>Input</span></label>
-              <label class="column-toggle"><input type="checkbox" data-col="output" checked /><span>Output</span></label>
               <label class="column-toggle"><input type="checkbox" data-col="reference" checked /><span>Reference</span></label>
-              <label class="column-toggle"><input type="checkbox" data-col="error" checked /><span>Error</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="output" checked /><span>Output</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="error" /><span>Error</span></label>
               <label class="column-toggle"><input type="checkbox" data-col="scores" checked /><span>Scores</span></label>
               <label class="column-toggle"><input type="checkbox" data-col="latency" checked /><span>Latency</span></label>
               <div class="panel-actions">
@@ -695,8 +695,11 @@
       const FILTERS_STORAGE_KEY = "twevals:filters";
 
       // Helpers
+      const DEFAULT_HIDDEN_COLS = ["error"];
       function getHiddenCols() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored === null) return DEFAULT_HIDDEN_COLS;
+        try { return JSON.parse(stored); } catch { return DEFAULT_HIDDEN_COLS; }
       }
       function setHiddenCols(cols) { localStorage.setItem(STORAGE_KEY, JSON.stringify(cols)); }
       function getSortState() {
@@ -812,7 +815,7 @@
 
       // Reset buttons
       document.getElementById("reset-columns")?.addEventListener("click", () => {
-        setHiddenCols([]);
+        setHiddenCols(DEFAULT_HIDDEN_COLS);
         applyColumnVisibility();
       });
       document.getElementById("reset-sorting")?.addEventListener("click", () => {

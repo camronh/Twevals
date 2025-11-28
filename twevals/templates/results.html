@@ -16,54 +16,85 @@
 <style>
   .hidden { display: none !important; }
 
-  /* Summary section */
-  .summary-section {
+  /* Summary cards */
+  .summary-cards {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
 
   .stat-card {
     background: var(--bg-secondary, #0f0f12);
     border: 1px solid var(--border-subtle, #27272a);
-    border-radius: 12px;
-    padding: 16px 20px;
-    min-width: 140px;
+    border-radius: 10px;
+    padding: 12px 16px;
+    min-width: 120px;
   }
 
   .stat-card-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     color: var(--text-muted, #71717a);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .stat-card-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 600;
+    color: var(--text-primary, #fafafa);
+    margin-bottom: 6px;
+  }
+
+  .stat-card-secondary {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted, #71717a);
+    margin-top: 6px;
+  }
+
+  .progress-bar {
+    height: 18px;
+    background: var(--bg-tertiary, #18181b);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+
+  .progress-text {
+    position: absolute;
+    top: 50%;
+    left: 8px;
+    transform: translateY(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
     color: var(--text-primary, #fafafa);
   }
 
-  .stat-card-value.success { color: var(--success, #10b981); }
-  .stat-card-value.error { color: var(--error, #f43f5e); }
-  .stat-card-value.warning { color: var(--warning, #eab308); }
+  .stat-card.success .stat-card-value { color: var(--success, #10b981); }
+  .stat-card.success { border-color: rgba(16, 185, 129, 0.3); }
+  .stat-card.success .progress-fill { background: var(--success, #10b981); }
 
-  /* Score chips in summary */
-  .score-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-    padding: 16px 0;
-    border-top: 1px solid var(--border-subtle, #27272a);
-    margin-top: 12px;
-  }
+  .stat-card.error .stat-card-value { color: var(--error, #f43f5e); }
+  .stat-card.error { border-color: rgba(244, 63, 94, 0.3); }
+  .stat-card.error .progress-fill { background: var(--error, #f43f5e); }
 
+  .stat-card.warning .stat-card-value { color: var(--warning, #eab308); }
+  .stat-card.warning { border-color: rgba(234, 179, 8, 0.3); }
+  .stat-card.warning .progress-fill { background: var(--warning, #eab308); }
+
+  /* Chips for filtered summary */
   .stat-chip {
     display: inline-flex;
     align-items: center;
@@ -637,8 +668,28 @@
   }
 </style>
 
-<!-- Summary Cards -->
-<div class="summary-section">
+<!-- Summary Stats -->
+<div class="summary-cards">
+  {% for chip in score_chips %}
+    {% if chip.type == 'ratio' %}
+      {% set pct = ((chip.passed / chip.total) * 100) | round(0) | int if chip.total > 0 else 0 %}
+      {% set klass = 'success' if pct >= 80 else ('warning' if pct >= 50 else 'error') %}
+      <div class="stat-card {{ klass }}">
+        <div class="stat-card-label">{{ chip.key }}</div>
+        <div class="stat-card-value">{{ pct }}%</div>
+        <div class="progress-bar"><div class="progress-fill" style="width: {{ pct }}%"></div><span class="progress-text">{{ chip.passed }}/{{ chip.total }}</span></div>
+      </div>
+    {% elif chip.type == 'avg' %}
+      {% set avg = chip.avg %}
+      {% set pct = (avg * 100) | round(0) | int if avg <= 1 else ((avg * 10) | round(0) | int if avg <= 10 else ([avg, 100] | min | round(0) | int)) %}
+      {% set klass = 'success' if pct >= 80 else ('warning' if pct >= 50 else 'error') %}
+      <div class="stat-card {{ klass }}">
+        <div class="stat-card-label">{{ chip.key }}</div>
+        <div class="stat-card-value">{{ pct }}%</div>
+        <div class="progress-bar"><div class="progress-fill" style="width: {{ pct }}%"></div></div>
+      </div>
+    {% endif %}
+  {% endfor %}
   <div class="stat-card">
     <div class="stat-card-label">Total Tests</div>
     <div class="stat-card-value">{{ summary.total_evaluations }}</div>
@@ -650,21 +701,6 @@
   </div>
   {% endif %}
 </div>
-
-<!-- Score Chips -->
-{% if score_chips %}
-<div class="score-chips">
-  {% for chip in score_chips %}
-    {% if chip.type == 'ratio' %}
-      {% set klass = 'warning' %}
-      {% if chip.passed == chip.total %}{% set klass = 'success' %}{% elif chip.passed == 0 and chip.total > 0 %}{% set klass = 'error' %}{% endif %}
-      <span class="stat-chip {{ klass }}">{{ chip.key }}: {{ chip.passed }}/{{ chip.total }}</span>
-    {% elif chip.type == 'avg' %}
-      <span class="stat-chip">{{ chip.key }}: {{ chip.avg | round(2) }}</span>
-    {% endif %}
-  {% endfor %}
-</div>
-{% endif %}
 
 <!-- Filtered summary (computed client-side) -->
 <div id="filtered-summary" class="hidden">
@@ -684,8 +720,8 @@
       <th data-col="dataset">Dataset</th>
       <th data-col="labels">Labels</th>
       <th data-col="input">Input</th>
-      <th data-col="output">Output</th>
       <th data-col="reference">Reference</th>
+      <th data-col="output">Output</th>
       <th data-col="error">Error</th>
       <th data-col="scores">Scores</th>
       <th data-col="latency" data-type="number">Latency</th>
@@ -712,10 +748,18 @@
         {% endif %}
       </td>
       <td data-col="input" title="{{ r.result.input }}">{{ r.result.input }}</td>
-      <td data-col="output" title="{{ r.result.output }}">{{ r.result.output }}</td>
       <td data-col="reference">
         {% if r.result.reference is not none %}
           <span title="{{ r.result.reference }}">{{ r.result.reference }}</span>
+        {% else %}
+          <span class="muted-text">—</span>
+        {% endif %}
+      </td>
+      <td data-col="output" title="{% if r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% endif %}">
+        {% if r.result.output %}
+          {{ r.result.output }}
+        {% elif r.result.error %}
+          <span class="error-text">{{ r.result.error }}</span>
         {% else %}
           <span class="muted-text">—</span>
         {% endif %}
