@@ -12,103 +12,731 @@
   {% endif %}
   {% if p.pass %}{% set ns.passed = ns.passed + 1 %}{% elif p.fail %}{% set ns.failed = ns.failed + 1 %}{% endif %}
 {% endfor %}
-<div id="summary-chips" class="mb-3 flex flex-wrap items-center gap-2">
-  <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
-    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-    Tests: {{ summary.total_evaluations }}
-  </span>
+
+<style>
+  .hidden { display: none !important; }
+
+  /* Summary section */
+  .summary-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--bg-secondary, #0f0f12);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 12px;
+    padding: 16px 20px;
+    min-width: 140px;
+  }
+
+  .stat-card-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted, #71717a);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .stat-card-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary, #fafafa);
+  }
+
+  .stat-card-value.success { color: var(--success, #10b981); }
+  .stat-card-value.error { color: var(--error, #f43f5e); }
+  .stat-card-value.warning { color: var(--warning, #eab308); }
+
+  /* Score chips in summary */
+  .score-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 16px 0;
+    border-top: 1px solid var(--border-subtle, #27272a);
+    margin-top: 12px;
+  }
+
+  .stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-tertiary, #18181b);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary, #a1a1aa);
+  }
+
+  .stat-chip.success {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: var(--success, #10b981);
+  }
+
+  .stat-chip.error {
+    background: rgba(244, 63, 94, 0.1);
+    border-color: rgba(244, 63, 94, 0.3);
+    color: var(--error, #f43f5e);
+  }
+
+  .stat-chip.warning {
+    background: rgba(234, 179, 8, 0.1);
+    border-color: rgba(234, 179, 8, 0.3);
+    color: var(--warning, #eab308);
+  }
+
+  /* Filtered summary */
+  #filtered-summary {
+    background: var(--bg-secondary, #0f0f12);
+    border: 1px solid var(--accent-amber-dim, #b45309);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+  }
+
+  #filtered-summary .stat-chip {
+    background: var(--bg-tertiary, #18181b);
+  }
+
+  /* Table styles */
+  #results-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--bg-secondary, #0f0f12);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 12px;
+    overflow: hidden;
+    table-layout: fixed;
+  }
+
+  #results-table thead {
+    background: var(--bg-tertiary, #18181b);
+  }
+
+  #results-table thead th {
+    padding: 14px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, #71717a);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-subtle, #27272a);
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #results-table thead th:hover {
+    color: var(--text-secondary, #a1a1aa);
+  }
+
+  #results-table thead th:first-child {
+    width: 44px;
+    cursor: default;
+  }
+
+  #results-table tbody tr[data-row="main"] {
+    transition: background 0.15s ease;
+  }
+
+  #results-table tbody tr[data-row="main"]:hover {
+    background: var(--bg-hover, #27272a);
+  }
+
+  #results-table tbody tr[data-row="main"]:nth-child(4n+1) {
+    background: var(--bg-primary, #09090b);
+  }
+
+  #results-table tbody tr[data-row="main"]:nth-child(4n+1):hover {
+    background: var(--bg-hover, #27272a);
+  }
+
+  #results-table tbody td {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-secondary, #a1a1aa);
+    border-bottom: 1px solid var(--border-subtle, #27272a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+
+  #results-table tbody tr:last-child td,
+  #results-table tbody tr[data-row="detail"]:last-child td {
+    border-bottom: none;
+  }
+
+  /* Expand button */
+  .expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--bg-tertiary, #18181b);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 6px;
+    color: var(--text-muted, #71717a);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .expand-btn:hover {
+    background: var(--bg-hover, #27272a);
+    color: var(--accent-amber, #f59e0b);
+    border-color: var(--accent-amber-dim, #b45309);
+  }
+
+  .expand-btn .icon {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  /* Function name */
+  .fn-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    color: var(--accent-amber, #f59e0b);
+  }
+
+  /* Labels */
+  .label-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: var(--bg-tertiary, #18181b);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary, #a1a1aa);
+    margin-right: 4px;
+  }
+
+  /* Score badges */
+  .score-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 4px;
+    margin-bottom: 2px;
+  }
+
+  .score-badge.pass {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--success, #10b981);
+  }
+
+  .score-badge.fail {
+    background: rgba(244, 63, 94, 0.15);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+    color: var(--error, #f43f5e);
+  }
+
+  .score-badge.neutral {
+    background: var(--bg-tertiary, #18181b);
+    border: 1px solid var(--border-subtle, #27272a);
+    color: var(--text-secondary, #a1a1aa);
+  }
+
+  .score-badge.more {
+    background: var(--bg-hover, #27272a);
+    border: 1px solid var(--border-default, #3f3f46);
+    color: var(--text-muted, #71717a);
+  }
+
+  /* Latency badge */
+  .latency-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .latency-badge.fast {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--success, #10b981);
+  }
+
+  .latency-badge.medium {
+    background: rgba(234, 179, 8, 0.15);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    color: var(--warning, #eab308);
+  }
+
+  .latency-badge.slow {
+    background: rgba(244, 63, 94, 0.15);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+    color: var(--error, #f43f5e);
+  }
+
+  /* Error text */
+  .error-text {
+    color: var(--error, #f43f5e);
+  }
+
+  .muted-text {
+    color: var(--text-muted, #71717a);
+  }
+
+  /* Detail row */
+  #results-table tbody tr[data-row="detail"] {
+    background: var(--bg-primary, #09090b);
+  }
+
+  #results-table tbody tr[data-row="detail"] > td {
+    padding: 0;
+  }
+
+  .detail-panel {
+    background: var(--bg-secondary, #0f0f12);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 10px;
+    margin: 16px;
+    overflow: hidden;
+  }
+
+  .detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg-tertiary, #18181b);
+    border-bottom: 1px solid var(--border-subtle, #27272a);
+  }
+
+  .detail-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-amber, #f59e0b);
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .detail-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid var(--border-subtle, #27272a);
+  }
+
+  .detail-btn.edit {
+    background: var(--bg-hover, #27272a);
+    color: var(--text-secondary, #a1a1aa);
+  }
+
+  .detail-btn.edit:hover {
+    background: var(--bg-elevated, #1f1f23);
+    color: var(--text-primary, #fafafa);
+  }
+
+  .detail-btn.save {
+    background: var(--success, #10b981);
+    border-color: var(--success, #10b981);
+    color: white;
+  }
+
+  .detail-btn.save:hover {
+    background: #059669;
+  }
+
+  .detail-btn.cancel {
+    background: var(--bg-hover, #27272a);
+    color: var(--text-secondary, #a1a1aa);
+  }
+
+  .detail-btn.cancel:hover {
+    background: var(--bg-elevated, #1f1f23);
+    color: var(--text-primary, #fafafa);
+  }
+
+  .detail-content {
+    padding: 20px;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .detail-field-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted, #71717a);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .detail-field-value {
+    font-size: 14px;
+    color: var(--text-primary, #fafafa);
+  }
+
+  .detail-field-value.mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Data blocks (input/output/etc) */
+  .data-blocks {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 900px) {
+    .data-blocks {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .data-block {
+    position: relative;
+  }
+
+  .data-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .data-block-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted, #71717a);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--bg-tertiary, #18181b);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 6px;
+    color: var(--text-muted, #71717a);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.15s ease;
+  }
+
+  .data-block:hover .copy-btn {
+    opacity: 1;
+  }
+
+  .copy-btn:hover {
+    background: var(--bg-hover, #27272a);
+    color: var(--accent-amber, #f59e0b);
+    border-color: var(--accent-amber-dim, #b45309);
+  }
+
+  .data-block pre {
+    background: var(--bg-primary, #09090b);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-secondary, #a1a1aa);
+    overflow-x: auto;
+    max-height: 240px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+  }
+
+  .data-block.full-width {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 900px) {
+    .data-block.full-width {
+      grid-column: span 1;
+    }
+  }
+
+  /* Scores section */
+  .scores-section {
+    margin-bottom: 24px;
+  }
+
+  .scores-section-header {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted, #71717a);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .scores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .score-card {
+    background: var(--bg-primary, #09090b);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .score-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .score-card-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .score-card-key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #fafafa);
+  }
+
+  .score-card-label {
+    font-size: 12px;
+    color: var(--text-muted, #71717a);
+  }
+
+  .score-card-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-secondary, #a1a1aa);
+  }
+
+  .score-card-value.pass { color: var(--success, #10b981); }
+  .score-card-value.fail { color: var(--error, #f43f5e); }
+
+  /* Annotation section */
+  .annotation-section {
+    padding-top: 20px;
+    border-top: 1px solid var(--border-subtle, #27272a);
+  }
+
+  .annotation-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted, #71717a);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+
+  .annotation-content {
+    background: var(--bg-primary, #09090b);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 14px;
+    color: var(--text-secondary, #a1a1aa);
+    white-space: pre-wrap;
+  }
+
+  /* Edit mode inputs */
+  .edit-input, .edit-textarea, .edit-select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-primary, #09090b);
+    border: 1px solid var(--border-subtle, #27272a);
+    border-radius: 6px;
+    color: var(--text-primary, #fafafa);
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color 0.15s ease;
+  }
+
+  .edit-input:focus, .edit-textarea:focus, .edit-select:focus {
+    outline: none;
+    border-color: var(--accent-amber, #f59e0b);
+  }
+
+  .edit-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .edit-field {
+    margin-bottom: 16px;
+  }
+
+  .edit-field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted, #71717a);
+    margin-bottom: 6px;
+  }
+
+  .score-edit-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  @media (max-width: 700px) {
+    .score-edit-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>
+
+<!-- Summary Cards -->
+<div class="summary-section">
+  <div class="stat-card">
+    <div class="stat-card-label">Total Tests</div>
+    <div class="stat-card-value">{{ summary.total_evaluations }}</div>
+  </div>
+  {% if summary.average_latency > 0 %}
+  <div class="stat-card">
+    <div class="stat-card-label">Avg Latency</div>
+    <div class="stat-card-value">{{ summary.average_latency | round(2) }}s</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Score Chips -->
+{% if score_chips %}
+<div class="score-chips">
   {% for chip in score_chips %}
     {% if chip.type == 'ratio' %}
-      {% set klass = 'bg-yellow-100 text-yellow-800' %}
-      {% if chip.passed == chip.total %}{% set klass = 'bg-green-100 text-green-800' %}{% elif chip.passed == 0 and chip.total > 0 %}{% set klass = 'bg-red-100 text-red-800' %}{% endif %}
-      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium {{ klass }}">
-        {{ chip.key }}: {{ chip.passed }}/{{ chip.total }}
-      </span>
+      {% set klass = 'warning' %}
+      {% if chip.passed == chip.total %}{% set klass = 'success' %}{% elif chip.passed == 0 and chip.total > 0 %}{% set klass = 'error' %}{% endif %}
+      <span class="stat-chip {{ klass }}">{{ chip.key }}: {{ chip.passed }}/{{ chip.total }}</span>
     {% elif chip.type == 'avg' %}
-      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-medium">
-        {{ chip.key }}: {{ chip.avg | round(2) }}
-      </span>
+      <span class="stat-chip">{{ chip.key }}: {{ chip.avg | round(2) }}</span>
     {% endif %}
   {% endfor %}
-  {% if summary.average_latency > 0 %}
-    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
-      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-      Avg: {{ summary.average_latency | round(2) }}s
-    </span>
-  {% endif %}
-  
 </div>
+{% endif %}
+
 <!-- Filtered summary (computed client-side) -->
-<div id="filtered-summary" class="mb-3 hidden">
-  <div class="flex flex-wrap items-center gap-2">
-    <span id="filtered-count-chip" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium"></span>
-    <span id="filtered-avg-latency" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-800 text-xs font-medium"></span>
-    <span id="filtered-score-chips" class="inline-flex items-center gap-1 flex-wrap"></span>
+<div id="filtered-summary" class="hidden">
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+    <span id="filtered-count-chip" class="stat-chip"></span>
+    <span id="filtered-avg-latency" class="stat-chip"></span>
+    <span id="filtered-score-chips" style="display: flex; flex-wrap: wrap; gap: 8px;"></span>
   </div>
 </div>
-<div class="overflow-x-auto">
-<table id="results-table" class="w-full table-fixed divide-y divide-gray-200 shadow ring-1 ring-black ring-opacity-5 rounded-lg" data-run-id="{{ run_id }}">
+
+<!-- Results Table -->
+<table id="results-table" data-run-id="{{ run_id }}">
   <thead>
-    <tr class="bg-gray-50">
-      <th class="w-10 px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider select-none"> </th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="function">Function</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="dataset">Dataset</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="labels">Labels</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="input">Input</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="output">Output</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="reference">Reference</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="error">Error</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="scores">Scores</th>
-      <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer select-none relative truncate" data-col="latency" data-type="number">Latency</th>
+    <tr>
+      <th style="width: 44px;"></th>
+      <th data-col="function">Function</th>
+      <th data-col="dataset">Dataset</th>
+      <th data-col="labels">Labels</th>
+      <th data-col="input">Input</th>
+      <th data-col="output">Output</th>
+      <th data-col="reference">Reference</th>
+      <th data-col="error">Error</th>
+      <th data-col="scores">Scores</th>
+      <th data-col="latency" data-type="number">Latency</th>
     </tr>
   </thead>
-  <tbody class="bg-white divide-y divide-gray-100">
+  <tbody>
     {% for r in summary.results %}
     {% set row_id = loop.index0 %}
-    <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50" data-row="main" data-row-id="{{ row_id }}">
-      <td class="px-2 py-2">
-        <button class="expand-btn inline-flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 text-gray-600" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
+    <tr data-row="main" data-row-id="{{ row_id }}">
+      <td>
+        <button class="expand-btn" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
           <span class="icon">▸</span>
         </button>
       </td>
-      <td class="px-4 py-2 text-sm font-mono text-sky-700 truncate" data-col="function">{{ r.function }}</td>
-      <td class="px-4 py-2 text-sm text-gray-700 truncate" data-col="dataset">{{ r.dataset }}</td>
-      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="labels">
+      <td data-col="function"><span class="fn-name">{{ r.function }}</span></td>
+      <td data-col="dataset">{{ r.dataset }}</td>
+      <td data-col="labels">
         {% if r.labels %}
           {% for la in r.labels %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs mr-1">{{ la }}</span>
+            <span class="label-tag">{{ la }}</span>
           {% endfor %}
+        {% else %}
+          <span class="muted-text">—</span>
         {% endif %}
       </td>
-      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="input" title="{{ r.result.input }}">{{ r.result.input }}</td>
-      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="output" title="{{ r.result.output }}">{{ r.result.output }}</td>
-      <td class="px-4 py-2 text-sm text-gray-800 truncate" data-col="reference">
+      <td data-col="input" title="{{ r.result.input }}">{{ r.result.input }}</td>
+      <td data-col="output" title="{{ r.result.output }}">{{ r.result.output }}</td>
+      <td data-col="reference">
         {% if r.result.reference is not none %}
           <span title="{{ r.result.reference }}">{{ r.result.reference }}</span>
         {% else %}
-          <span class="text-gray-400">—</span>
+          <span class="muted-text">—</span>
         {% endif %}
       </td>
-      <td class="px-4 py-2 text-sm truncate" data-col="error">
+      <td data-col="error">
         {% if r.result.error %}
-          <span class="text-red-600">{{ r.result.error }}</span>
+          <span class="error-text">{{ r.result.error }}</span>
         {% else %}
-          <span class="text-gray-400">—</span>
+          <span class="muted-text">—</span>
         {% endif %}
       </td>
-      <td class="px-4 py-2 text-sm" data-col="scores">
+      <td data-col="scores">
         {% if r.result.scores %}
           {% set max_show = 3 %}
-          <div class="flex flex-wrap gap-1">
+          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
             {% for s in r.result.scores %}
               {% if loop.index0 < max_show %}
-                {% set badge = 'bg-slate-100 text-slate-700' %}
-                {% if s.passed is true %}
-                  {% set badge = 'bg-green-100 text-green-800' %}
-                {% elif s.passed is false %}
-                  {% set badge = 'bg-red-100 text-red-800' %}
-                {% endif %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full {{ badge }} text-xs">
+                {% set badge_class = 'neutral' %}
+                {% if s.passed is true %}{% set badge_class = 'pass' %}{% elif s.passed is false %}{% set badge_class = 'fail' %}{% endif %}
+                <span class="score-badge {{ badge_class }}">
                   {% if s.value is not none %}
                     {{ s.key }}: {{ (s.value is number) and (s.value | round(2)) or s.value }}
                   {% else %}
@@ -118,195 +746,232 @@
               {% endif %}
             {% endfor %}
             {% if r.result.scores | length > max_show %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">+{{ r.result.scores | length - max_show }}</span>
+              <span class="score-badge more">+{{ r.result.scores | length - max_show }}</span>
             {% endif %}
           </div>
         {% else %}
-          <span class="text-gray-400">—</span>
+          <span class="muted-text">—</span>
         {% endif %}
       </td>
-      <td class="px-4 py-2 text-sm whitespace-nowrap" data-col="latency" data-value="{% if r.result.latency is not none %}{{ r.result.latency }}{% endif %}">
+      <td data-col="latency" data-value="{% if r.result.latency is not none %}{{ r.result.latency }}{% endif %}">
         {% if r.result.latency is not none %}
           {% set latency = r.result.latency %}
           {% set label = latency | round(2) %}
           {% if latency <= 0.5 %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 text-green-800">{{ label }}s</span>
+            <span class="latency-badge fast">{{ label }}s</span>
           {% elif latency <= 1.5 %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">{{ label }}s</span>
+            <span class="latency-badge medium">{{ label }}s</span>
           {% else %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-red-100 text-red-800">{{ label }}s</span>
+            <span class="latency-badge slow">{{ label }}s</span>
           {% endif %}
         {% else %}
-          <span class="text-gray-400">—</span>
+          <span class="muted-text">—</span>
         {% endif %}
       </td>
     </tr>
-    <tr class="bg-gray-50" data-row="detail" data-row-id="{{ row_id }}" hidden
+
+    <!-- Detail Row -->
+    <tr data-row="detail" data-row-id="{{ row_id }}" hidden
         data-original-dataset='{{ r.dataset | e }}'
         data-original-labels='{{ (r.labels or []) | tojson | e }}'
         data-original-metadata='{{ (r.result.metadata or none) | tojson | e }}'
         data-original-scores='{{ (r.result.scores or []) | tojson | e }}'
         data-original-annotation='{{ (r.result.annotation or "") | e }}'>
-      <td colspan="10" class="px-6 py-4">
-        <div class="border rounded-md p-4 bg-white shadow-sm">
-          <div class="flex justify-end items-center mb-3">
-            <div class="flex gap-2">
-              <button class="edit-btn px-3 py-1 text-sm border rounded" data-row-id="{{ row_id }}">Edit</button>
-              <button class="save-btn px-3 py-1 text-sm border rounded bg-green-600 text-white hidden" data-row-id="{{ row_id }}">Save</button>
-              <button class="cancel-btn px-3 py-1 text-sm border rounded hidden" data-row-id="{{ row_id }}">Cancel</button>
+      <td colspan="10">
+        <div class="detail-panel">
+          <div class="detail-header">
+            <span class="detail-title">{{ r.function }}</span>
+            <div class="detail-actions">
+              <button class="detail-btn edit edit-btn" data-row-id="{{ row_id }}">Edit</button>
+              <button class="detail-btn save save-btn hidden" data-row-id="{{ row_id }}">Save</button>
+              <button class="detail-btn cancel cancel-btn hidden" data-row-id="{{ row_id }}">Cancel</button>
             </div>
           </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 text-sm text-gray-700 mb-4 items-start">
-            <div class="view-section"><span class="font-semibold">Function:</span> <span class="font-mono text-sky-700">{{ r.function }}</span></div>
-            <div class="view-section"><span class="font-semibold">Dataset:</span> <span class="dataset-view">{{ r.dataset }}</span></div>
-            <div class="view-section"><span class="font-semibold">Labels:</span>
-              {% if r.labels %}
-                {% for la in r.labels %}
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs mr-1">{{ la }}</span>
-                {% endfor %}
-              {% else %}
-                <span class="text-gray-400">—</span>
-              {% endif %}
-            </div>
-            <div class="view-section"><span class="font-semibold">Latency:</span> {% if r.result.latency is not none %}{{ r.result.latency | round(3) }}s{% else %}<span class="text-gray-400">—</span>{% endif %}</div>
-            <div class="view-section"><span class="font-semibold">Error:</span> {% if r.result.error %}<span class="text-red-600">{{ r.result.error }}</span>{% else %}<span class="text-gray-400">—</span>{% endif %}</div>
-
-            <!-- Edit fields -->
-            <div class="edit-section hidden">
-              <label class="block text-xs font-semibold text-gray-500 mb-1">Dataset</label>
-              <input id="dataset-input-{{ row_id }}" type="text" class="w-full border rounded px-2 py-1" value="{{ r.dataset }}" />
-            </div>
-            <div class="edit-section hidden">
-              <label class="block text-xs font-semibold text-gray-500 mb-1">Labels (comma-separated)</label>
-              <input id="labels-input-{{ row_id }}" type="text" class="w-full border rounded px-2 py-1" value="{% if r.labels %}{{ r.labels | join(', ') }}{% endif %}" />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="view-section relative group">
-              <div class="text-xs font-semibold text-gray-500 mb-1">Input</div>
-              <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-input-{{ row_id }}" title="Copy">
-                <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-              </button>
-              <pre id="pre-input-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.input }}</pre>
-            </div>
-            <div class="view-section relative group">
-              <div class="text-xs font-semibold text-gray-500 mb-1">Output</div>
-              <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-output-{{ row_id }}" title="Copy">
-                <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-              </button>
-              <pre id="pre-output-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.output }}</pre>
-            </div>
-            <div class="view-section relative group">
-              <div class="text-xs font-semibold text-gray-500 mb-1">Reference</div>
-              <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-ref-{{ row_id }}" title="Copy">
-                <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-              </button>
-              <pre id="pre-ref-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.reference }}</pre>
-            </div>
-            <div class="view-section relative group">
-              <div class="text-xs font-semibold text-gray-500 mb-1">Metadata</div>
-              <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-meta-{{ row_id }}" title="Copy">
-                <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-              </button>
-              <pre id="pre-meta-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.metadata }}</pre>
-            </div>
-            <div class="view-section md:col-span-2">
-              <div class="text-xs font-semibold text-gray-500 mb-1">Run Data</div>
-              {% if r.result.run_data is defined and r.result.run_data is not none %}
-                <div class="relative group">
-                  <button class="copy-btn absolute right-2 top-2 p-1 rounded bg-white/80 border opacity-0 group-hover:opacity-100 transition-opacity" data-copy="pre-run-{{ row_id }}" title="Copy">
-                    <svg class="copy-icon h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    <svg class="check-icon h-4 w-4 text-green-600 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-                  </button>
-                  <pre id="pre-run-{{ row_id }}" class="p-2 bg-gray-100 rounded overflow-auto max-h-64 whitespace-pre-wrap">{{ r.result.run_data | tojson(indent=2) }}</pre>
-                </div>
-              {% else %}
-                <div class="text-gray-400">—</div>
-              {% endif %}
-            </div>
-            <div class="edit-section hidden md:col-span-2">
-              <label class="block text-xs font-semibold text-gray-500 mb-1">Metadata (JSON)</label>
-              <textarea id="metadata-input-{{ row_id }}" class="w-full border rounded px-2 py-1 font-mono h-28">{% if r.result.metadata %}{{ r.result.metadata | tojson(indent=2) }}{% endif %}</textarea>
-            </div>
-          </div>
-
-          <div class="mt-4">
-            <div class="text-xs font-semibold text-gray-500 mb-1">Scores</div>
-            <div class="view-section">
-              {% if r.result.scores %}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {% for s in r.result.scores %}
-                    <div class="border rounded p-2 bg-gray-50">
-                      <div class="text-sm"><span class="font-semibold">Key:</span> {{ s.key }}</div>
-                      {% if s.value is not none %}
-                        <div class="text-sm"><span class="font-semibold">Value:</span> {{ s.value }}</div>
-                      {% endif %}
-                      {% if s.passed is not none %}
-                        <div class="text-sm"><span class="font-semibold">Passed:</span> {{ s.passed }}</div>
-                      {% endif %}
-                      {% if s.notes %}
-                        <div class="text-sm"><span class="font-semibold">Notes:</span> {{ s.notes }}</div>
-                      {% endif %}
-                    </div>
-                  {% endfor %}
-                </div>
-              {% else %}
-                <div class="text-gray-400">No scores</div>
-              {% endif %}
-            </div>
-
-            <div class="edit-section hidden">
-              {% set scores = r.result.scores or [] %}
-              <div class="space-y-2" id="scores-editor-{{ row_id }}">
-                {% for s in scores %}
-                <div class="border rounded p-2 bg-gray-50">
-                  <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <div>
-                      <label class="block text-xs text-gray-500 mb-1">Key</label>
-                      <input type="text" class="w-full border rounded px-2 py-1" name="score-key" value="{{ s.key }}" />
-                    </div>
-                    <div>
-                      <label class="block text-xs text-gray-500 mb-1">Value</label>
-                      <input type="number" step="any" class="w-full border rounded px-2 py-1" name="score-value" value="{% if s.value is not none %}{{ s.value }}{% endif %}" />
-                    </div>
-                    <div>
-                      <label class="block text-xs text-gray-500 mb-1">Passed</label>
-                      <select class="w-full border rounded px-2 py-1" name="score-passed">
-                        <option value="">—</option>
-                        <option value="true" {% if s.passed is true %}selected{% endif %}>True</option>
-                        <option value="false" {% if s.passed is false %}selected{% endif %}>False</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label class="block text-xs text-gray-500 mb-1">Notes</label>
-                      <input type="text" class="w-full border rounded px-2 py-1" name="score-notes" value="{% if s.notes %}{{ s.notes }}{% endif %}" />
-                    </div>
-                  </div>
-                </div>
-                {% endfor %}
+          <div class="detail-content">
+            <!-- Metadata fields -->
+            <div class="detail-grid view-section">
+              <div class="detail-field">
+                <span class="detail-field-label">Dataset</span>
+                <span class="detail-field-value">{{ r.dataset or '—' }}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-field-label">Labels</span>
+                <span class="detail-field-value">
+                  {% if r.labels %}
+                    {% for la in r.labels %}<span class="label-tag">{{ la }}</span>{% endfor %}
+                  {% else %}—{% endif %}
+                </span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-field-label">Latency</span>
+                <span class="detail-field-value mono">{% if r.result.latency is not none %}{{ r.result.latency | round(3) }}s{% else %}—{% endif %}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-field-label">Error</span>
+                <span class="detail-field-value {% if r.result.error %}error-text{% endif %}">{{ r.result.error or '—' }}</span>
               </div>
             </div>
-          </div>
 
-          <div class="mt-6" data-testid="annotations-section">
-            <div class="flex items-center justify-between mb-2">
-              <div class="text-xs font-semibold text-gray-500">Annotation</div>
+            <!-- Edit fields for metadata -->
+            <div class="detail-grid edit-section hidden">
+              <div class="edit-field">
+                <label class="edit-field-label">Dataset</label>
+                <input id="dataset-input-{{ row_id }}" type="text" class="edit-input" value="{{ r.dataset }}" />
+              </div>
+              <div class="edit-field">
+                <label class="edit-field-label">Labels (comma-separated)</label>
+                <input id="labels-input-{{ row_id }}" type="text" class="edit-input" value="{% if r.labels %}{{ r.labels | join(', ') }}{% endif %}" />
+              </div>
             </div>
-            <div class="view-section">
-              {% if r.result.annotation %}
-                <div class="p-2 bg-gray-50 rounded whitespace-pre-wrap">{{ r.result.annotation }}</div>
-              {% else %}
-                <div class="text-gray-400">—</div>
+
+            <!-- Data blocks -->
+            <div class="data-blocks view-section">
+              <div class="data-block">
+                <div class="data-block-header">
+                  <span class="data-block-label">Input</span>
+                  <button class="copy-btn" data-copy="pre-input-{{ row_id }}" title="Copy">
+                    <svg class="copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <svg class="check-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                  </button>
+                </div>
+                <pre id="pre-input-{{ row_id }}">{{ r.result.input }}</pre>
+              </div>
+              <div class="data-block">
+                <div class="data-block-header">
+                  <span class="data-block-label">Output</span>
+                  <button class="copy-btn" data-copy="pre-output-{{ row_id }}" title="Copy">
+                    <svg class="copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <svg class="check-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                  </button>
+                </div>
+                <pre id="pre-output-{{ row_id }}">{{ r.result.output }}</pre>
+              </div>
+              <div class="data-block">
+                <div class="data-block-header">
+                  <span class="data-block-label">Reference</span>
+                  <button class="copy-btn" data-copy="pre-ref-{{ row_id }}" title="Copy">
+                    <svg class="copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <svg class="check-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                  </button>
+                </div>
+                <pre id="pre-ref-{{ row_id }}">{{ r.result.reference or '—' }}</pre>
+              </div>
+              <div class="data-block">
+                <div class="data-block-header">
+                  <span class="data-block-label">Metadata</span>
+                  <button class="copy-btn" data-copy="pre-meta-{{ row_id }}" title="Copy">
+                    <svg class="copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <svg class="check-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                  </button>
+                </div>
+                <pre id="pre-meta-{{ row_id }}">{{ r.result.metadata or '—' }}</pre>
+              </div>
+              {% if r.result.run_data is defined and r.result.run_data is not none %}
+              <div class="data-block full-width">
+                <div class="data-block-header">
+                  <span class="data-block-label">Run Data</span>
+                  <button class="copy-btn" data-copy="pre-run-{{ row_id }}" title="Copy">
+                    <svg class="copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <svg class="check-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                  </button>
+                </div>
+                <pre id="pre-run-{{ row_id }}">{{ r.result.run_data | tojson(indent=2) }}</pre>
+              </div>
               {% endif %}
             </div>
+
+            <!-- Edit metadata JSON -->
             <div class="edit-section hidden">
-              <textarea id="annotation-input-{{ row_id }}" class="w-full border rounded px-2 py-1" placeholder="Add a note…">{% if r.result.annotation %}{{ r.result.annotation }}{% endif %}</textarea>
+              <div class="edit-field">
+                <label class="edit-field-label">Metadata (JSON)</label>
+                <textarea id="metadata-input-{{ row_id }}" class="edit-textarea">{% if r.result.metadata %}{{ r.result.metadata | tojson(indent=2) }}{% endif %}</textarea>
+              </div>
+            </div>
+
+            <!-- Scores section -->
+            <div class="scores-section">
+              <div class="scores-section-header">Scores</div>
+              <div class="view-section">
+                {% if r.result.scores %}
+                <div class="scores-grid">
+                  {% for s in r.result.scores %}
+                  <div class="score-card">
+                    <div class="score-card-row">
+                      <span class="score-card-key">{{ s.key }}</span>
+                    </div>
+                    {% if s.value is not none %}
+                    <div class="score-card-row">
+                      <span class="score-card-label">Value</span>
+                      <span class="score-card-value">{{ s.value }}</span>
+                    </div>
+                    {% endif %}
+                    {% if s.passed is not none %}
+                    <div class="score-card-row">
+                      <span class="score-card-label">Passed</span>
+                      <span class="score-card-value {% if s.passed %}pass{% else %}fail{% endif %}">{{ s.passed }}</span>
+                    </div>
+                    {% endif %}
+                    {% if s.notes %}
+                    <div class="score-card-row">
+                      <span class="score-card-label">Notes</span>
+                      <span class="score-card-value" style="font-size: 12px;">{{ s.notes }}</span>
+                    </div>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <div class="muted-text">No scores</div>
+                {% endif %}
+              </div>
+
+              <!-- Edit scores -->
+              <div class="edit-section hidden">
+                {% set scores = r.result.scores or [] %}
+                <div id="scores-editor-{{ row_id }}" style="display: flex; flex-direction: column; gap: 12px;">
+                  {% for s in scores %}
+                  <div class="score-card">
+                    <div class="score-edit-grid">
+                      <div>
+                        <label class="edit-field-label">Key</label>
+                        <input type="text" class="edit-input" name="score-key" value="{{ s.key }}" />
+                      </div>
+                      <div>
+                        <label class="edit-field-label">Value</label>
+                        <input type="number" step="any" class="edit-input" name="score-value" value="{% if s.value is not none %}{{ s.value }}{% endif %}" />
+                      </div>
+                      <div>
+                        <label class="edit-field-label">Passed</label>
+                        <select class="edit-select" name="score-passed">
+                          <option value="">—</option>
+                          <option value="true" {% if s.passed is true %}selected{% endif %}>True</option>
+                          <option value="false" {% if s.passed is false %}selected{% endif %}>False</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="edit-field-label">Notes</label>
+                        <input type="text" class="edit-input" name="score-notes" value="{% if s.notes %}{{ s.notes }}{% endif %}" />
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Annotation section -->
+            <div class="annotation-section" data-testid="annotations-section">
+              <div class="annotation-label">Annotation</div>
+              <div class="view-section">
+                {% if r.result.annotation %}
+                <div class="annotation-content">{{ r.result.annotation }}</div>
+                {% else %}
+                <div class="muted-text">—</div>
+                {% endif %}
+              </div>
+              <div class="edit-section hidden">
+                <textarea id="annotation-input-{{ row_id }}" class="edit-textarea" placeholder="Add a note...">{% if r.result.annotation %}{{ r.result.annotation }}{% endif %}</textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -314,6 +979,4 @@
     </tr>
     {% endfor %}
   </tbody>
-  
 </table>
-</div>

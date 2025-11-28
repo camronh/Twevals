@@ -1,24 +1,507 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Eval Results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>twevals</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-      /* Visual indicators for sort direction on headers */
+      :root {
+        --bg-primary: #09090b;
+        --bg-secondary: #0f0f12;
+        --bg-tertiary: #18181b;
+        --bg-elevated: #1f1f23;
+        --bg-hover: #27272a;
+        --border-subtle: #27272a;
+        --border-default: #3f3f46;
+        --text-primary: #fafafa;
+        --text-secondary: #a1a1aa;
+        --text-muted: #71717a;
+        --accent-amber: #f59e0b;
+        --accent-amber-dim: #b45309;
+        --accent-amber-glow: rgba(245, 158, 11, 0.15);
+        --success: #10b981;
+        --success-dim: #065f46;
+        --error: #f43f5e;
+        --error-dim: #881337;
+        --warning: #eab308;
+        --info: #06b6d4;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+        line-height: 1.5;
+      }
+
+      .app-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* Header */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 0;
+        border-bottom: 1px solid var(--border-subtle);
+        margin-bottom: 24px;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .logo-mark {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, var(--accent-amber) 0%, var(--accent-amber-dim) 100%);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 18px;
+        color: var(--bg-primary);
+        box-shadow: 0 0 20px var(--accent-amber-glow);
+      }
+
+      .logo-text {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+        color: var(--text-primary);
+      }
+
+      .logo-text span {
+        color: var(--accent-amber);
+      }
+
+      .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* Search */
+      .search-wrapper {
+        position: relative;
+      }
+
+      .search-input {
+        width: 280px;
+        padding: 10px 14px 10px 40px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 14px;
+        font-family: inherit;
+        transition: all 0.2s ease;
+      }
+
+      .search-input::placeholder {
+        color: var(--text-muted);
+      }
+
+      .search-input:focus {
+        outline: none;
+        border-color: var(--accent-amber);
+        box-shadow: 0 0 0 3px var(--accent-amber-glow);
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: inherit;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: none;
+      }
+
+      .btn-primary {
+        background: var(--accent-amber);
+        color: var(--bg-primary);
+      }
+
+      .btn-primary:hover {
+        background: #fbbf24;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px var(--accent-amber-glow);
+      }
+
+      .btn-secondary {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-subtle);
+      }
+
+      .btn-secondary:hover {
+        background: var(--bg-hover);
+        border-color: var(--border-default);
+      }
+
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-secondary);
+        padding: 8px 12px;
+      }
+
+      .btn-ghost:hover {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+
+      /* Dropdown menus */
+      .dropdown {
+        position: relative;
+      }
+
+      .dropdown-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        min-width: 200px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        padding: 6px;
+        z-index: 100;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: all 0.2s ease;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      }
+
+      .dropdown-menu.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 14px;
+        color: var(--text-secondary);
+        background: none;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s ease;
+      }
+
+      .dropdown-item:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+
+      .dropdown-divider {
+        height: 1px;
+        background: var(--border-subtle);
+        margin: 6px 0;
+      }
+
+      /* Filters panel */
+      .filters-panel {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        width: 420px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 16px;
+        z-index: 100;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: all 0.2s ease;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      }
+
+      .filters-panel.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .filters-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .filters-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .filter-section {
+        margin-bottom: 16px;
+      }
+
+      .filter-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .filter-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .filter-select, .filter-input {
+        flex: 1;
+        padding: 8px 12px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        color: var(--text-primary);
+        font-size: 13px;
+        font-family: inherit;
+      }
+
+      .filter-select:focus, .filter-input:focus {
+        outline: none;
+        border-color: var(--accent-amber);
+      }
+
+      .filter-btn {
+        padding: 8px 14px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .filter-btn:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+
+      .active-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        min-height: 28px;
+      }
+
+      .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: var(--accent-amber-glow);
+        border: 1px solid var(--accent-amber-dim);
+        border-radius: 20px;
+        font-size: 12px;
+        color: var(--accent-amber);
+      }
+
+      .filter-chip button {
+        background: none;
+        border: none;
+        color: var(--accent-amber);
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        opacity: 0.7;
+      }
+
+      .filter-chip button:hover {
+        opacity: 1;
+      }
+
+      /* Columns panel */
+      .columns-panel {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        width: 260px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 16px;
+        z-index: 100;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: all 0.2s ease;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      }
+
+      .columns-panel.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .column-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: color 0.15s ease;
+      }
+
+      .column-toggle:hover {
+        color: var(--text-primary);
+      }
+
+      .column-toggle input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--accent-amber);
+      }
+
+      .column-toggle span {
+        font-size: 14px;
+      }
+
+      .panel-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-subtle);
+      }
+
+      .panel-actions button {
+        flex: 1;
+        padding: 8px;
+        font-size: 12px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .panel-actions button:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+
+      /* Badge for filter count */
+      .filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        background: var(--accent-amber);
+        color: var(--bg-primary);
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 10px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .filter-badge.active {
+        display: flex;
+      }
+
+      /* Loading indicator */
+      .loading-indicator {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .loading-indicator.active {
+        display: flex;
+      }
+
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border-subtle);
+        border-top-color: var(--accent-amber);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Results container */
+      #results {
+        animation: fadeIn 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Sort indicators */
       #results-table thead th[aria-sort="ascending"]::after {
-        content: " ▲";
-        font-size: 0.75rem; /* text-sm */
-        color: #6b7280; /* gray-500 */
+        content: " ↑";
+        color: var(--accent-amber);
       }
+
       #results-table thead th[aria-sort="descending"]::after {
-        content: " ▼";
-        font-size: 0.75rem; /* text-sm */
-        color: #6b7280; /* gray-500 */
+        content: " ↓";
+        color: var(--accent-amber);
       }
-      /* Column resizer handle */
-      #results-table thead th .col-resizer {
+
+      /* Column resizer */
+      .col-resizer {
         position: absolute;
         right: 0;
         top: 0;
@@ -27,225 +510,229 @@
         cursor: col-resize;
         user-select: none;
       }
-      #results-table thead th .col-resizer:hover {
-        background: linear-gradient(to right, transparent, rgba(0,0,0,0.05));
+
+      .col-resizer:hover {
+        background: linear-gradient(to right, transparent, var(--accent-amber-glow));
       }
+
       body.twevals-col-resize {
         cursor: col-resize !important;
       }
     </style>
   </head>
-  <body class="min-h-screen bg-gray-50 text-gray-900 p-6">
-    <div class="flex items-center gap-3 mb-4">
-      <h1 class="text-2xl font-semibold mr-auto tracking-tight">Eval Results</h1>
-      <div id="loading-indicator" class="hidden items-center text-sm text-gray-600">
-        <svg class="animate-spin h-4 w-4 mr-2 text-gray-500" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-        </svg>
-        Loading…
-      </div>
-      <div class="hidden md:block relative">
-        <input id="search-input" type="search" placeholder="Search…"
-          class="pl-8 pr-3 py-2 border rounded w-64 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
-        <svg class="h-4 w-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-      </div>
-      <div class="relative">
-        <button id="actions-toggle" class="px-3 py-2 bg-gray-900 text-white rounded shadow-sm">
-          Actions ▾
-        </button>
-        <div id="actions-menu" class="hidden absolute right-0 mt-2 w-44 bg-white border rounded shadow z-20 py-1">
-          <button class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-action="refresh">Refresh</button>
-          <button class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-action="rerun">Rerun</button>
-          <div class="my-1 border-t"></div>
-          <button class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-action="export-json">Export JSON</button>
-          <button class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50" data-action="export-csv">Export CSV</button>
+  <body>
+    <div class="app-container">
+      <header class="header">
+        <div class="logo">
+          <div class="logo-mark">tw</div>
+          <div class="logo-text">twevals</div>
         </div>
-      </div>
-      <div class="relative">
-        <button id="filters-toggle" class="relative px-2 py-2 bg-gray-100 border rounded" aria-label="Filters">
-          <svg class="h-4 w-4 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M3 5h18l-7 8v6l-4-2v-4L3 5z" />
-          </svg>
-          <span id="filters-count-badge" class="hidden absolute -top-1 -right-1 text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-blue-600 text-white"></span>
-        </button>
-        <div id="filters-menu" class="hidden absolute right-0 mt-2 w-[28rem] bg-white border rounded shadow z-30 p-3">
-          <div class="flex items-center justify-between mb-2">
-            <p class="text-sm font-semibold">Advanced Filters</p>
-            <button id="clear-filters" class="text-xs px-2 py-1 border rounded">Clear</button>
+
+        <div class="header-controls">
+          <div id="loading-indicator" class="loading-indicator">
+            <div class="spinner"></div>
+            <span>Loading...</span>
           </div>
-          <div class="space-y-3">
-            <div>
-              <div class="text-xs font-semibold text-gray-500 mb-1">Key</div>
-              <select id="key-select" class="w-full border rounded px-2 py-1 text-sm"></select>
+
+          <div class="search-wrapper">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="M21 21l-4.35-4.35"></path>
+            </svg>
+            <input id="search-input" type="search" class="search-input" placeholder="Search results..." />
+          </div>
+
+          <div class="dropdown">
+            <button id="actions-toggle" class="btn btn-primary">
+              <span>Actions</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+            <div id="actions-menu" class="dropdown-menu">
+              <button class="dropdown-item" data-action="refresh">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6M1 20v-6h6"/>
+                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                </svg>
+                Refresh
+              </button>
+              <button class="dropdown-item" data-action="rerun">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Rerun Evals
+              </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" data-action="export-json">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export JSON
+              </button>
+              <button class="dropdown-item" data-action="export-csv">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export CSV
+              </button>
             </div>
-            <div id="value-section">
-              <div class="text-xs font-semibold text-gray-500 mb-1">Score Value</div>
-              <div class="grid grid-cols-5 gap-2 items-center">
-                <div class="col-span-2 text-xs text-gray-400">Value condition</div>
-                <select id="fv-op" class="border rounded px-2 py-1 text-sm">
-                  <option value=">">&gt;</option>
-                  <option value=">=">&gt;=</option>
-                  <option value="<">&lt;</option>
-                  <option value="<=">&lt;=</option>
-                  <option value="==">=</option>
-                  <option value="!=">!=</option>
-                </select>
-                <input id="fv-val" type="number" step="any" placeholder="value" class="border rounded px-2 py-1 text-sm" />
-                <button id="add-fv" class="text-xs px-2 py-1 border rounded">Add</button>
+          </div>
+
+          <div class="dropdown" style="position: relative;">
+            <button id="filters-toggle" class="btn btn-ghost" style="position: relative;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              <span id="filters-count-badge" class="filter-badge"></span>
+            </button>
+            <div id="filters-menu" class="filters-panel">
+              <div class="filters-header">
+                <span class="filters-title">Filters</span>
+                <button id="clear-filters" class="filter-btn">Clear All</button>
               </div>
-            </div>
-            <div id="passed-section">
-              <div class="text-xs font-semibold text-gray-500 mb-1">Score Passed</div>
-              <div class="grid grid-cols-5 gap-2 items-center">
-                <div class="col-span-3 text-xs text-gray-400">Boolean condition</div>
-                <select id="fp-val" class="border rounded px-2 py-1 text-sm">
-                  <option value="true">Pass</option>
-                  <option value="false">Fail</option>
-                </select>
-                <button id="add-fp" class="text-xs px-2 py-1 border rounded">Add</button>
+
+              <div class="filter-section">
+                <div class="filter-label">Score Key</div>
+                <select id="key-select" class="filter-select"></select>
               </div>
-            </div>
-            <div>
-              <div class="text-xs font-semibold text-gray-500 mb-1">Has Annotation</div>
-              <div class="flex items-center gap-2">
-                <select id="fa-val" class="border rounded px-2 py-1 text-sm">
+
+              <div class="filter-section" id="value-section">
+                <div class="filter-label">Value Condition</div>
+                <div class="filter-row">
+                  <select id="fv-op" class="filter-select" style="flex: 0 0 70px;">
+                    <option value=">">&gt;</option>
+                    <option value=">=">&gt;=</option>
+                    <option value="<">&lt;</option>
+                    <option value="<=">&lt;=</option>
+                    <option value="==">=</option>
+                    <option value="!=">!=</option>
+                  </select>
+                  <input id="fv-val" type="number" step="any" placeholder="value" class="filter-input" />
+                  <button id="add-fv" class="filter-btn">Add</button>
+                </div>
+              </div>
+
+              <div class="filter-section" id="passed-section">
+                <div class="filter-label">Pass/Fail</div>
+                <div class="filter-row">
+                  <select id="fp-val" class="filter-select">
+                    <option value="true">Passed</option>
+                    <option value="false">Failed</option>
+                  </select>
+                  <button id="add-fp" class="filter-btn">Add</button>
+                </div>
+              </div>
+
+              <div class="filter-section">
+                <div class="filter-label">Has Annotation</div>
+                <select id="fa-val" class="filter-select">
                   <option value="any">Any</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
                 </select>
-                <span class="text-xs text-gray-400">Filters apply automatically</span>
+              </div>
+
+              <div class="filter-section">
+                <div class="filter-label">Active Filters</div>
+                <div id="active-filters" class="active-filters"></div>
               </div>
             </div>
-            <div>
-              <div class="text-xs font-semibold text-gray-500 mb-1">Active Filters</div>
-              <div id="active-filters" class="flex flex-wrap gap-2 min-h-[1.25rem]"></div>
+          </div>
+
+          <div class="dropdown">
+            <button id="columns-toggle" class="btn btn-ghost">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </button>
+            <div id="columns-menu" class="columns-panel">
+              <div class="filters-title" style="margin-bottom: 12px;">Toggle Columns</div>
+              <label class="column-toggle"><input type="checkbox" data-col="function" checked /><span>Function</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="dataset" checked /><span>Dataset</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="labels" checked /><span>Labels</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="input" checked /><span>Input</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="output" checked /><span>Output</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="reference" checked /><span>Reference</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="error" checked /><span>Error</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="scores" checked /><span>Scores</span></label>
+              <label class="column-toggle"><input type="checkbox" data-col="latency" checked /><span>Latency</span></label>
+              <div class="panel-actions">
+                <button id="reset-columns">Reset Cols</button>
+                <button id="reset-sorting">Reset Sort</button>
+                <button id="reset-widths">Reset Width</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="relative">
-        <button id="columns-toggle" class="px-3 py-2 bg-gray-100 border rounded">
-          Columns ▾
-        </button>
-        <div
-          id="columns-menu"
-          class="hidden absolute right-0 mt-2 w-56 bg-white border rounded shadow z-10 p-3"
-        >
-          <p class="text-sm font-semibold mb-2">Toggle columns</p>
-          <div class="space-y-1 text-sm">
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="function" checked /> Function
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="dataset" checked /> Dataset
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="labels" checked /> Labels
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="input" checked /> Input
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="output" checked /> Output
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="reference" checked /> Reference
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="error" checked /> Error
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="scores" checked /> Scores
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" data-col="latency" checked /> Latency
-            </label>
-          </div>
-          <div class="mt-3 border-t pt-3 flex items-center gap-2">
-            <button id="reset-columns" class="text-xs px-2 py-1 border rounded">
-              Reset Columns
-            </button>
-            <button id="reset-sorting" class="text-xs px-2 py-1 border rounded">
-              Reset Sorting
-            </button>
-            <button id="reset-widths" class="text-xs px-2 py-1 border rounded">
-              Reset Widths
-            </button>
-          </div>
-        </div>
-      </div>
+      </header>
+
+      <div id="results" hx-get="/results" hx-trigger="load" hx-swap="innerHTML"></div>
     </div>
 
-    <div
-      id="results"
-      hx-get="/results"
-      hx-trigger="load"
-      hx-swap="innerHTML"
-    ></div>
-
     <script>
-      // Dropdown toggle
-      const toggleBtn = document.getElementById("columns-toggle");
-      const menuEl = document.getElementById("columns-menu");
-      toggleBtn.addEventListener("click", () => {
-        menuEl.classList.toggle("hidden");
-      });
-      document.addEventListener("click", (e) => {
-        if (!menuEl.contains(e.target) && e.target !== toggleBtn) {
-          menuEl.classList.add("hidden");
-        }
-      });
-
+      // Storage keys
       const STORAGE_KEY = "twevals:hidden_columns";
       const SORT_STORAGE_KEY = "twevals:sort_state";
       const WIDTHS_STORAGE_KEY = "twevals:col_widths";
       const EXPANDED_ROW_KEY = "twevals:expanded_row";
       const FILTERS_STORAGE_KEY = "twevals:filters";
+
+      // Helpers
       function getHiddenCols() {
-        try {
-          return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-        } catch {
-          return [];
-        }
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
       }
-      function setHiddenCols(cols) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
-      }
+      function setHiddenCols(cols) { localStorage.setItem(STORAGE_KEY, JSON.stringify(cols)); }
       function getSortState() {
-        try {
-          return JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) || "[]");
-        } catch {
-          return [];
-        }
+        try { return JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) || "[]"); } catch { return []; }
       }
-      function setSortState(state) {
-        localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(state));
-      }
+      function setSortState(state) { localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(state)); }
       function getColWidths() {
-        try {
-          return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}");
-        } catch {
-          return {};
-        }
+        try { return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}"); } catch { return {}; }
       }
-      function setColWidths(map) {
-        localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map));
-      }
-      // Filters state helpers
+      function setColWidths(map) { localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map)); }
       function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any' }; }
       function getFilters() {
-        try { return JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) || 'null') || defaultFilters(); }
-        catch { return defaultFilters(); }
+        try { return JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) || 'null') || defaultFilters(); } catch { return defaultFilters(); }
       }
       function setFilters(f) {
         localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(f));
         renderActiveFilters();
         applyAllFilters();
       }
+
+      // Dropdown toggles
+      function setupDropdown(toggleId, menuId, panelClass = 'dropdown-menu') {
+        const toggle = document.getElementById(toggleId);
+        const menu = document.getElementById(menuId);
+        if (!toggle || !menu) return;
+
+        toggle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isActive = menu.classList.contains('active');
+          document.querySelectorAll('.dropdown-menu.active, .filters-panel.active, .columns-panel.active').forEach(m => m.classList.remove('active'));
+          if (!isActive) menu.classList.add('active');
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.dropdown')) {
+          document.querySelectorAll('.dropdown-menu.active, .filters-panel.active, .columns-panel.active').forEach(m => m.classList.remove('active'));
+        }
+      });
+
+      setupDropdown('actions-toggle', 'actions-menu');
+      setupDropdown('filters-toggle', 'filters-menu');
+      setupDropdown('columns-toggle', 'columns-menu');
+
+      // Render active filters
       function renderActiveFilters() {
         const f = getFilters();
         const ct = document.getElementById('active-filters');
@@ -253,263 +740,99 @@
         if (!ct) return;
         ct.innerHTML = '';
         let count = 0;
+
         f.valueRules.forEach((r, idx) => {
           count++;
           const el = document.createElement('span');
-          el.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs';
-          el.textContent = `${r.key} ${r.op} ${r.value}`;
-          const x = document.createElement('button'); x.className='ml-1 text-gray-500 hover:text-gray-700'; x.textContent='×';
-          x.onclick = () => { const nf = getFilters(); nf.valueRules.splice(idx,1); setFilters(nf); };
-          el.appendChild(x);
+          el.className = 'filter-chip';
+          el.innerHTML = `${r.key} ${r.op} ${r.value}<button onclick="removeValueRule(${idx})">×</button>`;
           ct.appendChild(el);
         });
+
         f.passedRules.forEach((r, idx) => {
           count++;
           const el = document.createElement('span');
-          el.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs';
-          el.textContent = `${r.key} passed=${r.value}`;
-          const x = document.createElement('button'); x.className='ml-1 text-gray-500 hover:text-gray-700'; x.textContent='×';
-          x.onclick = () => { const nf = getFilters(); nf.passedRules.splice(idx,1); setFilters(nf); };
-          el.appendChild(x);
+          el.className = 'filter-chip';
+          el.innerHTML = `${r.key} = ${r.value ? 'pass' : 'fail'}<button onclick="removePassedRule(${idx})">×</button>`;
           ct.appendChild(el);
         });
+
         if (f.annotation && f.annotation !== 'any') {
           count++;
           const el = document.createElement('span');
-          el.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs';
-          el.textContent = `annotation: ${f.annotation}`;
-          const x = document.createElement('button'); x.className='ml-1 text-gray-500 hover:text-gray-700'; x.textContent='×';
-          x.onclick = () => { const nf = getFilters(); nf.annotation = 'any'; setFilters(nf); };
-          el.appendChild(x);
+          el.className = 'filter-chip';
+          el.innerHTML = `annotation: ${f.annotation}<button onclick="removeAnnotationFilter()">×</button>`;
           ct.appendChild(el);
         }
+
         if (badge) {
-          if (count > 0) { badge.textContent = String(count); badge.classList.remove('hidden'); }
-          else { badge.textContent = ''; badge.classList.add('hidden'); }
+          badge.textContent = count;
+          badge.classList.toggle('active', count > 0);
         }
       }
+
+      window.removeValueRule = (idx) => { const f = getFilters(); f.valueRules.splice(idx, 1); setFilters(f); };
+      window.removePassedRule = (idx) => { const f = getFilters(); f.passedRules.splice(idx, 1); setFilters(f); };
+      window.removeAnnotationFilter = () => { const f = getFilters(); f.annotation = 'any'; setFilters(f); };
+
+      // Column visibility
       function applyColumnVisibility() {
         const hidden = new Set(getHiddenCols());
-        const resultsTable = document.getElementById("results-table");
-        if (!resultsTable) return;
-        const allCols = [
-          "function",
-          "dataset",
-          "labels",
-          "input",
-          "output",
-          "reference",
-          "error",
-          "scores",
-          "latency",
-        ];
+        const allCols = ["function", "dataset", "labels", "input", "output", "reference", "error", "scores", "latency"];
         for (const col of allCols) {
           const isHidden = hidden.has(col);
-          const selector = `[data-col="${col}"]`;
-          document
-            .querySelectorAll(`#results-table thead th${selector}, #results-table tbody td${selector}`)
-            .forEach((el) => {
-              if (isHidden) el.classList.add("hidden");
-              else el.classList.remove("hidden");
-            });
+          document.querySelectorAll(`#results-table [data-col="${col}"]`).forEach((el) => {
+            el.classList.toggle('hidden', isHidden);
+          });
         }
-        // Sync checkboxes
-        document
-          .querySelectorAll('#columns-menu input[type="checkbox"][data-col]')
-          .forEach((cb) => {
-            cb.checked = !hidden.has(cb.getAttribute("data-col"));
-          });
-      }
-
-      function onToggleCheckbox(e) {
-        const col = e.target.getAttribute("data-col");
-        const hidden = new Set(getHiddenCols());
-        if (e.target.checked) hidden.delete(col);
-        else hidden.add(col);
-        setHiddenCols([...hidden]);
-        applyColumnVisibility();
-      }
-
-      // Apply stored column widths
-      function applyColumnWidths(table) {
-        if (!table) return;
-        const widths = getColWidths();
-        Object.keys(widths).forEach((col) => {
-          const w = widths[col];
-          if (!w) return;
-          const selector = `[data-col="${col}"]`;
-          table
-            .querySelectorAll(`thead th${selector}, tbody td${selector}`)
-            .forEach((el) => {
-              el.style.width = `${w}px`;
-              el.style.minWidth = `${w}px`;
-              el.style.maxWidth = `${w}px`;
-            });
+        document.querySelectorAll('#columns-menu input[data-col]').forEach((cb) => {
+          cb.checked = !hidden.has(cb.getAttribute("data-col"));
         });
       }
 
-      // Initialize resizers on table headers
-      function initResizableColumns(table) {
-        if (!table) return;
-        const widths = getColWidths();
-        const ths = table.querySelectorAll('thead th[data-col]');
-        ths.forEach((th) => {
-          // Ensure relative positioning for the handle
-          if (getComputedStyle(th).position === 'static') {
-            th.style.position = 'relative';
-          }
-          // Avoid duplicating handles if re-initialized
-          if (th.querySelector('.col-resizer')) return;
-
-          const handle = document.createElement('div');
-          handle.className = 'col-resizer';
-          handle.setAttribute('aria-hidden', 'true');
-          th.appendChild(handle);
-
-          let startX = 0;
-          let startWidth = 0;
-          let colKey = th.getAttribute('data-col');
-
-          const minWidth = 60; // px
-          const maxWidth = 1000; // px
-
-          function onMouseMove(e) {
-            const dx = e.clientX - startX;
-            let newW = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
-            const selector = `[data-col="${colKey}"]`;
-            table
-              .querySelectorAll(`thead th${selector}, tbody td${selector}`)
-              .forEach((el) => {
-                el.style.width = `${newW}px`;
-                el.style.minWidth = `${newW}px`;
-                el.style.maxWidth = `${newW}px`;
-              });
-          }
-
-          function onMouseUp(e) {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.body.classList.remove('twevals-col-resize');
-            // Persist final width
-            const currentWidth = th.getBoundingClientRect().width;
-            const map = getColWidths();
-            map[colKey] = Math.round(currentWidth);
-            setColWidths(map);
-          }
-
-          handle.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            e.stopPropagation(); // don't trigger sort
-            startX = e.clientX;
-            startWidth = th.getBoundingClientRect().width;
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-            document.body.classList.add('twevals-col-resize');
-          });
-
-          // Prevent stray click event triggering sort
-          handle.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          });
-
-          // Apply stored width initially
-          const saved = widths[colKey];
-          if (saved) {
-            const selector = `[data-col="${colKey}"]`;
-            table
-              .querySelectorAll(`thead th${selector}, tbody td${selector}`)
-              .forEach((el) => {
-                el.style.width = `${saved}px`;
-                el.style.minWidth = `${saved}px`;
-                el.style.maxWidth = `${saved}px`;
-              });
-          }
+      document.querySelectorAll('#columns-menu input[data-col]').forEach((cb) => {
+        cb.addEventListener("change", (e) => {
+          const col = e.target.getAttribute("data-col");
+          const hidden = new Set(getHiddenCols());
+          if (e.target.checked) hidden.delete(col);
+          else hidden.add(col);
+          setHiddenCols([...hidden]);
+          applyColumnVisibility();
         });
-      }
-
-      // Attach listeners for checkboxes
-      document
-        .querySelectorAll('#columns-menu input[type="checkbox"][data-col]')
-        .forEach((cb) => cb.addEventListener("change", onToggleCheckbox));
+      });
 
       // Reset buttons
-      document.getElementById("reset-columns").addEventListener("click", () => {
+      document.getElementById("reset-columns")?.addEventListener("click", () => {
         setHiddenCols([]);
         applyColumnVisibility();
-        menuEl.classList.add("hidden");
       });
-      document.getElementById("reset-sorting").addEventListener("click", () => {
+      document.getElementById("reset-sorting")?.addEventListener("click", () => {
         setSortState([]);
         const table = document.getElementById("results-table");
         if (table) applySortState(table);
-        menuEl.classList.add("hidden");
       });
-      document.getElementById("reset-widths").addEventListener("click", () => {
+      document.getElementById("reset-widths")?.addEventListener("click", () => {
         setColWidths({});
-        const table = document.getElementById("results-table");
-        if (!table) return;
-        // Remove inline widths
-        table.querySelectorAll('th[data-col], td[data-col]').forEach((el) => {
+        document.querySelectorAll('#results-table th[data-col], #results-table td[data-col]').forEach((el) => {
           el.style.width = '';
           el.style.minWidth = '';
           el.style.maxWidth = '';
         });
-        menuEl.classList.add("hidden");
       });
 
-      // Filters menu wiring and anchoring to header toggle
-      (function wireFiltersMenu(){
-        const menu = document.getElementById('filters-menu');
-        const toggle = document.getElementById('filters-toggle');
-        if (!menu || !toggle) return;
-        let currentAnchor = null;
-        function openMenuAt(el){
-          try { populateScoreKeySelects(); } catch {}
-          try { const f = getFilters(); const fa = document.getElementById('fa-val'); if (fa) fa.value = f.annotation || 'any'; } catch {}
-          const rect = el.getBoundingClientRect();
-          // Measure menu (unhide off-screen temporarily)
-          menu.classList.remove('hidden');
-          const prevVis = menu.style.visibility;
-          menu.style.visibility = 'hidden';
-          // Ensure fixed positioning
-          menu.style.position = 'fixed';
-          let mw = menu.offsetWidth || 0;
-          let mh = menu.offsetHeight || 0;
-          // Right-align to the trigger's right edge
-          let left = Math.round(rect.right - mw);
-          // Below the header cell by default
-          let top = Math.round(rect.bottom + 6);
-          // If bottom overflows viewport, try opening above
-          const vpW = window.innerWidth;
-          const vpH = window.innerHeight;
-          if (top + mh > vpH - 8) {
-            top = Math.round(rect.top - mh - 6);
-          }
-          // Clamp within viewport with small margin
-          left = Math.max(8, Math.min(left, vpW - mw - 8));
-          top = Math.max(8, Math.min(top, vpH - mh - 8));
-          menu.style.left = `${left}px`;
-          menu.style.top = `${top}px`;
-          menu.style.right = 'auto';
-          // Show
-          menu.style.visibility = prevVis || '';
-          currentAnchor = el;
-        }
-        function closeMenu(){ menu.classList.add('hidden'); currentAnchor = null; }
-        // Toggle open/close anchored to header button
-        toggle.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!menu.classList.contains('hidden') && currentAnchor === toggle) closeMenu();
-          else openMenuAt(toggle);
-        });
-        // Outside click closes
-        document.addEventListener('click', (e) => { if (!menu.contains(e.target) && e.target !== toggle) closeMenu(); });
+      // Clear filters
+      document.getElementById('clear-filters')?.addEventListener('click', () => setFilters(defaultFilters()));
+
+      // Filter wiring
+      (function wireFilters() {
         const keySelect = document.getElementById('key-select');
         const addFv = document.getElementById('add-fv');
         const fvOp = document.getElementById('fv-op');
         const fvVal = document.getElementById('fv-val');
+        const addFp = document.getElementById('add-fp');
+        const fpVal = document.getElementById('fp-val');
+        const faVal = document.getElementById('fa-val');
+
         if (addFv) addFv.addEventListener('click', () => {
           const k = (keySelect?.value || '').trim();
           const v = parseFloat(fvVal.value);
@@ -519,8 +842,7 @@
           setFilters(f);
           fvVal.value = '';
         });
-        const addFp = document.getElementById('add-fp');
-        const fpVal = document.getElementById('fp-val');
+
         if (addFp) addFp.addEventListener('click', () => {
           const k = (keySelect?.value || '').trim();
           if (!k) return;
@@ -528,22 +850,20 @@
           f.passedRules.push({ key: k, value: fpVal.value === 'true' });
           setFilters(f);
         });
-        const faVal = document.getElementById('fa-val');
+
         if (faVal) faVal.addEventListener('change', () => {
           const f = getFilters();
           f.annotation = faVal.value;
           setFilters(f);
         });
-        const clearBtn = document.getElementById('clear-filters');
-        if (clearBtn) clearBtn.addEventListener('click', () => { setFilters(defaultFilters()); });
+
         renderActiveFilters();
-        const ksSel = document.getElementById('key-select');
-        if (ksSel) ksSel.addEventListener('change', updateFilterSectionsVisibility);
       })();
 
-      function computeScoreKeys(){
+      // Score keys for filter dropdown
+      function computeScoreKeys() {
         const tbody = document.querySelector('#results-table tbody');
-        if (!tbody) return [];
+        if (!tbody) return { all: [], meta: {} };
         const keys = new Set();
         const meta = {};
         tbody.querySelectorAll("tr[data-row='detail']").forEach(tr => {
@@ -553,15 +873,14 @@
             const k = s && s.key; if (!k) return;
             keys.add(k);
             const m = meta[k] || (meta[k] = { hasNumeric: false, hasPassed: false });
-            const v = parseFloat(s.value);
-            if (!Number.isNaN(v)) m.hasNumeric = true;
+            if (!Number.isNaN(parseFloat(s.value))) m.hasNumeric = true;
             if (s.passed === true || s.passed === false) m.hasPassed = true;
           });
         });
-        const arr = Array.from(keys).sort((a,b) => a.localeCompare(b));
-        return { all: arr, meta };
+        return { all: Array.from(keys).sort(), meta };
       }
-      function populateScoreKeySelects(){
+
+      function populateScoreKeySelects() {
         const ks = computeScoreKeys();
         const sel = document.getElementById('key-select');
         if (!sel) return;
@@ -571,25 +890,28 @@
         if (current && ks.all.includes(current)) sel.value = current; else if (ks.all.length) sel.value = ks.all[0];
         updateFilterSectionsVisibility();
       }
-      function updateFilterSectionsVisibility(){
+
+      function updateFilterSectionsVisibility() {
         const sel = document.getElementById('key-select');
         const ks = computeScoreKeys();
         const k = sel?.value || '';
         const m = ks.meta[k] || { hasNumeric: false, hasPassed: false };
-        const valSec = document.getElementById('value-section');
-        const passSec = document.getElementById('passed-section');
-        if (valSec) valSec.classList.toggle('hidden', !m.hasNumeric);
-        if (passSec) passSec.classList.toggle('hidden', !m.hasPassed);
+        document.getElementById('value-section')?.classList.toggle('hidden', !m.hasNumeric);
+        document.getElementById('passed-section')?.classList.toggle('hidden', !m.hasPassed);
       }
 
-      // Multi-column sorting
+      document.getElementById('key-select')?.addEventListener('change', updateFilterSectionsVisibility);
+
+      // Sorting
       const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
       function getCellValue(tr, col) {
         const td = tr.querySelector(`td[data-col="${col}"]`);
         if (!td) return "";
         const dv = td.getAttribute("data-value");
         return dv !== null ? dv : td.textContent.trim();
       }
+
       function parseValue(value, type) {
         if (type === "number") {
           const num = parseFloat(value);
@@ -597,70 +919,55 @@
         }
         return value;
       }
+
       function compareValues(a, b, type) {
-        if (type === "number") {
-          return a - b;
-        }
+        if (type === "number") return a - b;
         return collator.compare(a, b);
       }
+
       function applySortState(table) {
         const state = getSortState();
         const headers = table.querySelectorAll("thead th[data-col]");
         headers.forEach((th) => th.setAttribute("aria-sort", "none"));
         const tbody = table.querySelector("tbody");
         const mainRows = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
-        // store original index for stable sort (only once) on main rows only
+
         mainRows.forEach((tr, i) => {
-          if (!tr.hasAttribute("data-orig-index")) {
-            tr.setAttribute("data-orig-index", String(i));
-          }
+          if (!tr.hasAttribute("data-orig-index")) tr.setAttribute("data-orig-index", String(i));
         });
 
         if (!state.length) {
-          // Reset to original order: append main rows with their detail rows
-          mainRows
-            .slice()
-            .sort(
-              (a, b) =>
-                Number(a.getAttribute("data-orig-index")) -
-                Number(b.getAttribute("data-orig-index"))
-            )
-            .forEach((tr) => {
-              const id = tr.getAttribute('data-row-id');
-              const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
-              tbody.appendChild(tr);
-              if (detail) tbody.appendChild(detail);
-            });
-          return;
-        }
-
-        // Update header aria-sort
-        state.forEach((s) => {
-          const th = table.querySelector(`thead th[data-col="${s.col}"]`);
-          if (th) th.setAttribute("aria-sort", s.dir === "asc" ? "ascending" : "descending");
-        });
-
-        mainRows
-          .slice()
-          .sort((ra, rb) => {
-            for (const s of state) {
-              const type = s.type || "string";
-              const va = parseValue(getCellValue(ra, s.col), type);
-              const vb = parseValue(getCellValue(rb, s.col), type);
-              const cmp = compareValues(va, vb, type);
-              if (cmp !== 0) return s.dir === "asc" ? cmp : -cmp;
-            }
-            return (
-              Number(ra.getAttribute("data-orig-index")) -
-              Number(rb.getAttribute("data-orig-index"))
-            );
-          })
-          .forEach((tr) => {
+          mainRows.slice().sort((a, b) =>
+            Number(a.getAttribute("data-orig-index")) - Number(b.getAttribute("data-orig-index"))
+          ).forEach((tr) => {
             const id = tr.getAttribute('data-row-id');
             const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
             tbody.appendChild(tr);
             if (detail) tbody.appendChild(detail);
           });
+          return;
+        }
+
+        state.forEach((s) => {
+          const th = table.querySelector(`thead th[data-col="${s.col}"]`);
+          if (th) th.setAttribute("aria-sort", s.dir === "asc" ? "ascending" : "descending");
+        });
+
+        mainRows.slice().sort((ra, rb) => {
+          for (const s of state) {
+            const type = s.type || "string";
+            const va = parseValue(getCellValue(ra, s.col), type);
+            const vb = parseValue(getCellValue(rb, s.col), type);
+            const cmp = compareValues(va, vb, type);
+            if (cmp !== 0) return s.dir === "asc" ? cmp : -cmp;
+          }
+          return Number(ra.getAttribute("data-orig-index")) - Number(rb.getAttribute("data-orig-index"));
+        }).forEach((tr) => {
+          const id = tr.getAttribute('data-row-id');
+          const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
+          tbody.appendChild(tr);
+          if (detail) tbody.appendChild(detail);
+        });
       }
 
       function toggleSort(table, col, type, multi) {
@@ -669,7 +976,7 @@
         if (multi) {
           if (idx === -1) state.push({ col, dir: "asc", type });
           else if (state[idx].dir === "asc") state[idx].dir = "desc";
-          else state.splice(idx, 1); // remove if toggled past desc
+          else state.splice(idx, 1);
         } else {
           if (idx === 0 && state[0].dir === "asc") state = [{ col, dir: "desc", type }];
           else if (idx === 0 && state[0].dir === "desc") state = [];
@@ -679,25 +986,6 @@
         applySortState(table);
       }
 
-      // Wire header clicks and initialize after results load/swap
-      document.addEventListener("htmx:afterSwap", function (e) {
-        if (e.target.id === "results") {
-          const table = document.getElementById("results-table");
-          if (table) applySortState(table);
-          applyColumnVisibility();
-          if (table) {
-            applyColumnWidths(table);
-            initResizableColumns(table);
-          }
-          initExpandHandlers();
-          initInlineEditing();
-          restoreExpandedRow();
-          wireActionsMenu();
-          try { populateScoreKeySelects(); applyAllFilters(); } catch {}
-        }
-      });
-
-      // Delegate click on table headers for sorting (supports Shift+click)
       document.addEventListener("click", function (e) {
         const th = e.target.closest("#results thead th[data-col]");
         if (!th) return;
@@ -708,7 +996,80 @@
         toggleSort(table, col, type, e.shiftKey);
       });
 
-      // Client-side filtering (search + advanced)
+      // Column widths
+      function applyColumnWidths(table) {
+        if (!table) return;
+        const widths = getColWidths();
+        Object.keys(widths).forEach((col) => {
+          const w = widths[col];
+          if (!w) return;
+          table.querySelectorAll(`[data-col="${col}"]`).forEach((el) => {
+            el.style.width = `${w}px`;
+            el.style.minWidth = `${w}px`;
+            el.style.maxWidth = `${w}px`;
+          });
+        });
+      }
+
+      function initResizableColumns(table) {
+        if (!table) return;
+        const widths = getColWidths();
+        const ths = table.querySelectorAll('thead th[data-col]');
+        ths.forEach((th) => {
+          if (getComputedStyle(th).position === 'static') th.style.position = 'relative';
+          if (th.querySelector('.col-resizer')) return;
+
+          const handle = document.createElement('div');
+          handle.className = 'col-resizer';
+          th.appendChild(handle);
+
+          let startX = 0, startWidth = 0;
+          const colKey = th.getAttribute('data-col');
+          const minWidth = 60, maxWidth = 1000;
+
+          function onMouseMove(e) {
+            const dx = e.clientX - startX;
+            let newW = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+            table.querySelectorAll(`[data-col="${colKey}"]`).forEach((el) => {
+              el.style.width = `${newW}px`;
+              el.style.minWidth = `${newW}px`;
+              el.style.maxWidth = `${newW}px`;
+            });
+          }
+
+          function onMouseUp() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.body.classList.remove('twevals-col-resize');
+            const map = getColWidths();
+            map[colKey] = Math.round(th.getBoundingClientRect().width);
+            setColWidths(map);
+          }
+
+          handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startX = e.clientX;
+            startWidth = th.getBoundingClientRect().width;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            document.body.classList.add('twevals-col-resize');
+          });
+
+          handle.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+          const saved = widths[colKey];
+          if (saved) {
+            table.querySelectorAll(`[data-col="${colKey}"]`).forEach((el) => {
+              el.style.width = `${saved}px`;
+              el.style.minWidth = `${saved}px`;
+              el.style.maxWidth = `${saved}px`;
+            });
+          }
+        });
+      }
+
+      // Search & filtering
       const searchInput = document.getElementById('search-input');
       if (searchInput) {
         let timer;
@@ -717,7 +1078,8 @@
           timer = setTimeout(applyAllFilters, 120);
         });
       }
-      function compare(op, a, b){
+
+      function compare(op, a, b) {
         if (op === '>') return a > b;
         if (op === '>=') return a >= b;
         if (op === '<') return a < b;
@@ -727,7 +1089,7 @@
         return false;
       }
 
-      function rowMatchesFilters(mainTr, detailTr){
+      function rowMatchesFilters(mainTr, detailTr) {
         const f = getFilters();
         if (f.annotation && f.annotation !== 'any') {
           const ann = (detailTr?.getAttribute('data-original-annotation') || '').trim();
@@ -737,22 +1099,22 @@
         }
         let scores = [];
         try { scores = JSON.parse(detailTr?.getAttribute('data-original-scores') || '[]') || []; } catch {}
-        for (const vr of (f.valueRules || [])){
-          const s = scores.find(x => (x && (x.key === vr.key)));
+        for (const vr of (f.valueRules || [])) {
+          const s = scores.find(x => x && x.key === vr.key);
           if (!s) return false;
           const val = parseFloat(s.value);
           if (Number.isNaN(val)) return false;
           if (!compare(vr.op, val, vr.value)) return false;
         }
-        for (const pr of (f.passedRules || [])){
-          const s = scores.find(x => (x && (x.key === pr.key)));
+        for (const pr of (f.passedRules || [])) {
+          const s = scores.find(x => x && x.key === pr.key);
           if (!s) return false;
           if ((s.passed === true) !== (pr.value === true)) return false;
         }
         return true;
       }
 
-      function applyAllFilters(){
+      function applyAllFilters() {
         const q = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
         const tbody = document.querySelector('#results-table tbody');
         if (!tbody) return;
@@ -767,25 +1129,27 @@
           }
           if (show) show = rowMatchesFilters(tr, detail);
           tr.classList.toggle('hidden', !show);
-          if (!show && detail && detail.getAttribute('hidden') === null) {
-            detail.setAttribute('hidden', '');
-          }
+          if (!show && detail && !detail.hasAttribute('hidden')) detail.setAttribute('hidden', '');
         });
         updateFilteredSummary();
       }
 
-      function updateFilteredSummary(){
+      function updateFilteredSummary() {
         const container = document.getElementById('filtered-summary');
         const table = document.getElementById('results-table');
         if (!container || !table) return;
         const tbody = table.querySelector('tbody');
         const mains = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
         const visible = mains.filter(tr => !tr.classList.contains('hidden'));
-        const hasActive = (() => { const f = getFilters(); return (f.valueRules.length + f.passedRules.length + (f.annotation!=='any'?1:0)) > 0 || (document.getElementById('search-input')?.value || '').trim().length>0; })();
+        const hasActive = (() => {
+          const f = getFilters();
+          return (f.valueRules.length + f.passedRules.length + (f.annotation !== 'any' ? 1 : 0)) > 0 ||
+            (document.getElementById('search-input')?.value || '').trim().length > 0;
+        })();
         container.classList.toggle('hidden', !hasActive);
         if (!hasActive) return;
-        const countEl = document.getElementById('filtered-count-chip');
-        if (countEl) countEl.textContent = `Filtered: ${visible.length}/${mains.length}`;
+        document.getElementById('filtered-count-chip').textContent = `Filtered: ${visible.length}/${mains.length}`;
+
         let sum = 0, cnt = 0;
         visible.forEach(tr => {
           const td = tr.querySelector("td[data-col='latency']");
@@ -793,7 +1157,8 @@
           if (!Number.isNaN(v)) { sum += v; cnt += 1; }
         });
         const avgEl = document.getElementById('filtered-avg-latency');
-        if (avgEl) avgEl.textContent = cnt>0 ? `Avg: ${(sum/cnt).toFixed(2)}s` : 'Avg: —';
+        if (avgEl) avgEl.textContent = cnt > 0 ? `Avg: ${(sum / cnt).toFixed(2)}s` : 'Avg: —';
+
         const chipsEl = document.getElementById('filtered-score-chips');
         if (chipsEl) chipsEl.innerHTML = '';
         const map = {};
@@ -804,46 +1169,38 @@
           try { scores = JSON.parse(det?.getAttribute('data-original-scores') || '[]') || []; } catch {}
           scores.forEach(s => {
             const key = s?.key; if (!key) return;
-            const d = map[key] || (map[key] = {passed:0, failed:0, bool:0, sum:0, count:0});
+            const d = map[key] || (map[key] = { passed: 0, failed: 0, bool: 0, sum: 0, count: 0 });
             if (s.passed === true) { d.passed++; d.bool++; }
             else if (s.passed === false) { d.failed++; d.bool++; }
             const val = parseFloat(s.value);
             if (!Number.isNaN(val)) { d.sum += val; d.count += 1; }
           });
         });
-        Object.entries(map).forEach(([k,d]) => {
+        Object.entries(map).forEach(([k, d]) => {
           const el = document.createElement('span');
-          el.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium mr-1';
-          if (d.bool>0){
+          el.className = 'stat-chip';
+          if (d.bool > 0) {
             const total = d.passed + d.failed;
-            let klass = 'bg-yellow-100 text-yellow-800';
-            if (d.passed === total) klass = 'bg-green-100 text-green-800';
-            else if (d.passed === 0 && total>0) klass = 'bg-red-100 text-red-800';
-            el.className += ' ' + klass;
+            el.classList.add(d.passed === total ? 'success' : d.passed === 0 ? 'error' : 'warning');
             el.textContent = `${k}: ${d.passed}/${total}`;
-          } else if (d.count>0){
-            el.className += ' bg-slate-100 text-slate-800';
-            el.textContent = `${k}: ${(d.sum/d.count).toFixed(2)}`;
-          } else {
-            return;
-          }
+          } else if (d.count > 0) {
+            el.textContent = `${k}: ${(d.sum / d.count).toFixed(2)}`;
+          } else return;
           chipsEl?.appendChild(el);
         });
       }
 
-      // Expand/collapse logic
+      // Expand/collapse
       function initExpandHandlers() {
         const container = document.getElementById('results');
-        if (!container) return;
         const tbody = document.querySelector('#results-table tbody');
-        if (!tbody) return;
+        if (!container || !tbody) return;
 
         function closeAll() {
           tbody.querySelectorAll("tr[data-row='detail']").forEach((tr) => tr.setAttribute('hidden', ''));
           container.querySelectorAll('.expand-btn[aria-expanded="true"]').forEach((b) => {
             b.setAttribute('aria-expanded', 'false');
-            const icon = b.querySelector('.icon');
-            if (icon) icon.textContent = '▸';
+            b.querySelector('.icon').textContent = '▸';
           });
         }
 
@@ -854,13 +1211,11 @@
           closeAll();
           detail.removeAttribute('hidden');
           btn.setAttribute('aria-expanded', 'true');
-          const icon = btn.querySelector('.icon');
-          if (icon) icon.textContent = '▾';
+          btn.querySelector('.icon').textContent = '▾';
           try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
         }
 
         container.querySelectorAll('.expand-btn').forEach((btn) => {
-          // Remove previous listener by cloning
           const clone = btn.cloneNode(true);
           btn.parentNode.replaceChild(clone, btn);
           clone.addEventListener('click', (e) => {
@@ -878,15 +1233,14 @@
           });
         });
 
-        // helper to restore after refresh
-        window.restoreExpandedRow = function restoreExpandedRow() {
+        window.restoreExpandedRow = function() {
           let rowId = null;
           try { rowId = localStorage.getItem(EXPANDED_ROW_KEY); } catch {}
           if (rowId) openRow(rowId);
-        }
+        };
       }
 
-      // Inline editing logic
+      // Inline editing
       function initInlineEditing() {
         const container = document.getElementById('results');
         const table = document.getElementById('results-table');
@@ -909,21 +1263,15 @@
           detail.querySelectorAll('.view-section').forEach((el) => el.classList.toggle('hidden', editing));
           detail.querySelectorAll('.edit-section').forEach((el) => el.classList.toggle('hidden', !editing));
           const rowId = detail.getAttribute('data-row-id');
-          const editBtn = container.querySelector(`.edit-btn[data-row-id='${rowId}']`);
-          const saveBtn = container.querySelector(`.save-btn[data-row-id='${rowId}']`);
-          const cancelBtn = container.querySelector(`.cancel-btn[data-row-id='${rowId}']`);
-          if (editBtn && saveBtn && cancelBtn) {
-            editBtn.classList.toggle('hidden', editing);
-            saveBtn.classList.toggle('hidden', !editing);
-            cancelBtn.classList.toggle('hidden', !editing);
-          }
+          container.querySelector(`.edit-btn[data-row-id='${rowId}']`)?.classList.toggle('hidden', editing);
+          container.querySelector(`.save-btn[data-row-id='${rowId}']`)?.classList.toggle('hidden', !editing);
+          container.querySelector(`.cancel-btn[data-row-id='${rowId}']`)?.classList.toggle('hidden', !editing);
         }
 
         function enterEdit(rowId) {
           const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
           if (!detail) return;
           toggleEditUI(detail, true);
-          // Initialize inputs from original data attributes if needed
           const ds = detail.getAttribute('data-original-dataset') || '';
           const lbls = JSON.parse(detail.getAttribute('data-original-labels') || '[]');
           const md = JSON.parse(detail.getAttribute('data-original-metadata') || 'null');
@@ -954,11 +1302,11 @@
             if (lbInput) lbInput.value = (lbls || []).join(', ');
             if (mdInput) mdInput.value = md ? JSON.stringify(md, null, 2) : '';
             if (annInput) annInput.value = ann;
-            // reset scores inputs
+
             const scores = JSON.parse(detail.getAttribute('data-original-scores') || '[]');
             const editor = detail.querySelector(`#scores-editor-${rowId}`);
             if (editor) {
-              const cards = editor.querySelectorAll('.border.rounded.p-2.bg-gray-50');
+              const cards = editor.querySelectorAll('.score-card');
               cards.forEach((card, i) => {
                 const s = scores[i];
                 if (!s) return;
@@ -967,9 +1315,9 @@
                 const p = card.querySelector('[name="score-passed"]');
                 const n = card.querySelector('[name="score-notes"]');
                 if (k) k.value = s.key || '';
-                if (v) v.value = (s.value ?? '');
-                if (p) p.value = (s.passed === true ? 'true' : s.passed === false ? 'false' : '');
-                if (n) n.value = (s.notes ?? '');
+                if (v) v.value = s.value ?? '';
+                if (p) p.value = s.passed === true ? 'true' : s.passed === false ? 'false' : '';
+                if (n) n.value = s.notes ?? '';
               });
             }
           }
@@ -988,13 +1336,12 @@
           const mdRaw = (mdInput && mdInput.value.trim()) || '';
           if (mdRaw) {
             try { metadata = JSON.parse(mdRaw); }
-            catch (e) { alert('Invalid metadata JSON'); return; }
+            catch { alert('Invalid metadata JSON'); return; }
           }
 
-          // Build scores payload
           const scorePayload = [];
           if (editor) {
-            editor.querySelectorAll('.border.rounded.p-2.bg-gray-50').forEach((card) => {
+            editor.querySelectorAll('.score-card').forEach((card) => {
               const k = card.querySelector('[name="score-key"]').value.trim();
               const vRaw = card.querySelector('[name="score-value"]').value.trim();
               const pVal = card.querySelector('[name="score-passed"]').value;
@@ -1007,7 +1354,6 @@
               if (pVal === 'true') s.passed = true;
               else if (pVal === 'false') s.passed = false;
               if (nVal !== '') s.notes = nVal;
-              // only include if has key and at least value/passed/notes
               if (s.key && (s.value !== undefined || s.passed !== undefined || s.notes !== undefined)) {
                 scorePayload.push(s);
               }
@@ -1016,15 +1362,11 @@
 
           const annInput = detail.querySelector(`#annotation-input-${rowId}`);
           const annValue = annInput ? annInput.value.trim() : '';
-          
+
           const payload = {
             dataset: dsInput ? dsInput.value.trim() : undefined,
             labels: lbInput ? lbInput.value.split(',').map(x => x.trim()).filter(Boolean) : undefined,
-            result: {
-              metadata: metadata,
-              scores: scorePayload,
-              annotation: annValue || null
-            }
+            result: { metadata, scores: scorePayload, annotation: annValue || null }
           };
 
           try {
@@ -1033,58 +1375,28 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
             });
-            if (!resp.ok) {
-              const t = await resp.text();
-              throw new Error(t || 'Failed to save');
-            }
+            if (!resp.ok) throw new Error(await resp.text());
           } catch (e) {
             alert(`Save failed: ${e}`);
             return;
           }
 
-          // Refresh the results panel to reflect changes
-          const results = document.getElementById('results');
-          if (results) {
-            try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
-            htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
-          }
+          try { localStorage.setItem(EXPANDED_ROW_KEY, rowId); } catch {}
+          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
         }
       }
 
-
-      function wireExportButtons() {
-        const table = document.getElementById('results-table');
-        const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest';
-        const jsonBtn = document.getElementById('export-json');
-        const csvBtn = document.getElementById('export-csv');
-        if (jsonBtn) {
-          jsonBtn.onclick = () => {
-            window.location.href = `/api/runs/${runId}/export/json`;
-          };
-        }
-        if (csvBtn) {
-          csvBtn.onclick = () => {
-            window.location.href = `/api/runs/${runId}/export/csv`;
-          };
-        }
-      }
-
+      // Actions menu
       function wireActionsMenu() {
         const table = document.getElementById('results-table');
         const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest';
-        const toggle = document.getElementById('actions-toggle');
         const menu = document.getElementById('actions-menu');
-        if (!toggle || !menu) return;
-
-        toggle.onclick = () => menu.classList.toggle('hidden');
-        document.addEventListener('click', (e) => {
-          if (!menu.contains(e.target) && e.target !== toggle) menu.classList.add('hidden');
-        });
+        if (!menu) return;
 
         menu.querySelectorAll('[data-action]').forEach((el) => {
           el.onclick = async (e) => {
             const act = e.currentTarget.getAttribute('data-action');
-            menu.classList.add('hidden');
+            menu.classList.remove('active');
             if (act === 'refresh') {
               showLoading();
               htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
@@ -1108,13 +1420,14 @@
         });
       }
 
-      function showLoading() { const el = document.getElementById('loading-indicator'); if (el) el.classList.remove('hidden'); }
-      function hideLoading() { const el = document.getElementById('loading-indicator'); if (el) el.classList.add('hidden'); }
+      // Loading state
+      function showLoading() { document.getElementById('loading-indicator')?.classList.add('active'); }
+      function hideLoading() { document.getElementById('loading-indicator')?.classList.remove('active'); }
       document.body.addEventListener('htmx:beforeRequest', showLoading);
       document.body.addEventListener('htmx:afterSwap', hideLoading);
       document.body.addEventListener('htmx:responseError', hideLoading);
 
-      // Copy-to-clipboard for pre blocks (icon toggles)
+      // Copy to clipboard
       document.addEventListener('click', async (e) => {
         const btn = e.target.closest('.copy-btn');
         if (!btn) return;
@@ -1130,10 +1443,28 @@
             checkIcon.classList.remove('hidden');
             setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900);
           }
-        } catch (err) {
+        } catch {
           alert('Copy failed');
+        }
+      });
+
+      // HTMX after swap handler
+      document.addEventListener("htmx:afterSwap", function (e) {
+        if (e.target.id === "results") {
+          const table = document.getElementById("results-table");
+          if (table) {
+            applySortState(table);
+            applyColumnWidths(table);
+            initResizableColumns(table);
+          }
+          applyColumnVisibility();
+          initExpandHandlers();
+          initInlineEditing();
+          if (window.restoreExpandedRow) restoreExpandedRow();
+          wireActionsMenu();
+          try { populateScoreKeySelects(); applyAllFilters(); } catch {}
         }
       });
     </script>
   </body>
-  </html>
+</html>
