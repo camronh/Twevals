@@ -373,6 +373,15 @@ class EvalFunction:
         return result
 
     def __call__(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
+        # Check if this is a parametrized function - run all variants
+        if hasattr(self.func, '__param_sets__'):
+            return self._run_all_variants(*args, **kwargs)
+
+        # Run single eval - return as-is (single EvalResult or list if function returns list)
+        return self._execute(*args, **kwargs)
+
+    def _execute(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
+        """Execute the eval function, handling async/sync and event loop detection."""
         if self.is_async:
             try:
                 asyncio.get_running_loop()
@@ -413,7 +422,24 @@ class EvalFunction:
         else:
             return self._execute_sync(*args, **kwargs)
 
+    def _run_all_variants(self, *args, **kwargs) -> List[EvalResult]:
+        """Run all parametrized variants and collect results."""
+        from .parametrize import generate_eval_functions
+        variants = generate_eval_functions(self.func, self)
+        all_results = []
+        for variant in variants:
+            result = variant._execute(*args, **kwargs)
+            if isinstance(result, list):
+                all_results.extend(result)
+            else:
+                all_results.append(result)
+        return all_results
+
     async def call_async(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
+        """Async version of __call__."""
+        if hasattr(self.func, '__param_sets__'):
+            return self._run_all_variants(*args, **kwargs)
+
         if self.is_async:
             return await self._execute_async(*args, **kwargs)
         else:

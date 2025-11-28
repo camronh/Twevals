@@ -302,3 +302,96 @@ class EvalRunner:
                     "latency": result.get("latency"),
                     "metadata": json.dumps(result.get("metadata")),
                 })
+
+
+def run_evals(
+    evals: List[Union[EvalFunction, str]],
+    concurrency: int = 0,
+    verbose: bool = False,
+    timeout: Optional[float] = None,
+    dataset: Optional[str] = None,
+    labels: Optional[List[str]] = None,
+    limit: Optional[int] = None,
+) -> List[EvalResult]:
+    """
+    Run evals programmatically. Accepts a list of eval functions and/or paths.
+
+    Args:
+        evals: List of EvalFunction instances or path strings to discover
+        concurrency: Number of concurrent evals (0 = sequential)
+        verbose: Print verbose output
+        timeout: Global timeout for each eval
+        dataset: Filter discovered evals by dataset
+        labels: Filter discovered evals by labels
+        limit: Limit total number of evals to run
+
+    Returns:
+        List[EvalResult] - flat list of all results
+
+    Example:
+        results = run_evals([test_sentiment, test_accuracy, "evals/"])
+        results = run_evals([test_a, test_b], concurrency=5)
+    """
+    from .parametrize import generate_eval_functions
+
+    # Collect all eval functions
+    functions: List[EvalFunction] = []
+    for item in evals:
+        if isinstance(item, EvalFunction):
+            # Direct function - expand if parametrized
+            if hasattr(item.func, '__param_sets__'):
+                functions.extend(generate_eval_functions(item.func, item))
+            else:
+                functions.append(item)
+        elif isinstance(item, str):
+            # Path - use discovery
+            discovered = EvalDiscovery().discover(item, dataset, labels)
+            functions.extend(discovered)
+
+    if limit is not None:
+        functions = functions[:limit]
+
+    if not functions:
+        return []
+
+    # Use EvalRunner infrastructure
+    runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
+
+    # Handle event loop detection (same as EvalRunner.run)
+    try:
+        asyncio.get_running_loop()
+        in_loop = True
+    except RuntimeError:
+        in_loop = False
+
+    if not in_loop:
+        raw_results = asyncio.run(runner.run_all_async(functions))
+    else:
+        from threading import Thread
+        result_holder: Dict[str, List[Dict]] = {}
+        error_holder: Dict[str, BaseException] = {}
+
+        def _runner():
+            loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(loop)
+                res = loop.run_until_complete(runner.run_all_async(functions))
+                result_holder["res"] = res
+            except BaseException as e:
+                error_holder["err"] = e
+            finally:
+                try:
+                    loop.close()
+                except Exception:
+                    pass
+
+        t = Thread(target=_runner, daemon=True)
+        t.start()
+        t.join()
+
+        if "err" in error_holder:
+            raise error_holder["err"]
+        raw_results = result_holder.get("res", [])
+
+    # Extract EvalResult objects from the runner's dict format
+    return [EvalResult(**r["result"]) for r in raw_results]

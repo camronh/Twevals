@@ -2,8 +2,9 @@ from twevals.decorators import eval
 from twevals.schemas import EvalResult
 from twevals.parametrize import parametrize
 from twevals.context import EvalContext
+from twevals.runner import run_evals
 
-__all__ = ["eval", "EvalResult", "parametrize", "EvalContext"]
+__all__ = ["eval", "EvalResult", "parametrize", "EvalContext", "run_evals"]
 
 # Resolve version from installed package metadata to avoid hard-coding.
 try:  # Python 3.8+
