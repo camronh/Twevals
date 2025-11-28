@@ -2,6 +2,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Added: `run_evals()` function for programmatic execution of multiple evals with support for functions, paths, concurrency, and all CLI options.
+- Added: Direct call support for parametrized evals - calling a parametrized function now runs all variants and returns `List[EvalResult]`.
+- Changed: `EvalFunction.__call__` now detects `__param_sets__` attribute and automatically runs all parametrized variants.
+
 0.0.2a9 - 2025-11-23
 
 - Added: `timeout` parameter to `@eval` decorator for setting per-evaluation timeout limits in seconds.
