@@ -1,4 +1,4 @@
-Ship recent changes in the current branch to production.
+Ship recent changes in the current branch to dev.
 
 Follow these steps in order:
 
@@ -14,8 +14,8 @@ Follow these steps in order:
 
 
 ## 3. Update CHANGELOG.md
-- Add a new version entry at the top (below "All notable changes...")
-- Format: `{new_version} - {today's date in YYYY-MM-DD}`
+- Add entries to the "Unreleased" section at the top (below "All notable changes...")
+- If no "Unreleased" section exists, create one: `## Unreleased`
 - Analyze the git diff to auto-generate changelog entries
 - Use these prefixes based on change type:
   - `Added:` for new features/functionality
@@ -23,12 +23,12 @@ Follow these steps in order:
   - `Fixed:` for bug fixes
   - `Tests:` for test-related changes
 - Write clear, concise descriptions (1-2 sentences per item)
-- Group related changes together and changes on the same date should be grouped together. Look at the git history for that day to make sure everything is covered and not duplicated.
+- Append new entries to existing "Unreleased" entries (don't duplicate)
 - Preserve existing changelog entries below
 
 
 ## 4. Update Documentation (Only If Needed)
-- Review if changes require README or documentation (docs/) updates
+- Review if changes require README and/or documentation (docs/) updates
 - Update ONLY if new features need documentation or existing feature docs are outdated
 - When updating:
   - Rewrite relevant sections to be current
@@ -52,7 +52,7 @@ Follow these steps in order:
   - Examples: "add export feature", "fix context bug", "update docs"
 - Include all related changes in a single commit
 
-## 7. Push and Merge Workflow
+## 6. Push to Dev
 
 ### If on a feature branch (not dev):
 - Push current feature branch: `git push origin <feature-branch>`
@@ -64,13 +64,6 @@ Follow these steps in order:
 ### If already on dev:
 - Push dev: `git push origin dev`
 
-### Then merge dev to main:
-- Checkout main: `git checkout main`
-- Pull latest main: `git pull origin main`
-- Merge dev into main: `git merge dev`
-- Push main: `git push origin main`
-- Return to dev: `git checkout dev`
-
 ## Error Handling
 - If tests fail → stop and report
 - If merge conflicts occur → stop and ask for help
@@ -79,6 +72,5 @@ Follow these steps in order:
 
 ## Summary Output
 After successful ship, provide:
-- Version number shipped
-- Brief summary of changes
-- Branches involved (feature branch if applicable, dev, main)
+- Brief summary of changes shipped to dev
+- Branches involved (feature branch if applicable, dev)
