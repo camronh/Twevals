@@ -18,6 +18,10 @@
   {% endif %}
   {% if p.pass %}{% set ns.passed = ns.passed + 1 %}{% elif p.fail %}{% set ns.failed = ns.failed + 1 %}{% endif %}
 {% endfor %}
+{% set pending_total = ns.pending + ns.running %}
+{% set total = summary.total_evaluations %}
+{% set completed = (total - pending_total) if total else 0 %}
+{% set pct_done = ((completed / total) * 100) | round(0) | int if total > 0 else 0 %}
 
 <style>
   .hidden { display: none !important; }
@@ -747,20 +751,21 @@
       </div>
     {% endif %}
   {% endfor %}
-  <div class="stat-card">
-    <div class="stat-card-label">Total Tests</div>
-    <div class="stat-card-value">{{ summary.total_evaluations }}</div>
-  </div>
-  {% set pending_total = ns.pending + ns.running %}
-  {% if pending_total > 0 %}
-  <div class="stat-card warning">
-    <div class="stat-card-label">Pending</div>
-    <div class="stat-card-value">{{ pending_total }}</div>
+  <div class="stat-card {{ 'success' if pending_total == 0 else 'warning' }}">
+    <div class="stat-card-label">Run Progress</div>
+    <div class="stat-card-value">{{ pct_done }}%</div>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: {{ pct_done }}%"></div>
+      <span class="progress-text">{{ completed }}/{{ total }}</span>
+    </div>
     <div class="stat-card-secondary">
-      {% if ns.running > 0 %}{{ ns.running }} running{% else %}Waiting to start{% endif %}
+      {% if pending_total > 0 %}
+        {{ pending_total }} pending
+      {% else %}
+        All complete
+      {% endif %}
     </div>
   </div>
-  {% endif %}
   {% if summary.average_latency > 0 %}
   <div class="stat-card">
     <div class="stat-card-label">Avg Latency</div>

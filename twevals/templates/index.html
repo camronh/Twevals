@@ -1420,8 +1420,16 @@
       }
 
       // Loading state
-      function showLoading() { document.getElementById('loading-indicator')?.classList.add('active'); }
-      function hideLoading() { document.getElementById('loading-indicator')?.classList.remove('active'); }
+      function showLoading(evt) {
+        const silent = evt?.detail?.requestConfig?.headers?.['X-Silent-Refresh'];
+        if (silent) return;
+        document.getElementById('loading-indicator')?.classList.add('active');
+      }
+      function hideLoading(evt) {
+        const silent = evt?.detail?.requestConfig?.headers?.['X-Silent-Refresh'];
+        if (silent) return;
+        document.getElementById('loading-indicator')?.classList.remove('active');
+      }
       document.body.addEventListener('htmx:beforeRequest', showLoading);
       document.body.addEventListener('htmx:afterSwap', hideLoading);
       document.body.addEventListener('htmx:responseError', hideLoading);
@@ -1457,7 +1465,11 @@
         const hasPending = document.querySelector('[data-status="pending"], [data-status="running"]');
         if (!hasPending) return;
         liveUpdateTimer = setTimeout(() => {
-          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+          htmx.ajax('GET', '/results', {
+            target: '#results',
+            swap: 'innerHTML',
+            headers: { 'X-Silent-Refresh': '1' },
+          });
         }, 1200);
       }
 

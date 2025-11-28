@@ -5,6 +5,8 @@ import inspect
 import os
 import json
 import traceback
+import time
+import webbrowser
 from pathlib import Path
 from typing import Optional, List, Dict
 from threading import Lock, Thread
@@ -530,6 +532,16 @@ def _serve(
     if functions:
         console.print("[cyan]Evaluations are running in the background; rows will update live as they finish.[/cyan]")
     console.print("Press Ctrl+C to stop\n")
+
+    # Open browser automatically so users don't need to click the link
+    def _open_browser():
+        try:
+            time.sleep(0.5)  # small delay to let server come up
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+    Thread(target=_open_browser, daemon=True).start()
 
     # Control logging verbosity
     log_level = "warning" if quiet and not verbose else ("info" if not verbose else "debug")
