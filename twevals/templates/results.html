@@ -23,46 +23,59 @@
 } %}
 
 <!-- Compact Stats Bar -->
-<div class="mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-zinc-800/60 bg-zinc-900/50 px-4 py-2.5">
+<div class="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-zinc-800/60 bg-zinc-900/50 px-4 py-2.5">
   <!-- Run Progress / Total Tests -->
-  <div class="flex items-center gap-3">
-    {% if pending_total > 0 %}
+  {% if pending_total > 0 %}
+    <div class="flex items-center gap-2">
       <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Progress</span>
-      <div class="flex items-center gap-2">
-        <div class="h-1.5 w-24 overflow-hidden rounded-full bg-zinc-800">
-          <div class="h-full rounded-full bg-amber-500 transition-all duration-500" style="width: {{ pct_done }}%"></div>
-        </div>
-        <span class="font-mono text-xs text-amber-400">{{ completed }}/{{ total }}</span>
+      <div class="h-1.5 w-6 overflow-hidden rounded-full bg-zinc-800">
+        <div class="h-full rounded-full bg-amber-500" style="width: {{ pct_done }}%"></div>
       </div>
-    {% else %}
+      <span class="font-mono text-xs text-amber-400">{{ completed }}/{{ total }}</span>
+    </div>
+  {% else %}
+    <div class="flex items-center gap-2">
       <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Tests</span>
-      <span class="font-mono text-xs text-zinc-300">{{ total }}</span>
-    {% endif %}
-  </div>
+      <span class="font-mono text-xs text-emerald-400">{{ total }}</span>
+    </div>
+  {% endif %}
 
   <div class="h-4 w-px bg-zinc-800"></div>
 
-  <!-- Score Metrics -->
+  <!-- Score Metrics with inline micro-bars -->
   {% for chip in score_chips %}
     {% if chip.type == 'ratio' %}
       {% set pct = ((chip.passed / chip.total) * 100) | round(0) | int if chip.total > 0 else 0 %}
+      {% set bar_color = 'bg-emerald-500' if pct >= 80 else ('bg-amber-500' if pct >= 50 else 'bg-rose-500') %}
+      {% set text_color = 'text-emerald-400' if pct >= 80 else ('text-amber-400' if pct >= 50 else 'text-rose-400') %}
       <div class="flex items-center gap-2">
         <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{{ chip.key }}</span>
-        <span class="font-mono text-xs {% if pct >= 80 %}text-emerald-400{% elif pct >= 50 %}text-amber-400{% else %}text-rose-400{% endif %}">{{ chip.passed }}/{{ chip.total }}</span>
+        <div class="h-1.5 w-6 overflow-hidden rounded-full bg-zinc-800">
+          <div class="h-full rounded-full {{ bar_color }}" style="width: {{ pct }}%"></div>
+        </div>
+        <span class="font-mono text-xs {{ text_color }}">{{ chip.passed }}/{{ chip.total }}</span>
       </div>
+      {% if not loop.last %}<div class="h-4 w-px bg-zinc-800"></div>{% endif %}
     {% elif chip.type == 'avg' %}
       {% set avg = chip.avg %}
+      {% set pct = (avg * 100) | round(0) | int if avg <= 1 else ((avg * 10) | round(0) | int if avg <= 10 else ([avg, 100] | min | round(0) | int)) %}
+      {% set bar_color = 'bg-emerald-500' if pct >= 80 else ('bg-amber-500' if pct >= 50 else 'bg-rose-500') %}
+      {% set text_color = 'text-emerald-400' if pct >= 80 else ('text-amber-400' if pct >= 50 else 'text-rose-400') %}
       <div class="flex items-center gap-2">
         <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{{ chip.key }}</span>
-        <span class="font-mono text-xs text-zinc-300">{{ avg | round(1) }}</span>
+        <div class="h-1.5 w-6 overflow-hidden rounded-full bg-zinc-800">
+          <div class="h-full rounded-full {{ bar_color }}" style="width: {{ pct }}%"></div>
+        </div>
+        <span class="font-mono text-xs {{ text_color }}">{{ avg | round(1) }}</span>
       </div>
+      {% if not loop.last %}<div class="h-4 w-px bg-zinc-800"></div>{% endif %}
     {% endif %}
   {% endfor %}
 
   {% if summary.average_latency > 0 %}
   <div class="h-4 w-px bg-zinc-800"></div>
   <div class="flex items-center gap-2">
-    <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Avg Latency</span>
+    <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Latency</span>
     <span class="font-mono text-xs text-zinc-300">{{ summary.average_latency | round(2) }}s</span>
   </div>
   {% endif %}
