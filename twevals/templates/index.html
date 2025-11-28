@@ -33,6 +33,10 @@
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
 
+      html {
+        overflow-y: scroll;
+      }
+
       body {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         background: var(--bg-primary);
@@ -45,6 +49,7 @@
         max-width: 1600px;
         margin: 0 auto;
         padding: 0 24px;
+        overflow-x: hidden;
       }
 
       /* Header */
@@ -94,6 +99,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-shrink: 0;
       }
 
       /* Search */
@@ -194,7 +200,7 @@
         border: 1px solid var(--border-subtle);
         border-radius: 10px;
         padding: 6px;
-        z-index: 100;
+        z-index: 1000;
         opacity: 0;
         visibility: hidden;
         transform: translateY(-8px);
@@ -245,7 +251,7 @@
         border: 1px solid var(--border-subtle);
         border-radius: 12px;
         padding: 16px;
-        z-index: 100;
+        z-index: 1000;
         opacity: 0;
         visibility: hidden;
         transform: translateY(-8px);
@@ -368,7 +374,7 @@
         border: 1px solid var(--border-subtle);
         border-radius: 12px;
         padding: 16px;
-        z-index: 100;
+        z-index: 1000;
         opacity: 0;
         visibility: hidden;
         transform: translateY(-8px);
@@ -482,6 +488,8 @@
       /* Results container */
       #results {
         animation: fadeIn 0.3s ease;
+        width: 100%;
+        min-width: 0;
       }
 
       @keyframes fadeIn {
@@ -518,6 +526,7 @@
       body.twevals-col-resize {
         cursor: col-resize !important;
       }
+
     </style>
   </head>
   <body>
@@ -813,10 +822,8 @@
       });
       document.getElementById("reset-widths")?.addEventListener("click", () => {
         setColWidths({});
-        document.querySelectorAll('#results-table th[data-col], #results-table td[data-col]').forEach((el) => {
-          el.style.width = '';
-          el.style.minWidth = '';
-          el.style.maxWidth = '';
+        document.querySelectorAll('#results-table thead th[data-col]').forEach((th) => {
+          th.style.width = '';
         });
       });
 
@@ -996,18 +1003,15 @@
         toggleSort(table, col, type, e.shiftKey);
       });
 
-      // Column widths
+      // Column widths - only set on th elements, table-layout:fixed handles the rest
       function applyColumnWidths(table) {
         if (!table) return;
         const widths = getColWidths();
         Object.keys(widths).forEach((col) => {
           const w = widths[col];
           if (!w) return;
-          table.querySelectorAll(`[data-col="${col}"]`).forEach((el) => {
-            el.style.width = `${w}px`;
-            el.style.minWidth = `${w}px`;
-            el.style.maxWidth = `${w}px`;
-          });
+          const th = table.querySelector(`thead th[data-col="${col}"]`);
+          if (th) th.style.width = `${w}px`;
         });
       }
 
@@ -1025,16 +1029,12 @@
 
           let startX = 0, startWidth = 0;
           const colKey = th.getAttribute('data-col');
-          const minWidth = 60, maxWidth = 1000;
+          const minWidth = 50, maxWidth = 500;
 
           function onMouseMove(e) {
             const dx = e.clientX - startX;
             let newW = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
-            table.querySelectorAll(`[data-col="${colKey}"]`).forEach((el) => {
-              el.style.width = `${newW}px`;
-              el.style.minWidth = `${newW}px`;
-              el.style.maxWidth = `${newW}px`;
-            });
+            th.style.width = `${newW}px`;
           }
 
           function onMouseUp() {
@@ -1060,11 +1060,7 @@
 
           const saved = widths[colKey];
           if (saved) {
-            table.querySelectorAll(`[data-col="${colKey}"]`).forEach((el) => {
-              el.style.width = `${saved}px`;
-              el.style.minWidth = `${saved}px`;
-              el.style.maxWidth = `${saved}px`;
-            });
+            th.style.width = `${saved}px`;
           }
         });
       }
