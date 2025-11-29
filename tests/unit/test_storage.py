@@ -281,3 +281,38 @@ def test_save_run_different_store_instances_update_same_file(tmp_path: Path):
     assert loaded["total_evaluations"] == 42
     # run_name should be preserved
     assert loaded["run_name"] == first_run_name
+
+
+def test_run_name_sanitized_for_path_traversal(tmp_path: Path):
+    """Malicious run_name with path traversal should be sanitized."""
+    store = ResultsStore(tmp_path / "runs")
+    summary = minimal_summary()
+
+    # Attempt path traversal attack
+    run_id = store.save_run(summary, run_name="../../.ssh/id_rsa")
+
+    # File should be created safely in runs directory, not elsewhere
+    files = [f for f in (tmp_path / "runs").glob("*.json") if f.name != "latest.json"]
+    assert len(files) == 1
+
+    # Filename should have dangerous chars stripped
+    filename = files[0].name
+    assert ".." not in filename
+    assert "/" not in filename
+    # Should not have created file outside runs dir
+    assert not (tmp_path / ".ssh").exists()
+
+
+def test_run_name_with_special_chars_sanitized(tmp_path: Path):
+    """run_name with special characters should be sanitized to safe chars only."""
+    store = ResultsStore(tmp_path / "runs")
+    summary = minimal_summary()
+
+    run_id = store.save_run(summary, run_name="my<script>test/name")
+
+    # Only alphanumerics, dash, underscore allowed
+    files = [f for f in (tmp_path / "runs").glob("*.json") if f.name != "latest.json"]
+    filename = files[0].name
+    assert "<" not in filename
+    assert ">" not in filename
+    assert "/" not in filename

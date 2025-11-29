@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import re
 import shutil
 import tempfile
 from dataclasses import dataclass
@@ -32,6 +33,14 @@ def _generate_friendly_name() -> str:
     return f"{random.choice(_ADJECTIVES)}-{random.choice(_NOUNS)}"
 
 
+_SAFE_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9_-]")
+
+
+def _sanitize_name(name: str) -> str:
+    """Sanitize a name for safe use in file paths. Only allows alphanumerics, dash, underscore."""
+    return _SAFE_NAME_PATTERN.sub("", name)
+
+
 def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     # Write to a temp file in the same directory then atomically replace
@@ -59,7 +68,8 @@ class ResultsStore:
     def _filename(self, run_id: str, run_name: Optional[str] = None) -> str:
         """Generate filename: {run_name}_{run_id}.json or {run_id}.json"""
         if run_name:
-            return f"{run_name}_{run_id}.json"
+            safe_name = _sanitize_name(run_name)
+            return f"{safe_name}_{run_id}.json" if safe_name else f"{run_id}.json"
         return f"{run_id}.json"
 
     def run_path(self, run_id: str, run_name: Optional[str] = None) -> Path:
