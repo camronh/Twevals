@@ -157,8 +157,6 @@
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status) }}">running</span>
             {% elif status == 'error' %}
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get('error') }}">err</span>
-            {% elif status == 'cancelled' %}
-              <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get('cancelled') }}">stopped</span>
             {% endif %}
           </div>
           <div class="flex items-center gap-1.5 text-[11px] text-zinc-500">
