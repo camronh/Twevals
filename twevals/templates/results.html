@@ -120,19 +120,19 @@
 </div>
 
 <!-- Results Table -->
-<table id="results-table" data-run-id="{{ run_id }}" class="w-full overflow-hidden rounded-lg border border-blue-200/60 bg-white text-sm text-zinc-700 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200 dark:shadow-none">
+<table id="results-table" data-run-id="{{ run_id }}" class="w-full table-fixed overflow-hidden rounded-lg border border-blue-200/60 bg-white text-sm text-zinc-700 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200 dark:shadow-none">
   <thead>
     <tr class="border-b border-blue-200/60 bg-blue-50/50 dark:border-zinc-800/60 dark:bg-transparent">
       <th style="width:32px;" class="px-2 py-2.5 align-middle">
         <input type="checkbox" id="select-all-checkbox" />
       </th>
-      <th data-col="function" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
-      <th data-col="input" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
-      <th data-col="reference" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Reference</th>
-      <th data-col="output" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Output</th>
-      <th data-col="scores" style="width:180px;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Scores</th>
-      <th data-col="latency" data-type="number" style="width:80px;" class="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-zinc-500">Time</th>
-      <th style="width:32px;" class="px-2 py-2.5"></th>
+      <th data-col="function" style="width:15%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
+      <th data-col="input" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
+      <th data-col="reference" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Reference</th>
+      <th data-col="output" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Output</th>
+      <th data-col="scores" style="width:140px;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Scores</th>
+      <th data-col="latency" data-type="number" style="width:70px;" class="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-zinc-500">Time</th>
+      <th style="width:28px;" class="px-1 py-2.5"></th>
     </tr>
   </thead>
   <tbody class="divide-y divide-blue-100 dark:divide-zinc-800/40">
@@ -226,9 +226,9 @@
           <span class="text-zinc-400 dark:text-zinc-600">—</span>
         {% endif %}
       </td>
-      <td class="px-2 py-2 align-middle">
+      <td class="px-1 py-2 align-middle">
         <span class="expand-chevron text-zinc-300 group-hover:text-blue-500 dark:text-zinc-600 dark:group-hover:text-blue-400">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </span>
       </td>
     </tr>

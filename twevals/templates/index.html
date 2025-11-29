@@ -117,6 +117,12 @@
       .expand-chevron {
         transition: transform 0.15s ease;
       }
+      /* Prevent cell content overflow */
+      #results-table td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 0; /* Forces table-fixed cells to respect width */
+      }
     </style>
     <script>
       // Apply saved theme before page renders to prevent flash
