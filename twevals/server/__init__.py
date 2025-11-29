@@ -6,6 +6,7 @@ from typing import Optional, List, Dict
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse, Response
+from starlette.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from twevals.decorators import EvalFunction
@@ -36,8 +37,10 @@ def create_app(
     """Create a FastAPI application serving evaluation results from JSON files."""
 
     templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
+    static_dir = Path(__file__).resolve().parent.parent / "static"
     store = ResultsStore(results_dir)
     app = FastAPI()
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     app.state.active_run_id = active_run_id
     app.state.store = store
