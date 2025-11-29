@@ -908,19 +908,25 @@
 
       // Scroll restoration for returning from detail page
       function initScrollRestoration() {
+        const savedY = sessionStorage.getItem('twevals:scrollY');
+        if (savedY !== null) {
+          window.scrollTo(0, parseInt(savedY, 10));
+          sessionStorage.removeItem('twevals:scrollY');
+        }
+        // Clean up any scroll param from URL
         const params = new URLSearchParams(window.location.search);
-        const scrollTo = params.get('scroll');
-        if (scrollTo !== null) {
-          const row = document.querySelector(`tr[data-row="main"][data-row-id="${scrollTo}"]`);
-          if (row) {
-            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            row.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
-            setTimeout(() => row.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2'), 2000);
-          }
-          // Clean up URL
+        if (params.has('scroll')) {
           history.replaceState(null, '', window.location.pathname);
         }
       }
+
+      // Save scroll position before navigating to detail page
+      document.addEventListener('click', (e) => {
+        const link = e.target.closest('a[href*="/runs/"][href*="/results/"]');
+        if (link) {
+          sessionStorage.setItem('twevals:scrollY', window.scrollY.toString());
+        }
+      });
 
       // Actions menu
       function wireActionsMenu() {
