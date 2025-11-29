@@ -189,6 +189,9 @@ class ProgressReporter:
 @click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
 @click.option('--list', 'list_mode', is_flag=True, help='List all evaluations without running them')
 @click.option('--limit', type=int, help='Limit the number of evaluations to run')
+# Session options
+@click.option('--session', help='Session name to group runs together')
+@click.option('--run-name', help='Name for this run (used as file prefix)')
 # Serve options
 @click.option('--serve', is_flag=True, help='Serve a web UI to browse results')
 @click.option('--dev', is_flag=True, help='Enable hot-reload for development (watches repo for changes)')
@@ -208,6 +211,8 @@ def cli(
     json_mode: bool,
     list_mode: bool,
     limit: Optional[int],
+    session: Optional[str],
+    run_name: Optional[str],
     serve: bool,
     dev: bool,
     results_dir: str,
@@ -256,6 +261,8 @@ def cli(
             port=port,
             verbose=verbose,
             quiet=quiet,
+            session_name=session,
+            run_name=run_name,
         )
         return
 
@@ -409,6 +416,8 @@ def _serve(
     port: int,
     verbose: bool,
     quiet: bool,
+    session_name: Optional[str] = None,
+    run_name: Optional[str] = None,
 ):
     """Serve a web UI to browse results."""
     try:
@@ -452,7 +461,7 @@ def _serve(
     summary = runner._calculate_summary(current_results)
     summary["results"] = current_results
     summary["rerun_config"] = rerun_config
-    store.save_run(summary, run_id)
+    store.save_run(summary, run_id=run_id, session_name=session_name, run_name=run_name)
 
     results_lock = Lock()
     func_index = {id(func): idx for idx, func in enumerate(functions)}
@@ -461,7 +470,7 @@ def _serve(
         s = runner._calculate_summary(current_results)
         s["results"] = current_results
         s["rerun_config"] = rerun_config
-        store.save_run(s, run_id)
+        store.save_run(s, run_id=run_id, session_name=session_name, run_name=run_name)
 
     def _on_start(func: EvalFunction):
         with results_lock:
@@ -494,6 +503,8 @@ def _serve(
         verbose=verbose,
         function_name=function_name,
         limit=limit,
+        session_name=session_name,
+        run_name=run_name,
     )
 
     url = f"http://{host}:{port}"
@@ -525,6 +536,10 @@ def _serve(
             _os.environ["TWEVALS_FUNCTION_NAME"] = str(function_name)
         if limit is not None:
             _os.environ["TWEVALS_LIMIT"] = str(limit)
+        if session_name:
+            _os.environ["TWEVALS_SESSION_NAME"] = str(session_name)
+        if run_name:
+            _os.environ["TWEVALS_RUN_NAME"] = str(run_name)
 
         uvicorn.run(
             "twevals.server:load_app_from_env",

@@ -139,6 +139,26 @@ twevals evals/ --serve
 twevals evals/ --serve --port 3000
 ```
 
+### Sessions
+
+<ParamField path="--session" type="string">
+  Session name to group related runs together. Same name = same session.
+</ParamField>
+
+```bash
+twevals evals/ --serve --session model-upgrade
+```
+
+<ParamField path="--run-name" type="string">
+  Name for this run. Used as filename prefix and displayed in UI.
+</ParamField>
+
+```bash
+twevals evals/ --serve --session model-upgrade --run-name gpt5-baseline
+```
+
+When not specified, friendly adjective-noun names are auto-generated (e.g., "swift-falcon").
+
 ## Examples
 
 ### Run All Evaluations

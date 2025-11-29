@@ -2,17 +2,17 @@
   "$schema": "https://mintlify.com/schema.json",
   "name": "Twevals",
   "logo": {
-    "dark": "/assets/logo-dark.svg",
-    "light": "/assets/logo-light.svg"
+    "dark": "/assets/logo.png",
+    "light": "/assets/logo.png"
   },
-  "favicon": "/assets/favicon.svg",
+  "favicon": "/assets/favicon.png",
   "colors": {
-    "primary": "#6366F1",
-    "light": "#818CF8",
-    "dark": "#4F46E5",
+    "primary": "#0d1b2a",
+    "light": "#1b2838",
+    "dark": "#0d1b2a",
     "anchors": {
-      "from": "#6366F1",
-      "to": "#8B5CF6"
+      "from": "#0d1b2a",
+      "to": "#1b2838"
     }
   },
   "topbarLinks": [
@@ -64,6 +64,7 @@
         "guides/examples",
         "guides/patterns",
         "guides/web-ui",
+        "guides/sessions",
         "guides/evaluators",
         "guides/file-defaults"
       ]

@@ -24,6 +24,22 @@
 
 <!-- Compact Stats Bar -->
 <div class="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-amber-200/60 bg-white px-4 py-2.5 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:shadow-none">
+  <!-- Session & Run Info -->
+  {% if summary.session_name or summary.run_name %}
+  <div class="flex items-center gap-2">
+    {% if summary.session_name %}
+    <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Session</span>
+    <span class="font-mono text-xs text-zinc-600 dark:text-zinc-300">{{ summary.session_name }}</span>
+    {% endif %}
+    {% if summary.run_name %}
+    <span class="text-zinc-300 dark:text-zinc-700">·</span>
+    <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Run</span>
+    <span class="font-mono text-xs text-amber-600 dark:text-amber-400">{{ summary.run_name }}</span>
+    {% endif %}
+  </div>
+  <div class="h-4 w-px bg-zinc-300 dark:bg-zinc-800"></div>
+  {% endif %}
+
   <!-- Run Progress / Total Tests -->
   {% if pending_total > 0 %}
     <div class="flex items-center gap-2">

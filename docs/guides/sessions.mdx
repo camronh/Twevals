@@ -1,0 +1,185 @@
+---
+title: Sessions & Runs
+description: Group related evaluation runs together for comparison and tracking
+---
+
+Sessions let you group related evaluation runs together, enabling workflows like model comparison, iterative debugging, and tracking progress over time.
+
+## Quick Start
+
+```bash
+# Named session and run
+twevals evals.py --serve --session model-upgrade --run-name gpt5-baseline
+
+# Continue the session with another run
+twevals evals.py --serve --session model-upgrade --run-name gpt5-tuned
+
+# Auto-generated friendly names
+twevals evals.py --serve
+```
+
+## Concepts
+
+### Session
+
+A **session** groups related runs together, identified by a name string. Using `--session model-upgrade` again continues the same session—runs are linked by matching session names.
+
+### Run
+
+A **run** is a single execution of your evaluations. Each run creates a new JSON file containing only the evals that ran in that execution.
+
+### Auto-Generated Names
+
+When you don't specify `--session` or `--run-name`, friendly adjective-noun names are generated automatically:
+
+- `swift-falcon`
+- `bright-flame`  
+- `gentle-whisper`
+
+This ensures every run has identifiable names without requiring manual input.
+
+## File Naming
+
+Run files are named with the pattern `{run_name}_{timestamp}.json`:
+
+```
+.twevals/runs/
+├── gpt5-baseline_2024-01-15T10-30-00Z.json   # Named run
+├── gpt5-tuned_2024-01-15T11-00-00Z.json      # Second run in session
+├── swift-falcon_2024-01-15T14-45-00Z.json    # Auto-generated name
+└── latest.json                                # Copy of most recent
+```
+
+## JSON Schema
+
+Each run file includes session metadata at the top level:
+
+```json
+{
+  "session_name": "model-upgrade",
+  "run_name": "gpt5-baseline",
+  "run_id": "2024-01-15T10-30-00Z",
+  "total_evaluations": 50,
+  "total_passed": 45,
+  "total_errors": 2,
+  "results": [...]
+}
+```
+
+## UI Display
+
+The stats bar shows the current session and run:
+
+```
+SESSION model-upgrade · RUN gpt5-baseline | TESTS 50 | ACCURACY 45/50 | ...
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Model Comparison">
+    Compare performance across different models or configurations:
+    
+    ```bash
+    twevals evals/ --serve --session model-comparison --run-name gpt4-baseline
+    twevals evals/ --serve --session model-comparison --run-name claude-3
+    twevals evals/ --serve --session model-comparison --run-name gemini-pro
+    ```
+    
+    Each run's JSON file contains the full results for that model, all grouped under the same session.
+  </Accordion>
+
+  <Accordion title="Iterative Development">
+    Track progress while debugging or improving:
+    
+    ```bash
+    twevals evals/ --serve --session bug-fix-123 --run-name initial
+    # Make changes...
+    twevals evals/ --serve --session bug-fix-123 --run-name attempt-2
+    # More changes...
+    twevals evals/ --serve --session bug-fix-123 --run-name fixed
+    ```
+  </Accordion>
+
+  <Accordion title="CI/CD Integration">
+    Use session names to track runs across deployments:
+    
+    ```bash
+    twevals evals/ --session "release-${VERSION}" --run-name "build-${BUILD_ID}" -o results.json
+    ```
+  </Accordion>
+
+  <Accordion title="A/B Testing">
+    Compare different approaches:
+    
+    ```bash
+    twevals evals/ --serve --session prompt-experiment --run-name prompt-v1
+    twevals evals/ --serve --session prompt-experiment --run-name prompt-v2-concise
+    twevals evals/ --serve --session prompt-experiment --run-name prompt-v3-detailed
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## API Endpoints
+
+When running in serve mode, these endpoints are available for programmatic access:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sessions` | GET | List all unique session names |
+| `/api/sessions/{name}/runs` | GET | List runs for a specific session |
+| `/api/runs/{run_id}` | PATCH | Update run metadata (e.g., rename) |
+
+### Example: List Sessions
+
+```bash
+curl http://localhost:8000/api/sessions
+```
+
+```json
+{
+  "sessions": ["model-upgrade", "bug-fix-123", "prompt-experiment"]
+}
+```
+
+### Example: List Runs in Session
+
+```bash
+curl http://localhost:8000/api/sessions/model-upgrade/runs
+```
+
+```json
+{
+  "session_name": "model-upgrade",
+  "runs": [
+    {
+      "run_id": "2024-01-15T11-00-00Z",
+      "run_name": "gpt5-tuned",
+      "total_evaluations": 50,
+      "total_passed": 48,
+      "total_errors": 0
+    },
+    {
+      "run_id": "2024-01-15T10-30-00Z", 
+      "run_name": "gpt5-baseline",
+      "total_evaluations": 50,
+      "total_passed": 45,
+      "total_errors": 2
+    }
+  ]
+}
+```
+
+## Best Practices
+
+<Note>
+**Naming Conventions**: Use descriptive session names that indicate the purpose (e.g., `model-comparison`, `bug-fix-123`, `release-v2.0`). Run names should describe what's different about that specific run.
+</Note>
+
+<Tip>
+**Session Continuity**: Sessions are identified purely by name. Using the same `--session` value automatically continues the session—no explicit "create" or "resume" needed.
+</Tip>
+
+<Warning>
+**Storage**: Session metadata is stored in each run's JSON file. There's no separate session file—sessions are virtual groupings based on the `session_name` field.
+</Warning>

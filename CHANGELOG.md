@@ -2,6 +2,15 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Added: Session management for grouping related eval runs together with `--session` and `--run-name` CLI flags.
+- Added: Auto-generated friendly names (adjective-noun format like "swift-falcon") when session/run names not provided.
+- Added: File naming with run-name prefix: `{run_name}_{timestamp}.json`.
+- Added: Session/run metadata (`session_name`, `run_name`, `run_id`) in run JSON files.
+- Added: UI display of current session and run name in the stats bar.
+- Added: API endpoints for session management: `GET /api/sessions`, `GET /api/sessions/{name}/runs`, `PATCH /api/runs/{run_id}`.
+
 ## 0.0.2a10 - 2025-11-28
 
 - Added: `run_evals()` function for programmatic execution of multiple evals with support for functions, paths, concurrency, and all CLI options.

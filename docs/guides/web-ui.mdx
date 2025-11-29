@@ -15,6 +15,20 @@ twevals evals.py --serve
 
 The browser opens automatically at `http://127.0.0.1:8000`. Evaluations run in the background while the UI loads immediately—results appear and update in real-time as each evaluation completes.
 
+### With Sessions
+
+Group related runs together using session names:
+
+```bash
+# Named session and run
+twevals evals.py --serve --session model-upgrade --run-name gpt5-baseline
+
+# Continue the session with a new run
+twevals evals.py --serve --session model-upgrade --run-name gpt5-tuned
+```
+
+When not specified, friendly names are auto-generated (e.g., "swift-falcon", "bright-flame").
+
 ## Features
 
 ### Results Table
@@ -99,14 +113,26 @@ twevals evals.py --serve --port 3000
 
 ## Results Storage
 
-Results are saved to `.twevals/runs/` with ISO timestamps:
+Results are saved to `.twevals/runs/` with run names and timestamps:
 
 ```
 .twevals/
 └── runs/
-    ├── 2024-01-15T10-30-00Z.json
-    ├── 2024-01-15T14-45-00Z.json
+    ├── gpt5-baseline_2024-01-15T10-30-00Z.json  # Named run
+    ├── swift-falcon_2024-01-15T14-45-00Z.json   # Auto-generated name
     └── latest.json  # Copy of most recent run
+```
+
+Each run file includes session metadata:
+
+```json
+{
+  "session_name": "model-upgrade",
+  "run_name": "gpt5-baseline",
+  "run_id": "2024-01-15T10-30-00Z",
+  "total_evaluations": 50,
+  "results": [...]
+}
 ```
 
 The UI loads from `latest.json` by default.

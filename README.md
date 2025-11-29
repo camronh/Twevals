@@ -486,6 +486,69 @@ twevals path/to/evals
 
 Run-only flags: `-o/--output` (save JSON summary), `--csv` (save CSV), `--json` (output compact JSON to stdout), `--list` (list evaluations without running), `--limit` (limit number of evals).
 
+## Sessions and runs
+
+Group related eval runs together using sessions. This enables workflows like model comparison, iterative debugging, and tracking progress across multiple runs.
+
+### Basic usage
+
+```bash
+# Named session and run
+twevals examples --serve --session model-upgrade --run-name gpt5-baseline
+
+# Continue a session (same name = same session)
+twevals examples --serve --session model-upgrade --run-name gpt5-tuned
+
+# Auto-generated friendly names (e.g., "swift-falcon", "bright-flame")
+twevals examples --serve
+```
+
+### How it works
+
+- **Session**: A grouping of related runs identified by name. Same `--session X` = same session.
+- **Run**: A single execution of evals. Each run creates a new JSON file.
+- **File naming**: `{run_name}_{timestamp}.json` (e.g., `gpt5-baseline_2025-11-29T15-30-00Z.json`)
+- **Auto-naming**: When not specified, friendly adjective-noun names are generated.
+
+### UI display
+
+The stats bar shows the current session and run:
+
+```
+SESSION model-upgrade · RUN gpt5-baseline | TESTS 50 | ACCURACY 45/50 | ...
+```
+
+### Storage structure
+
+```
+.twevals/runs/
+  gpt5-baseline_2025-11-29T15-30-00Z.json   # named run
+  swift-falcon_2025-11-29T15-35-00Z.json    # auto-generated name
+  latest.json                                # copy of most recent
+```
+
+### JSON schema
+
+Each run file includes session metadata:
+
+```json
+{
+  "session_name": "model-upgrade",
+  "run_name": "gpt5-baseline",
+  "run_id": "2025-11-29T15-30-00Z",
+  "total_evaluations": 50,
+  "results": [...]
+}
+```
+
+### API endpoints
+
+When running in serve mode, these endpoints are available:
+
+- `GET /api/sessions` - List all unique session names
+- `GET /api/sessions/{name}/runs` - List runs for a session
+- `PATCH /api/runs/{run_id}` - Update run metadata (e.g., rename)
+
 ## CLI reference
 
 ```
@@ -507,6 +570,10 @@ Run flags:
   --json                  Output compact JSON to stdout (machine-readable)
   --list                  List evaluations without running
   --limit INT             Limit number of evaluations to run
+
+Session flags (use with --serve):
+  --session TEXT          Session name to group runs together
+  --run-name TEXT         Name for this run (used as file prefix)
 
 Serve flags (use with --serve):
   --dev                   Enable hot reload

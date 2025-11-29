@@ -30,6 +30,8 @@ def create_app(
     verbose: bool = False,
     function_name: Optional[str] = None,
     limit: Optional[int] = None,
+    session_name: Optional[str] = None,
+    run_name: Optional[str] = None,
 ) -> FastAPI:
     """Create a FastAPI application serving evaluation results from JSON files."""
 
@@ -39,6 +41,8 @@ def create_app(
 
     app.state.active_run_id = active_run_id
     app.state.store = store
+    app.state.session_name = session_name
+    app.state.run_name = run_name
     # Rerun configuration (optional but recommended)
     app.state.path = path
     app.state.dataset = dataset
@@ -174,7 +178,8 @@ def create_app(
         summary = runner._calculate_summary(current_results)
         summary["results"] = current_results
         summary["rerun_config"] = rerun_config
-        store.save_run(summary, run_id)
+        # Use current session, generate new run name for rerun
+        store.save_run(summary, run_id=run_id, session_name=app.state.session_name)
 
         results_lock = Lock()
         func_index = {id(func): idx for idx, func in enumerate(functions)}
@@ -183,7 +188,7 @@ def create_app(
             s = runner._calculate_summary(current_results)
             s["results"] = current_results
             s["rerun_config"] = rerun_config
-            store.save_run(s, run_id)
+            store.save_run(s, run_id=run_id, session_name=app.state.session_name)
 
         def _on_start(func: EvalFunction):
             with results_lock:
@@ -212,7 +217,7 @@ def create_app(
         rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else None
         if not rid:
             raise HTTPException(status_code=400, detail="Only active or latest run can be exported")
-        path = store.run_path(app.state.active_run_id)
+        path = store._find_run_file(app.state.active_run_id)
         return FileResponse(
             path,
             media_type="application/json",
@@ -267,6 +272,59 @@ def create_app(
         }
         return Response(content=csv_bytes, media_type="text/csv", headers=headers)
 
+    @app.get("/api/sessions")
+    def list_sessions():
+        """List all unique session names from stored runs."""
+        sessions = set()
+        for run_id in store.list_runs():
+            try:
+                data = store.load_run(run_id)
+                session = data.get("session_name")
+                if session:
+                    sessions.add(session)
+            except Exception:
+                continue
+        return {"sessions": sorted(sessions)}
+
+    @app.get("/api/sessions/{session_name}/runs")
+    def list_session_runs(session_name: str):
+        """List all runs for a specific session."""
+        runs = store.list_runs_for_session(session_name)
+        run_details = []
+        for run_id in runs:
+            try:
+                data = store.load_run(run_id)
+                run_details.append({
+                    "run_id": run_id,
+                    "run_name": data.get("run_name"),
+                    "total_evaluations": data.get("total_evaluations", 0),
+                    "total_passed": data.get("total_passed", 0),
+                    "total_errors": data.get("total_errors", 0),
+                })
+            except Exception:
+                continue
+        return {"session_name": session_name, "runs": run_details}
+
+    class RunUpdateBody(BaseModel):
+        run_name: Optional[str] = None
+
+    @app.patch("/api/runs/{run_id}")
+    def update_run(run_id: str, body: RunUpdateBody):
+        """Update run metadata (e.g., rename a run)."""
+        try:
+            data = store.load_run(run_id)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+        if body.run_name is not None:
+            data["run_name"] = body.run_name
+            # Re-save with updated name (note: doesn't rename file, just updates JSON)
+            from twevals.storage import _atomic_write_json
+            run_file = store._find_run_file(run_id)
+            _atomic_write_json(run_file, data)
+
+        return {"ok": True, "run": {"run_id": run_id, "run_name": data.get("run_name")}}
+
     return app
 
 
@@ -289,6 +347,9 @@ def load_app_from_env() -> FastAPI:  # pragma: no cover (exercised in dev)
     limit_env = os.environ.get("TWEVALS_LIMIT")
     limit = int(limit_env) if limit_env is not None else None
 
+    session_name = os.environ.get("TWEVALS_SESSION_NAME") or None
+    run_name_env = os.environ.get("TWEVALS_RUN_NAME") or None
+
     return create_app(
         results_dir=results_dir,
         active_run_id=active_run_id,
@@ -299,4 +360,6 @@ def load_app_from_env() -> FastAPI:  # pragma: no cover (exercised in dev)
         verbose=verbose,
         function_name=function_name,
         limit=limit,
+        session_name=session_name,
+        run_name=run_name_env,
     )
