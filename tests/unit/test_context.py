@@ -473,3 +473,15 @@ class TestContextParameterNames:
 
         result = test_func()
         assert result.input == "test"
+
+    def test_forward_ref_annotation(self):
+        """Ensure EvalContext detection works when annotations are postponed"""
+
+        @eval(default_score_key="test")
+        def test_func(ctx: "EvalContext"):
+            ctx.input = "test"
+            ctx.add_output("output")
+            ctx.add_score(True, "Passed")
+
+        result = test_func()
+        assert result.input == "test"

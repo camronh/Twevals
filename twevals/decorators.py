@@ -1,9 +1,10 @@
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union, ForwardRef, get_args, get_origin, get_type_hints
 import functools
 import time
 import asyncio
 import inspect
 import concurrent.futures
+import types
 
 from twevals.schemas import EvalResult, Score
 from twevals.context import EvalContext
@@ -51,11 +52,40 @@ class EvalFunction:
 
         functools.update_wrapper(self, func)
 
+    def _is_eval_context_annotation(self, annotation: Any) -> bool:
+        """Return True if the annotation represents an EvalContext, handling forward refs and unions."""
+        if annotation is inspect._empty or annotation is None:
+            return False
+
+        if annotation is EvalContext:
+            return True
+
+        # Handle string annotations and ForwardRefs from postponed evaluation
+        if isinstance(annotation, str):
+            return annotation.split(".")[-1] == "EvalContext"
+        if isinstance(annotation, ForwardRef):
+            return annotation.__forward_arg__.split(".")[-1] == "EvalContext"
+
+        origin = get_origin(annotation)
+        if origin in (Union, types.UnionType):
+            return any(self._is_eval_context_annotation(arg) for arg in get_args(annotation))
+
+        return False
+
     def _detect_context_param(self, func: Callable) -> Optional[str]:
         """Detect if function has a parameter annotated with EvalContext"""
         sig = inspect.signature(func)
+        try:
+            # Resolves forward references when __future__.annotations is enabled
+            resolved_hints = get_type_hints(func, include_extras=True)
+        except Exception:
+            resolved_hints = {}
+
         for param_name, param in sig.parameters.items():
-            if param.annotation is EvalContext:
+            if self._is_eval_context_annotation(resolved_hints.get(param_name)):
+                return param_name
+
+            if self._is_eval_context_annotation(param.annotation):
                 return param_name
         return None
 
