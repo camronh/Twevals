@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 - Added: `POST /api/runs/stop` endpoint to cancel running evaluations.
 - Changed: `POST /api/runs/rerun` now accepts optional `indices` parameter for selective reruns.
 - Tests: Added E2E tests for run controls (selection, start, stop, selective rerun).
+- Changed: Codebase cleanup reducing ~510 lines through consolidating duplicate patterns, simplifying async/sync execution, and removing redundant code.
 
 ## 0.0.2a10 - 2025-11-28
 
