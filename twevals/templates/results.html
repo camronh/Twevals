@@ -95,9 +95,10 @@
   <thead>
     <tr class="border-b border-zinc-800/60">
       <th style="width:36px;" class="px-2 py-2.5"></th>
-      <th data-col="function" style="width:22%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
-      <th data-col="input" style="width:22%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
-      <th data-col="output" style="width:22%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Output</th>
+      <th data-col="function" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
+      <th data-col="input" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
+      <th data-col="reference" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Reference</th>
+      <th data-col="output" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Output</th>
       <th data-col="scores" style="width:180px;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Scores</th>
       <th data-col="latency" data-type="number" style="width:80px;" class="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-zinc-500">Time</th>
     </tr>
@@ -106,7 +107,7 @@
     {% for r in summary.results %}
     {% set row_id = loop.index0 %}
     {% set status = r.result.status or 'completed' %}
-    {% set is_pending = status in ['pending', 'running'] %}
+    {% set is_running = status == 'running' %}
     <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" class="hover:bg-zinc-800/30 transition-colors">
       <td class="px-2 py-2 align-top">
         <button class="expand-btn flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-800 hover:text-amber-400" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
@@ -118,7 +119,7 @@
           <div class="flex items-center gap-2">
             <span class="font-mono text-[13px] font-medium text-amber-400">{{ r.function }}</span>
             {% if status == 'running' %}
-              <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status) }}">run</span>
+              <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status) }}">running</span>
             {% elif status == 'error' %}
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get('error') }}">err</span>
             {% endif %}
@@ -137,8 +138,15 @@
       <td data-col="input" title="{{ r.result.input }}" class="px-3 py-2 align-top">
         <div class="line-clamp-2 text-[13px] text-zinc-300">{{ r.result.input }}</div>
       </td>
+      <td data-col="reference" title="{{ r.result.reference }}" class="px-3 py-2 align-top">
+        {% if r.result.reference %}
+          <div class="line-clamp-2 text-[13px] text-zinc-300">{{ r.result.reference }}</div>
+        {% else %}
+          <span class="text-zinc-600">—</span>
+        {% endif %}
+      </td>
       <td data-col="output" title="{% if r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% endif %}" class="px-3 py-2 align-top">
-        {% if is_pending %}
+        {% if is_running %}
           <div class="space-y-1.5">
             <div class="h-3 w-3/4 animate-pulse rounded bg-zinc-800"></div>
             <div class="h-3 w-1/2 animate-pulse rounded bg-zinc-800"></div>
@@ -152,7 +160,7 @@
         {% endif %}
       </td>
       <td data-col="scores" class="px-3 py-2 align-top max-w-[180px]">
-        {% if is_pending %}
+        {% if is_running %}
           <div class="flex gap-1">
             <div class="h-5 w-16 animate-pulse rounded bg-zinc-800"></div>
             <div class="h-5 w-12 animate-pulse rounded bg-zinc-800"></div>
@@ -182,7 +190,7 @@
         {% if r.result.latency is not none %}
           {% set latency = r.result.latency %}
           <span class="font-mono text-[12px] {% if latency <= 1 %}text-emerald-400{% elif latency <= 5 %}text-amber-400{% else %}text-rose-400{% endif %}">{{ latency | round(2) }}s</span>
-        {% elif is_pending %}
+        {% elif is_running %}
           <div class="ml-auto h-4 w-10 animate-pulse rounded bg-zinc-800"></div>
         {% else %}
           <span class="text-zinc-600">—</span>
@@ -197,7 +205,7 @@
         data-original-metadata='{{ (r.result.metadata or none) | tojson | e }}'
         data-original-scores='{{ (r.result.scores or []) | tojson | e }}'
         data-original-annotation='{{ (r.result.annotation or "") | e }}'>
-      <td colspan="6" class="bg-zinc-950/50 px-2 py-3">
+      <td colspan="7" class="bg-zinc-950/50 px-2 py-3">
         <div class="detail-panel rounded-lg border border-zinc-800/60 bg-zinc-900/50">
           <!-- Header -->
           <div class="detail-header flex items-center justify-between border-b border-zinc-800/40 px-4 py-2.5">
@@ -270,7 +278,7 @@
                     <svg class="check-icon hidden h-3 w-3 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-output-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-zinc-800/60 bg-zinc-950/50 px-2.5 py-2 font-mono text-[12px] {% if r.result.error %}text-rose-400{% else %}text-zinc-300{% endif %}">{% if is_pending %}…{% elif r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% else %}—{% endif %}</pre>
+                <pre id="pre-output-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-zinc-800/60 bg-zinc-950/50 px-2.5 py-2 font-mono text-[12px] {% if r.result.error %}text-rose-400{% else %}text-zinc-300{% endif %}">{% if is_running %}…{% elif r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% else %}—{% endif %}</pre>
               </div>
               <div class="data-block group">
                 <div class="mb-1.5 flex items-center justify-between">

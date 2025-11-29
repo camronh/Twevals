@@ -171,16 +171,10 @@
                 <rect x="3" y="14" width="7" height="7"/>
               </svg>
             </button>
-            <div id="columns-menu" class="columns-panel absolute right-0 mt-2 w-64 rounded-2xl border border-zinc-800 bg-neutral-900/95 p-4 text-sm text-zinc-200 shadow-2xl backdrop-blur">
+            <div id="columns-menu" class="columns-panel absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-zinc-800 bg-neutral-900 p-4 text-sm text-zinc-200 shadow-2xl">
               <div class="filters-title mb-3 font-mono text-xs font-semibold uppercase tracking-wide text-zinc-300">Toggle Columns</div>
               <label class="column-toggle flex items-center gap-3 py-1 text-sm text-zinc-200">
                 <input type="checkbox" data-col="function" checked class="h-4 w-4 accent-amber-500" /><span>Function</span>
-              </label>
-              <label class="column-toggle flex items-center gap-3 py-1 text-sm text-zinc-200">
-                <input type="checkbox" data-col="dataset" checked class="h-4 w-4 accent-amber-500" /><span>Dataset</span>
-              </label>
-              <label class="column-toggle flex items-center gap-3 py-1 text-sm text-zinc-200">
-                <input type="checkbox" data-col="labels" checked class="h-4 w-4 accent-amber-500" /><span>Labels</span>
               </label>
               <label class="column-toggle flex items-center gap-3 py-1 text-sm text-zinc-200">
                 <input type="checkbox" data-col="input" checked class="h-4 w-4 accent-amber-500" /><span>Input</span>
@@ -316,15 +310,21 @@
 
       // Column visibility
       function applyColumnVisibility() {
-        const hidden = new Set(getHiddenCols());
-        const allCols = ["function", "dataset", "labels", "input", "output", "reference", "error", "scores", "latency"];
-        for (const col of allCols) {
+        const toggles = Array.from(document.querySelectorAll('#columns-menu input[data-col]'));
+        if (!toggles.length) return;
+
+        const cols = toggles.map((cb) => cb.getAttribute("data-col"));
+        const stored = getHiddenCols();
+        const hidden = new Set(stored.filter((c) => cols.includes(c)));
+        if (hidden.size !== stored.length) setHiddenCols([...hidden]);
+
+        cols.forEach((col) => {
           const isHidden = hidden.has(col);
           document.querySelectorAll(`#results-table [data-col="${col}"]`).forEach((el) => {
             el.classList.toggle('hidden', isHidden);
           });
-        }
-        document.querySelectorAll('#columns-menu input[data-col]').forEach((cb) => {
+        });
+        toggles.forEach((cb) => {
           cb.checked = !hidden.has(cb.getAttribute("data-col"));
         });
       }
