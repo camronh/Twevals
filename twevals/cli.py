@@ -487,7 +487,7 @@ def _serve(
     console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
     if functions:
         console.print("[cyan]Evaluations are running in the background; rows will update live as they finish.[/cyan]")
-    console.print("Press Ctrl+C to stop\n")
+    console.print("Press Esc to stop (or Ctrl+C)\n")
 
     Thread(target=lambda: (time.sleep(0.5), webbrowser.open(url)), daemon=True).start()
 
@@ -529,7 +529,60 @@ def _serve(
             reload_includes=["*.py", "*.pyi", "*.html", "*.jinja", "*.ini", "*.toml", "*.yaml", "*.yml", "*.json"],
         )
     else:
-        uvicorn.run(app, host=host, port=port, log_level=log_level, access_log=access_log)
+        config = uvicorn.Config(app, host=host, port=port, log_level=log_level, access_log=access_log)
+        server = uvicorn.Server(config)
+
+        server_thread = Thread(target=server.run)
+        server_thread.start()
+
+        def wait_for_stop_signal():
+            """Wait for Esc or Ctrl+C while preserving log output formatting."""
+            try:
+                if not sys.stdin.isatty():
+                    server_thread.join()
+                    return False
+
+                import termios
+                import select
+                fd = sys.stdin.fileno()
+                old_settings = termios.tcgetattr(fd)
+                try:
+                    mode = termios.tcgetattr(fd)
+                    # Disable ICANON (line buffering) and ECHO, but keep OPOST (output processing)
+                    # This ensures that \n from background threads is still translated to \r\n
+                    mode[3] = mode[3] & ~(termios.ICANON | termios.ECHO)
+                    termios.tcsetattr(fd, termios.TCSADRAIN, mode)
+                    
+                    while server_thread.is_alive():
+                        # Check for input with timeout
+                        if select.select([sys.stdin], [], [], 0.5)[0]:
+                            ch = sys.stdin.read(1)
+                            if not ch:  # EOF
+                                return False
+                            if ch == '\x1b' or ch == '\x03':
+                                return True
+                finally:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            except (ImportError, AttributeError, OSError):
+                # Fallback for Windows or non-POSIX
+                try:
+                    while server_thread.is_alive():
+                        ch = click.getchar()
+                        if ch == '\x1b' or ch == '\x03':
+                            return True
+                except (EOFError, KeyboardInterrupt):
+                    return True
+            return False
+
+        try:
+            if wait_for_stop_signal():
+                console.print("\nStopping server...")
+                server.should_exit = True
+        except (KeyboardInterrupt, SystemExit):
+            console.print("\nStopping server...")
+            server.should_exit = True
+
+        server_thread.join()
 
 
 def main():
