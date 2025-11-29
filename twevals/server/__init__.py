@@ -82,6 +82,18 @@ def create_app(
             indices_map: For selective rerun - maps function id -> index in existing_results
         """
         if not functions:
+            # Persist an empty run so the run file exists
+            summary = {
+                "total_evaluations": 0,
+                "total_functions": 0,
+                "total_errors": 0,
+                "total_passed": 0,
+                "total_with_scores": 0,
+                "average_latency": 0,
+                "results": [],
+                "rerun_config": rerun_config,
+            }
+            store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
             return
 
         runner = EvalRunner(concurrency=app.state.concurrency or 0, verbose=app.state.verbose)

@@ -307,6 +307,41 @@ def case3():
     assert updated_run["results"][1]["result"]["output"] == "old2"
 
 
+def test_rerun_with_no_functions_persists_empty_run(tmp_path: Path):
+    """When rerun discovers zero functions, an empty run should still be persisted."""
+    # Create an empty eval file (no @eval decorated functions)
+    eval_dir = tmp_path / "evals"
+    eval_dir.mkdir()
+    f = eval_dir / "test_empty.py"
+    f.write_text("# No eval functions here\n")
+
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run_id,
+        path=str(f),
+    )
+    client = TestClient(app)
+
+    # Trigger rerun - should succeed even with no functions
+    rr = client.post("/api/runs/rerun")
+    assert rr.status_code == 200
+    payload = rr.json()
+    assert payload.get("ok") is True
+    new_run_id = payload.get("run_id")
+
+    # Results endpoint should work (not 500) even with empty run
+    r = client.get("/results")
+    assert r.status_code == 200
+
+    # The empty run should be persisted
+    data = store.load_run(new_run_id)
+    assert data["results"] == []
+    assert data["total_evaluations"] == 0
+
+
 def test_stop_endpoint_stops_pending_tasks(tmp_path: Path):
     """Stop should prevent runner from executing additional evals."""
     log_file = tmp_path / "log.json"
