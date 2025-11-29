@@ -140,7 +140,7 @@
     {% set row_id = loop.index0 %}
     {% set status = r.result.status or 'completed' %}
     {% set is_running = status == 'running' %}
-    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" class="group cursor-pointer hover:bg-blue-50/50 transition-colors dark:hover:bg-zinc-800/30" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
+    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" data-scores='{{ r.result.scores | tojson }}' data-annotation="{{ r.result.annotation or '' }}" class="group cursor-pointer hover:bg-blue-50/50 transition-colors dark:hover:bg-zinc-800/30" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
       <td class="px-2 py-2 align-middle" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-checkbox" data-row-id="{{ row_id }}" />
       </td>

@@ -108,7 +108,9 @@ def test_advanced_filters_ui(tmp_path):
 
             # Open again for adding rules
             btn.click()
-            # Choose accuracy key
+            page.wait_for_selector("#filters-menu.active")
+            # Wait for options to be populated (attached, not visible - options are inside select)
+            page.wait_for_selector("#key-select option[value='accuracy']", state='attached')
             page.select_option("#key-select", value="accuracy")
             page.select_option("#fv-op", value=">")
             page.fill("#fv-val", "0.8")
@@ -135,6 +137,7 @@ def test_advanced_filters_ui(tmp_path):
             # Dynamic key type detection: fluency has numeric only -> value section visible, passed hidden
             # Ensure menu is visible before interacting with selects
             page.wait_for_selector("#filters-menu.active")
+            page.wait_for_selector("#key-select option[value='fluency']", state='attached')
             page.select_option("#key-select", value="fluency")
             expect(page.locator("#value-section")).to_be_visible()
             expect(page.locator("#passed-section")).to_be_hidden()

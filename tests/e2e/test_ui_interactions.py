@@ -121,7 +121,7 @@ def test_row_expand_sort_and_toggle_columns(tmp_path):
 
             # Sort by latency ascending (one click)
             page.locator("thead th[data-col='latency']").click()
-            first_func = page.locator("tbody tr[data-row='main'] td[data-col='function']").first
+            first_func = page.locator("tbody tr[data-row='main'] td[data-col='function'] a").first
             expect(first_func).to_contain_text("b")  # 0.1s row should be first
 
             # Toggle Output column visibility off
@@ -151,7 +151,7 @@ def test_detail_page_navigation(tmp_path):
             page.goto(f"{url}/runs/{run_id}/results/0")
             expect(page.locator("text=Result 1 of 3")).to_be_visible()
             # Function name should be visible in the header
-            expect(page.locator(".font-mono.text-xl")).to_contain_text("a")
+            expect(page.locator("h1.font-mono")).to_contain_text("a")
 
             # Use arrow key to navigate to next
             page.keyboard.press("ArrowDown")
@@ -165,7 +165,7 @@ def test_detail_page_navigation(tmp_path):
 
             # Press Escape to go back to table
             page.keyboard.press("Escape")
-            page.wait_for_url("**/?scroll=0")
+            page.wait_for_url("**/")
             page.wait_for_selector("#results-table")
 
             browser.close()

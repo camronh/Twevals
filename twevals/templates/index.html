@@ -605,9 +605,9 @@
         if (!tbody) return { all: [], meta: {} };
         const keys = new Set();
         const meta = {};
-        tbody.querySelectorAll("tr[data-row='detail']").forEach(tr => {
+        tbody.querySelectorAll("tr[data-row='main']").forEach(tr => {
           let scores = [];
-          try { scores = JSON.parse(tr.getAttribute('data-original-scores') || '[]') || []; } catch {}
+          try { scores = JSON.parse(tr.getAttribute('data-scores') || '[]') || []; } catch {}
           (scores || []).forEach(s => {
             const k = s && s.key; if (!k) return;
             keys.add(k);
@@ -817,16 +817,16 @@
         return false;
       }
 
-      function rowMatchesFilters(mainTr, detailTr) {
+      function rowMatchesFilters(mainTr) {
         const f = getFilters();
         if (f.annotation && f.annotation !== 'any') {
-          const ann = (detailTr?.getAttribute('data-original-annotation') || '').trim();
+          const ann = (mainTr?.getAttribute('data-annotation') || '').trim();
           const has = !!ann;
           if (f.annotation === 'yes' && !has) return false;
           if (f.annotation === 'no' && has) return false;
         }
         let scores = [];
-        try { scores = JSON.parse(detailTr?.getAttribute('data-original-scores') || '[]') || []; } catch {}
+        try { scores = JSON.parse(mainTr?.getAttribute('data-scores') || '[]') || []; } catch {}
         for (const vr of (f.valueRules || [])) {
           const s = scores.find(x => x && x.key === vr.key);
           if (!s) return false;
@@ -848,16 +848,13 @@
         if (!tbody) return;
         const mains = tbody.querySelectorAll("tr[data-row='main']");
         mains.forEach((tr) => {
-          const id = tr.getAttribute('data-row-id');
-          const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
           let show = true;
           if (q) {
             const text = tr.textContent.toLowerCase();
             if (!text.includes(q)) show = false;
           }
-          if (show) show = rowMatchesFilters(tr, detail);
+          if (show) show = rowMatchesFilters(tr);
           tr.classList.toggle('hidden', !show);
-          if (!show && detail && !detail.hasAttribute('hidden')) detail.setAttribute('hidden', '');
         });
         updateFilteredSummary();
       }
@@ -891,10 +888,8 @@
         if (chipsEl) chipsEl.innerHTML = '';
         const map = {};
         visible.forEach(tr => {
-          const id = tr.getAttribute('data-row-id');
-          const det = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`);
           let scores = [];
-          try { scores = JSON.parse(det?.getAttribute('data-original-scores') || '[]') || []; } catch {}
+          try { scores = JSON.parse(tr.getAttribute('data-scores') || '[]') || []; } catch {}
           scores.forEach(s => {
             const key = s?.key; if (!key) return;
             const d = map[key] || (map[key] = { passed: 0, failed: 0, bool: 0, sum: 0, count: 0 });
