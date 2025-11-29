@@ -2,7 +2,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.2a11 - 2025-11-29
 
 - Added: Full-page detail view for individual evaluation results with dedicated URL (`/runs/{run_id}/results/{index}`), enabling new tab support and multi-monitor workflows.
 - Added: Keyboard navigation on detail page (Arrow keys to navigate between results, Escape to return to table).
