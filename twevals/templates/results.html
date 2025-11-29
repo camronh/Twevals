@@ -29,12 +29,24 @@
   <div class="flex items-center gap-2">
     {% if summary.session_name %}
     <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Session</span>
-    <span class="font-mono text-xs text-zinc-600 dark:text-zinc-300">{{ summary.session_name }}</span>
+    <div class="group flex items-center gap-1">
+      <span id="session-name-text" class="font-mono text-xs text-zinc-600 dark:text-zinc-300">{{ summary.session_name }}</span>
+      <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="session-name-text" aria-label="Copy session name">
+        <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      </button>
+    </div>
     {% endif %}
     {% if summary.run_name %}
     <span class="text-zinc-300 dark:text-zinc-700">·</span>
     <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Run</span>
-    <span class="font-mono text-xs text-amber-600 dark:text-amber-400">{{ summary.run_name }}</span>
+    <div class="group flex items-center gap-1">
+      <span id="run-name-text" class="font-mono text-xs text-amber-600 dark:text-amber-400">{{ summary.run_name }}</span>
+      <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="run-name-text" aria-label="Copy run name">
+        <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      </button>
+    </div>
     {% endif %}
   </div>
   <div class="h-4 w-px bg-zinc-300 dark:bg-zinc-800"></div>
