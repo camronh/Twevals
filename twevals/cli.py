@@ -8,7 +8,7 @@ import time
 import webbrowser
 from pathlib import Path
 from typing import Optional, List, Dict
-from threading import Lock, Thread
+from threading import Thread
 
 from rich.console import Console
 
@@ -428,22 +428,20 @@ def _serve(
         raise
 
     from twevals.storage import ResultsStore
-    import asyncio
+    from twevals.runner import EvalRunner
 
-    store = ResultsStore(results_dir)
+    # Discover functions
     discovery = EvalDiscovery()
     functions = discovery.discover(path=path, dataset=dataset, labels=labels, function_name=function_name)
     if limit is not None:
         functions = functions[:limit]
 
+    # Create initial run with pending results
+    store = ResultsStore(results_dir)
+    run_id = store.generate_run_id()
     runner = EvalRunner(concurrency=concurrency or 0, verbose=verbose)
-    rerun_config = {
-        "path": path, "dataset": dataset, "labels": labels,
-        "function_name": function_name, "limit": limit,
-        "concurrency": concurrency, "verbose": verbose,
-    }
 
-    current_results = [{
+    initial_results = [{
         "function": f.func.__name__,
         "dataset": f.dataset,
         "labels": f.labels,
@@ -456,13 +454,17 @@ def _serve(
         },
     } for f in functions]
 
-    run_id = store.generate_run_id()
-    summary = runner._calculate_summary(current_results)
-    summary["results"] = current_results
+    rerun_config = {
+        "path": path, "dataset": dataset, "labels": labels,
+        "function_name": function_name, "limit": limit,
+        "concurrency": concurrency, "verbose": verbose,
+    }
+    summary = runner._calculate_summary(initial_results)
+    summary["results"] = initial_results
     summary["rerun_config"] = rerun_config
     store.save_run(summary, run_id=run_id, session_name=session_name, run_name=run_name)
 
-    # Create the app *before* starting the run, so we can use its cancel event
+    # Create app - it will start running evaluations if functions provided
     app = create_app(
         results_dir=results_dir,
         active_run_id=run_id,
@@ -475,54 +477,10 @@ def _serve(
         limit=limit,
         session_name=session_name,
         run_name=run_name,
+        initial_functions=functions if functions else None,
     )
-    
-    # Now, set up the runner thread with the app's cancellation objects
-    results_lock = Lock()
-    func_index = {id(func): idx for idx, func in enumerate(functions)}
-    cancel_event = app.state.cancel_event
-    cancel_lock = app.state.cancel_lock
 
-    def _persist():
-        if cancel_event.is_set():
-            return
-        s = runner._calculate_summary(current_results)
-        s["results"] = current_results
-        s["rerun_config"] = rerun_config
-        store.save_run(s, run_id=run_id, session_name=session_name, run_name=run_name)
-
-    def _on_start(func: EvalFunction):
-        if cancel_event.is_set():
-            return
-        with results_lock:
-            if cancel_event.is_set():
-                return
-            current_results[func_index[id(func)]]["result"]["status"] = "running"
-            _persist()
-
-    def _on_complete(func: EvalFunction, result_dict: Dict):
-        with cancel_lock:
-            if cancel_event.is_set():
-                return
-            status = "error" if result_dict.get("result", {}).get("error") else "completed"
-            result_dict.setdefault("result", {})["status"] = status
-            with results_lock:
-                current_results[func_index[id(func)]] = result_dict
-                _persist()
-
-    def _run_evals():
-        asyncio.run(runner.run_all_async(
-            functions,
-            on_start=_on_start,
-            on_complete=_on_complete,
-            cancel_event=cancel_event,
-        ))
-        if not cancel_event.is_set():
-            _persist()
-
-    if functions:
-        Thread(target=_run_evals, daemon=True).start()
-    else:
+    if not functions:
         console.print("[yellow]No evaluations found; serving UI with an empty run.[/yellow]")
 
     url = f"http://{host}:{port}"
