@@ -2,7 +2,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.2a10 - 2025-11-28
 
 - Added: `run_evals()` function for programmatic execution of multiple evals with support for functions, paths, concurrency, and all CLI options.
 - Added: Direct call support for parametrized evals - calling a parametrized function now runs all variants and returns `List[EvalResult]`.
@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file.
 - Added: Rerun configuration stored in run JSON for reproducible reruns from UI.
 - Changed: Simplified server/CLI code by inlining background execution logic.
 
-0.0.2a9 - 2025-11-23
+## 0.0.2a9 - 2025-11-23
 
 - Added: `timeout` parameter to `@eval` decorator for setting per-evaluation timeout limits in seconds.
 - Added: `--timeout` CLI flag for `twevals run` command to set a global timeout that overrides individual test timeouts.
