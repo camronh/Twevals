@@ -13,7 +13,7 @@ Add the `--serve` flag to any run:
 twevals evals.py --serve
 ```
 
-This runs your evaluations and opens `http://127.0.0.1:8000` in your browser.
+The browser opens automatically at `http://127.0.0.1:8000`. Evaluations run in the background while the UI loads immediately—results appear and update in real-time as each evaluation completes.
 
 ## Features
 
@@ -23,12 +23,12 @@ The main view shows all evaluation results in a sortable, filterable table:
 
 | Column | Description |
 |--------|-------------|
-| Name | Evaluation function name |
-| Status | Pass/Fail status |
-| Score | Aggregate score value |
+| Function | Function name with dataset shown below |
+| Input | The test input |
+| Reference | Expected output (if set) |
+| Output | The system output |
+| Scores | Score chips showing pass/fail status |
 | Latency | Execution time |
-| Dataset | Dataset grouping |
-| Labels | Applied labels |
 
 ### Expanding Rows
 
@@ -74,7 +74,7 @@ Click column headers to sort:
 
 ### Actions
 
-<CardGroup cols={3}>
+<CardGroup cols={2}>
   <Card title="Refresh" icon="rotate">
     Reload results from disk
   </Card>
@@ -83,6 +83,9 @@ Click column headers to sort:
   </Card>
   <Card title="Export" icon="download">
     Download as JSON or CSV
+  </Card>
+  <Card title="Theme" icon="moon">
+    Toggle dark/light mode
   </Card>
 </CardGroup>
 
