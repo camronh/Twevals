@@ -22,6 +22,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark-dimmed.min.css">
     <script>
       (function() {
         const saved = localStorage.getItem('twevals:theme');
@@ -31,6 +32,40 @@
     <style>
       .data-card { min-height: 120px; }
       .data-card pre { height: 100%; max-height: none; }
+      .data-viewer { min-height: auto; }
+      .data-surface {
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+      }
+      .data-pre {
+        background: transparent !important;
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+      .markdown-body {
+        color: inherit;
+      }
+      .markdown-body h1, .markdown-body h2, .markdown-body h3,
+      .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+        font-weight: 600;
+        margin: 0.5rem 0 0.35rem;
+        line-height: 1.3;
+      }
+      .markdown-body p { margin: 0 0 0.5rem; }
+      .markdown-body ul, .markdown-body ol {
+        margin: 0 0 0.5rem 1.1rem;
+        padding: 0;
+      }
+      .markdown-body ul { list-style: disc; }
+      .markdown-body ol { list-style: decimal; }
+      .markdown-body li { margin: 0.2rem 0; }
+      .markdown-body strong { font-weight: 600; }
       .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
       .collapsible-content.open { max-height: 2000px; }
       .collapse-icon { transition: transform 0.2s ease; }
@@ -50,7 +85,7 @@
     {% set has_metadata = result.result.metadata and result.result.metadata != '—' %}
     {% set has_run_data = result.result.run_data is defined and result.result.run_data is not none %}
 
-    <div class="mx-auto w-full max-w-5xl px-4 py-6 md:px-6">
+    <div class="mx-auto w-full max-w-7xl px-4 py-6 md:px-8">
       <!-- Header -->
       <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-4">
@@ -112,13 +147,17 @@
         <div class="data-card flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
             <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Input</span>
-            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="pre-input" title="Copy">
+            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="data-input" title="Copy">
               <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
               <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
             </button>
           </div>
           <div class="flex-1 overflow-auto p-4">
-            <pre id="pre-input" class="whitespace-pre-wrap font-mono text-sm text-zinc-700 dark:text-zinc-300">{{ result.result.input }}</pre>
+            <div id="data-input" class="data-viewer">
+              <div class="data-surface">
+                <pre class="data-pre text-zinc-700 dark:text-zinc-300">{{ result.result.input }}</pre>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -126,13 +165,17 @@
         <div class="data-card flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
             <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Output</span>
-            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="pre-output" title="Copy">
+            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="data-output" title="Copy">
               <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
               <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
             </button>
           </div>
           <div class="flex-1 overflow-auto p-4">
-            <pre id="pre-output" class="whitespace-pre-wrap font-mono text-sm {% if result.result.error %}text-rose-600 dark:text-rose-400{% else %}text-zinc-700 dark:text-zinc-300{% endif %}">{% if result.result.output %}{{ result.result.output }}{% elif result.result.error %}{{ result.result.error }}{% else %}—{% endif %}</pre>
+            <div id="data-output" class="data-viewer {% if result.result.error %}error{% endif %}">
+              <div class="data-surface">
+                <pre class="data-pre {% if result.result.error %}text-rose-600 dark:text-rose-400{% else %}text-zinc-700 dark:text-zinc-300{% endif %}">{% if result.result.output %}{{ result.result.output }}{% elif result.result.error %}{{ result.result.error }}{% else %}—{% endif %}</pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -144,13 +187,17 @@
         <div class="flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
             <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Reference</span>
-            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="pre-ref" title="Copy">
+            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="data-ref" title="Copy">
               <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
               <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
             </button>
           </div>
           <div class="flex-1 overflow-auto p-4" style="max-height: 200px;">
-            <pre id="pre-ref" class="whitespace-pre-wrap font-mono text-sm text-zinc-700 dark:text-zinc-300">{{ result.result.reference }}</pre>
+            <div id="data-ref" class="data-viewer">
+              <div class="data-surface">
+                <pre class="data-pre text-zinc-700 dark:text-zinc-300">{{ result.result.reference }}</pre>
+              </div>
+            </div>
           </div>
         </div>
         {% endif %}
@@ -159,13 +206,17 @@
         <div class="flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
             <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Metadata</span>
-            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="pre-meta" title="Copy">
+            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="data-meta" title="Copy">
               <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
               <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
             </button>
           </div>
           <div class="flex-1 overflow-auto p-4" style="max-height: 200px;">
-            <pre id="pre-meta" class="whitespace-pre-wrap font-mono text-sm text-zinc-700 dark:text-zinc-300">{% if result.result.metadata is mapping %}{{ result.result.metadata | tojson }}{% else %}{{ result.result.metadata }}{% endif %}</pre>
+            <div id="data-meta" class="data-viewer">
+              <div class="data-surface">
+                <pre class="data-pre text-zinc-700 dark:text-zinc-300">{% if result.result.metadata is mapping %}{{ result.result.metadata | tojson }}{% else %}{{ result.result.metadata }}{% endif %}</pre>
+              </div>
+            </div>
           </div>
         </div>
         {% endif %}
@@ -206,14 +257,18 @@
             <svg id="run-data-icon" class="collapse-icon h-4 w-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Run Data</span>
           </div>
-          <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="pre-run" title="Copy">
+          <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="data-run" title="Copy">
             <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
             <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           </button>
         </div>
         <div id="run-data-content" class="collapsible-content">
           <div class="p-4">
-            <pre id="pre-run" class="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-50 p-4 font-mono text-sm text-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">{{ result.result.run_data | tojson(indent=2) }}</pre>
+            <div id="data-run" class="data-viewer">
+              <div class="data-surface max-h-96 overflow-auto">
+                <pre class="data-pre text-zinc-700 dark:text-zinc-300">{{ result.result.run_data | tojson(indent=2) }}</pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -244,10 +299,110 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/lib/marked.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
     <script>
+      const dataPayloads = {
+        input: {{ result.result.input | default(None) | tojson }},
+        output: {% if result.result.output is not none %}{{ result.result.output | tojson }}{% elif result.result.error is not none %}{{ result.result.error | tojson }}{% else %}null{% endif %},
+        reference: {% if has_reference %}{{ result.result.reference | tojson }}{% else %}null{% endif %},
+        metadata: {% if has_metadata %}{{ result.result.metadata | tojson }}{% else %}null{% endif %},
+        run: {% if has_run_data %}{{ result.result.run_data | tojson }}{% else %}null{% endif %}
+      };
       const currentIndex = {{ index }};
       const total = {{ total }};
       const runId = '{{ run_id }}';
+
+      function escapeHtml(str) {
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      function looksLikeMarkdown(text) {
+        if (!text) return false;
+        const patterns = [
+          /^#{1,6}\s+\S/m,
+          /^\s*[-*+]\s+\S/m,
+          /^\s*\d+\.\s+\S/m,
+          /^>+\s+\S/m,
+          /`{3,}[\s\S]*?`{3,}/m,
+          /\[.+?\]\(.+?\)/m,
+          /^-{3,}$/m
+        ];
+        return patterns.some((re) => re.test(text));
+      }
+
+      function highlightWithin(container) {
+        if (typeof hljs === 'undefined' || !container) return;
+        container.querySelectorAll('pre code').forEach((code) => hljs.highlightElement(code));
+      }
+
+      function renderDataViewer(targetId, content, options = {}) {
+        const container = document.getElementById(targetId);
+        if (!container) return;
+        const placeholder = options.placeholder || '—';
+
+        if (content === null || content === undefined || content === '') {
+          container.innerHTML = `<div class="data-surface text-sm text-zinc-400 dark:text-zinc-500">${placeholder}</div>`;
+          container.dataset.raw = '';
+          return;
+        }
+
+        let rawText;
+        let mode = 'text';
+
+        if (typeof content === 'string') {
+          rawText = content;
+        } else if (typeof content === 'number' || typeof content === 'boolean') {
+          rawText = String(content);
+        } else {
+          try {
+            rawText = JSON.stringify(content, null, 2);
+            mode = 'json';
+          } catch (err) {
+            rawText = String(content);
+          }
+        }
+
+        const trimmed = rawText.trim();
+        if (mode !== 'json' && trimmed) {
+          try {
+            const parsed = JSON.parse(rawText);
+            rawText = JSON.stringify(parsed, null, 2);
+            mode = 'json';
+          } catch (err) {
+            if (looksLikeMarkdown(trimmed)) {
+              mode = 'markdown';
+            }
+          }
+        }
+
+        container.dataset.mode = mode;
+
+        if (mode === 'json') {
+          container.innerHTML = `<div class="data-surface"><pre class="data-pre"><code class="language-json">${escapeHtml(rawText)}</code></pre></div>`;
+          container.dataset.raw = rawText;
+          highlightWithin(container);
+          return;
+        }
+
+        if (mode === 'markdown') {
+          if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            const html = DOMPurify.sanitize(marked.parse(rawText));
+            container.innerHTML = `<div class="data-surface markdown-body">${html}</div>`;
+            container.dataset.raw = rawText;
+            highlightWithin(container);
+            return;
+          }
+          mode = 'text';
+        }
+
+        container.innerHTML = `<div class="data-surface"><pre class="data-pre">${escapeHtml(rawText)}</pre></div>`;
+        container.dataset.raw = rawText;
+      }
 
       function navigateTo(idx) {
         if (idx >= 0 && idx < total) {
@@ -262,33 +417,46 @@
         icon.classList.toggle('open');
       }
 
-      document.getElementById('prev-btn')?.addEventListener('click', () => navigateTo(currentIndex - 1));
-      document.getElementById('next-btn')?.addEventListener('click', () => navigateTo(currentIndex + 1));
+      document.addEventListener('DOMContentLoaded', () => {
+        if (typeof marked !== 'undefined') {
+          marked.setOptions({ breaks: true, gfm: true });
+        }
 
-      document.addEventListener('keydown', (e) => {
-        if (e.target.matches('input, textarea, select')) return;
-        if (e.key === 'ArrowUp') { e.preventDefault(); navigateTo(currentIndex - 1); }
-        else if (e.key === 'ArrowDown') { e.preventDefault(); navigateTo(currentIndex + 1); }
-        else if (e.key === 'Escape') { window.location.href = `/?scroll=${currentIndex}`; }
-      });
+        renderDataViewer('data-input', dataPayloads.input);
+        renderDataViewer('data-output', dataPayloads.output, { placeholder: '—' });
+        if (dataPayloads.reference !== null) renderDataViewer('data-ref', dataPayloads.reference);
+        if (dataPayloads.metadata !== null) renderDataViewer('data-meta', dataPayloads.metadata);
+        if (dataPayloads.run !== null) renderDataViewer('data-run', dataPayloads.run);
 
-      document.querySelectorAll('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const targetId = btn.dataset.copy;
-          const el = document.getElementById(targetId);
-          if (!el) return;
-          try {
-            await navigator.clipboard.writeText(el.textContent);
-            btn.querySelector('.copy-icon').classList.add('hidden');
-            btn.querySelector('.check-icon').classList.remove('hidden');
-            setTimeout(() => {
-              btn.querySelector('.copy-icon').classList.remove('hidden');
-              btn.querySelector('.check-icon').classList.add('hidden');
-            }, 1500);
-          } catch (err) {
-            console.error('Copy failed:', err);
-          }
+        document.getElementById('prev-btn')?.addEventListener('click', () => navigateTo(currentIndex - 1));
+        document.getElementById('next-btn')?.addEventListener('click', () => navigateTo(currentIndex + 1));
+
+        document.addEventListener('keydown', (e) => {
+          if (e.target.matches('input, textarea, select')) return;
+          if (e.key === 'ArrowUp') { e.preventDefault(); navigateTo(currentIndex - 1); }
+          else if (e.key === 'ArrowDown') { e.preventDefault(); navigateTo(currentIndex + 1); }
+          else if (e.key === 'Escape') { window.location.href = `/?scroll=${currentIndex}`; }
+        });
+
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const targetId = btn.dataset.copy;
+            const el = document.getElementById(targetId);
+            if (!el) return;
+            const raw = el.dataset?.raw ?? el.textContent;
+            try {
+              await navigator.clipboard.writeText(raw);
+              btn.querySelector('.copy-icon').classList.add('hidden');
+              btn.querySelector('.check-icon').classList.remove('hidden');
+              setTimeout(() => {
+                btn.querySelector('.copy-icon').classList.remove('hidden');
+                btn.querySelector('.check-icon').classList.add('hidden');
+              }, 1500);
+            } catch (err) {
+              console.error('Copy failed:', err);
+            }
+          });
         });
       });
     </script>
