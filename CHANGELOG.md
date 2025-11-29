@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 - Added: Session/run metadata (`session_name`, `run_name`, `run_id`) in run JSON files.
 - Added: UI display of current session and run name in the stats bar.
 - Added: API endpoints for session management: `GET /api/sessions`, `GET /api/sessions/{name}/runs`, `PATCH /api/runs/{run_id}`.
+- Added: Run controls - stop button to cancel running/pending evaluations mid-run.
+- Added: Selective rerun - select individual results via checkboxes and rerun only those.
+- Added: UI selection checkboxes with select-all functionality and indeterminate state.
+- Added: `POST /api/runs/stop` endpoint to cancel running evaluations.
+- Changed: `POST /api/runs/rerun` now accepts optional `indices` parameter for selective reruns.
+- Tests: Added E2E tests for run controls (selection, start, stop, selective rerun).
 
 ## 0.0.2a10 - 2025-11-28
 

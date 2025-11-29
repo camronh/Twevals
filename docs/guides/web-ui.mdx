@@ -92,8 +92,8 @@ Click column headers to sort:
   <Card title="Refresh" icon="rotate">
     Reload results from disk
   </Card>
-  <Card title="Rerun" icon="play">
-    Re-execute the evaluation suite
+  <Card title="Run/Stop" icon="play">
+    Start selected evals or stop running ones
   </Card>
   <Card title="Export" icon="download">
     Download as JSON or CSV
@@ -102,6 +102,22 @@ Click column headers to sort:
     Toggle dark/light mode
   </Card>
 </CardGroup>
+
+### Run Controls
+
+Control evaluation execution directly from the UI:
+
+**Selection**
+- Use checkboxes to select individual results
+- Click the header checkbox to select/deselect all visible rows
+- Selection persists through filtering
+
+**Start/Stop**
+- **Run Selected**: With results selected, click the play button to rerun only those evaluations
+- **Run All**: With nothing selected, click play to rerun the entire suite
+- **Stop**: While evals are running, click stop to cancel pending and running evaluations
+
+Cancelled evaluations are marked with a "cancelled" status and can be rerun later.
 
 ## Custom Port
 
