@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added: Full-page detail view for individual evaluation results with dedicated URL (`/runs/{run_id}/results/{index}`), enabling new tab support and multi-monitor workflows.
+- Added: Keyboard navigation on detail page (Arrow keys to navigate between results, Escape to return to table).
+- Added: Expandable table rows - click any row to expand and view truncated content inline; click function name to navigate to full detail page.
+- Added: Scores wrap and show all values when table row is expanded (previously limited to 2 with "+N" overflow).
+- Added: Markdown rendering and syntax highlighting for Output content on detail page.
+- Added: Collapsible Run Data section on detail page.
+- Changed: Scroll position is now preserved when returning from detail page to table view.
+- Changed: Removed expandable detail rows from table in favor of row expand/collapse pattern and dedicated detail page.
 - Fixed: Server log output no longer experiences staircase effect when using `--serve` due to improved terminal handling.
 - Added: Server can now be stopped by pressing `Esc` key when running with `--serve`.
 - Changed: EvalContext detection now uses type annotation (`: EvalContext`) instead of parameter name matching. Any parameter name works as long as it's typed correctly.
