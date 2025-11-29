@@ -16,14 +16,14 @@
 {% set pct_done = ((completed / total) * 100) | round(0) | int if total > 0 else 0 %}
 
 {% set pill_tones = {
-  'pending': 'text-amber-300 bg-amber-500/10 border border-amber-500/40',
+  'pending': 'text-blue-300 bg-blue-500/10 border border-blue-500/40',
   'running': 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/40',
   'completed': 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/40',
   'error': 'text-rose-300 bg-rose-500/10 border border-rose-500/40'
 } %}
 
 <!-- Compact Stats Bar -->
-<div class="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-amber-200/60 bg-white px-4 py-2.5 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:shadow-none">
+<div class="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-blue-200/60 bg-white px-4 py-2.5 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:shadow-none">
   <!-- Session & Run Info -->
   {% if summary.session_name or summary.run_name %}
   <div class="flex items-center gap-2">
@@ -31,7 +31,7 @@
     <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Session</span>
     <div class="group flex items-center gap-1">
       <span id="session-name-text" class="font-mono text-xs text-zinc-600 dark:text-zinc-300">{{ summary.session_name }}</span>
-      <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="session-name-text" aria-label="Copy session name">
+      <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-blue-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-blue-500" data-copy="session-name-text" aria-label="Copy session name">
         <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
       </button>
@@ -41,8 +41,8 @@
     <span class="text-zinc-300 dark:text-zinc-700">·</span>
     <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Run</span>
     <div class="group flex items-center gap-1">
-      <span id="run-name-text" class="font-mono text-xs text-amber-600 dark:text-amber-400">{{ summary.run_name }}</span>
-      <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="run-name-text" aria-label="Copy run name">
+      <span id="run-name-text" class="font-mono text-xs text-blue-600 dark:text-blue-500">{{ summary.run_name }}</span>
+      <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-blue-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-blue-500" data-copy="run-name-text" aria-label="Copy run name">
         <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
       </button>
@@ -57,9 +57,9 @@
     <div class="flex items-center gap-2">
       <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Progress</span>
       <div class="h-1.5 w-6 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-        <div class="h-full rounded-full bg-amber-500" style="width: {{ pct_done }}%"></div>
+        <div class="h-full rounded-full bg-blue-500" style="width: {{ pct_done }}%"></div>
       </div>
-      <span class="font-mono text-xs text-amber-600 dark:text-amber-400">{{ completed }}/{{ total }}</span>
+      <span class="font-mono text-xs text-blue-600 dark:text-blue-500">{{ completed }}/{{ total }}</span>
     </div>
   {% else %}
     <div class="flex items-center gap-2">
@@ -110,18 +110,18 @@
 </div>
 
 <!-- Filtered summary (computed client-side) -->
-<div id="filtered-summary" class="hidden mb-4 rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm text-amber-800 dark:text-amber-100">
+<div id="filtered-summary" class="hidden mb-4 rounded-xl border border-blue-500/40 bg-blue-500/5 px-4 py-3 text-sm text-blue-800 dark:text-blue-100">
   <div class="flex flex-wrap items-center gap-2">
-    <span id="filtered-count-chip" class="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-100"></span>
-    <span id="filtered-avg-latency" class="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-100"></span>
+    <span id="filtered-count-chip" class="inline-flex items-center gap-2 rounded-full bg-blue-500/15 px-3 py-1 text-xs font-semibold text-blue-800 dark:text-blue-100"></span>
+    <span id="filtered-avg-latency" class="inline-flex items-center gap-2 rounded-full bg-blue-500/15 px-3 py-1 text-xs font-semibold text-blue-800 dark:text-blue-100"></span>
     <span id="filtered-score-chips" class="flex flex-wrap gap-2"></span>
   </div>
 </div>
 
 <!-- Results Table -->
-<table id="results-table" data-run-id="{{ run_id }}" class="w-full overflow-hidden rounded-lg border border-amber-200/60 bg-white text-sm text-zinc-700 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200 dark:shadow-none">
+<table id="results-table" data-run-id="{{ run_id }}" class="w-full overflow-hidden rounded-lg border border-blue-200/60 bg-white text-sm text-zinc-700 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200 dark:shadow-none">
   <thead>
-    <tr class="border-b border-amber-200/60 bg-amber-50/50 dark:border-zinc-800/60 dark:bg-transparent">
+    <tr class="border-b border-blue-200/60 bg-blue-50/50 dark:border-zinc-800/60 dark:bg-transparent">
       <th style="width:36px;" class="px-2 py-2.5"></th>
       <th data-col="function" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
       <th data-col="input" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
@@ -131,21 +131,21 @@
       <th data-col="latency" data-type="number" style="width:80px;" class="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-zinc-500">Time</th>
     </tr>
   </thead>
-  <tbody class="divide-y divide-amber-100 dark:divide-zinc-800/40">
+  <tbody class="divide-y divide-blue-100 dark:divide-zinc-800/40">
     {% for r in summary.results %}
     {% set row_id = loop.index0 %}
     {% set status = r.result.status or 'completed' %}
     {% set is_running = status == 'running' %}
-    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" class="hover:bg-amber-50/50 transition-colors dark:hover:bg-zinc-800/30">
+    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" class="hover:bg-blue-50/50 transition-colors dark:hover:bg-zinc-800/30">
       <td class="px-2 py-2 align-top">
-        <button class="expand-btn flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition hover:bg-amber-100 hover:text-amber-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-amber-400" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
+        <button class="expand-btn flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition hover:bg-blue-100 hover:text-blue-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-blue-500" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
           <span class="icon text-[10px]">▸</span>
         </button>
       </td>
       <td data-col="function" class="px-3 py-2 align-top">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
-            <span class="font-mono text-[13px] font-medium text-amber-600 dark:text-amber-400">{{ r.function }}</span>
+            <span class="font-mono text-[13px] font-medium text-blue-600 dark:text-blue-500">{{ r.function }}</span>
             {% if status == 'running' %}
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status) }}">running</span>
             {% elif status == 'error' %}
@@ -155,9 +155,9 @@
           <div class="flex items-center gap-1.5 text-[11px] text-zinc-500">
             <span>{{ r.dataset }}</span>
             {% if r.labels %}
-              <span class="text-amber-300 dark:text-zinc-700">·</span>
+              <span class="text-blue-300 dark:text-zinc-700">·</span>
               {% for la in r.labels %}
-                <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-zinc-800/80 dark:text-zinc-400">{{ la }}</span>
+                <span class="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-zinc-800/80 dark:text-zinc-400">{{ la }}</span>
               {% endfor %}
             {% endif %}
           </div>
@@ -217,7 +217,7 @@
       <td data-col="latency" data-value="{% if r.result.latency is not none %}{{ r.result.latency }}{% endif %}" class="px-3 py-2 align-top text-right">
         {% if r.result.latency is not none %}
           {% set latency = r.result.latency %}
-          <span class="font-mono text-[12px] {% if latency <= 1 %}text-emerald-600 dark:text-emerald-400{% elif latency <= 5 %}text-amber-600 dark:text-amber-400{% else %}text-rose-600 dark:text-rose-400{% endif %}">{{ latency | round(2) }}s</span>
+          <span class="font-mono text-[12px] {% if latency <= 1 %}text-emerald-600 dark:text-emerald-400{% elif latency <= 5 %}text-blue-600 dark:text-blue-500{% else %}text-rose-600 dark:text-rose-400{% endif %}">{{ latency | round(2) }}s</span>
         {% elif is_running %}
           <div class="ml-auto h-4 w-10 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800"></div>
         {% else %}
@@ -233,19 +233,19 @@
         data-original-metadata='{{ (r.result.metadata or none) | tojson | e }}'
         data-original-scores='{{ (r.result.scores or []) | tojson | e }}'
         data-original-annotation='{{ (r.result.annotation or "") | e }}'>
-      <td colspan="7" class="bg-amber-50/30 px-2 py-3 dark:bg-zinc-950/50">
-        <div class="detail-panel rounded-lg border border-amber-200/60 bg-white shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:shadow-none">
+      <td colspan="7" class="bg-blue-50/30 px-2 py-3 dark:bg-zinc-950/50">
+        <div class="detail-panel rounded-lg border border-blue-200/60 bg-white shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:shadow-none">
           <!-- Header -->
-          <div class="detail-header flex items-center justify-between border-b border-amber-200/60 bg-amber-50/30 px-4 py-2.5 dark:border-zinc-800/40 dark:bg-transparent">
+          <div class="detail-header flex items-center justify-between border-b border-blue-200/60 bg-blue-50/30 px-4 py-2.5 dark:border-zinc-800/40 dark:bg-transparent">
             <div class="flex items-center gap-3">
-              <span class="font-mono text-[13px] font-medium text-amber-600 dark:text-amber-400">{{ r.function }}</span>
+              <span class="font-mono text-[13px] font-medium text-blue-600 dark:text-blue-500">{{ r.function }}</span>
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status, pill_tones.get('completed')) }}">{{ status }}</span>
               {% if r.result.latency is not none %}
                 <span class="font-mono text-[11px] text-zinc-500">{{ r.result.latency | round(2) }}s</span>
               {% endif %}
             </div>
             <div class="detail-actions flex gap-1.5">
-              <button class="detail-btn edit edit-btn rounded px-2.5 py-1 text-[11px] text-amber-700 transition hover:bg-amber-100 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-amber-400" data-row-id="{{ row_id }}">Edit</button>
+              <button class="detail-btn edit edit-btn rounded px-2.5 py-1 text-[11px] text-blue-700 transition hover:bg-blue-100 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-blue-500" data-row-id="{{ row_id }}">Edit</button>
               <button class="detail-btn save save-btn hidden rounded bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-emerald-500" data-row-id="{{ row_id }}">Save</button>
               <button class="detail-btn cancel cancel-btn hidden rounded px-2.5 py-1 text-[11px] text-rose-600 transition hover:bg-rose-50 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-rose-400" data-row-id="{{ row_id }}">Cancel</button>
             </div>
@@ -262,7 +262,7 @@
               <div class="flex items-center gap-2">
                 <span class="text-zinc-500">Labels:</span>
                 <div class="flex gap-1">
-                  {% for la in r.labels %}<span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-zinc-800 dark:text-zinc-400">{{ la }}</span>{% endfor %}
+                  {% for la in r.labels %}<span class="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-zinc-800 dark:text-zinc-400">{{ la }}</span>{% endfor %}
                 </div>
               </div>
               {% endif %}
@@ -278,11 +278,11 @@
             <div class="edit-section hidden mb-4 grid gap-3 sm:grid-cols-2">
               <div>
                 <label class="mb-1 block text-[11px] font-medium text-zinc-500">Dataset</label>
-                <input id="dataset-input-{{ row_id }}" type="text" class="w-full rounded border border-zinc-300 bg-white px-2.5 py-1.5 text-[12px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" value="{{ r.dataset }}" />
+                <input id="dataset-input-{{ row_id }}" type="text" class="w-full rounded border border-zinc-300 bg-white px-2.5 py-1.5 text-[12px] text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" value="{{ r.dataset }}" />
               </div>
               <div>
                 <label class="mb-1 block text-[11px] font-medium text-zinc-500">Labels (comma-separated)</label>
-                <input id="labels-input-{{ row_id }}" type="text" class="w-full rounded border border-zinc-300 bg-white px-2.5 py-1.5 text-[12px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" value="{% if r.labels %}{{ r.labels | join(', ') }}{% endif %}" />
+                <input id="labels-input-{{ row_id }}" type="text" class="w-full rounded border border-zinc-300 bg-white px-2.5 py-1.5 text-[12px] text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" value="{% if r.labels %}{{ r.labels | join(', ') }}{% endif %}" />
               </div>
             </div>
 
@@ -291,42 +291,42 @@
               <div class="data-block group">
                 <div class="mb-1.5 flex items-center justify-between">
                   <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Input</span>
-                  <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="pre-input-{{ row_id }}">
+                  <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-blue-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-blue-500" data-copy="pre-input-{{ row_id }}">
                     <svg class="copy-icon h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-input-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.input }}</pre>
+                <pre id="pre-input-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-blue-200/60 bg-blue-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.input }}</pre>
               </div>
               <div class="data-block group">
                 <div class="mb-1.5 flex items-center justify-between">
                   <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Output</span>
-                  <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="pre-output-{{ row_id }}">
+                  <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-blue-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-blue-500" data-copy="pre-output-{{ row_id }}">
                     <svg class="copy-icon h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-output-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] dark:border-zinc-800/60 dark:bg-zinc-950/50 {% if r.result.error %}text-rose-600 dark:text-rose-400{% else %}text-zinc-700 dark:text-zinc-300{% endif %}">{% if is_running %}…{% elif r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% else %}—{% endif %}</pre>
+                <pre id="pre-output-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-blue-200/60 bg-blue-50/30 px-2.5 py-2 font-mono text-[12px] dark:border-zinc-800/60 dark:bg-zinc-950/50 {% if r.result.error %}text-rose-600 dark:text-rose-400{% else %}text-zinc-700 dark:text-zinc-300{% endif %}">{% if is_running %}…{% elif r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% else %}—{% endif %}</pre>
               </div>
               <div class="data-block group">
                 <div class="mb-1.5 flex items-center justify-between">
                   <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Reference</span>
-                  <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="pre-ref-{{ row_id }}">
+                  <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-blue-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-blue-500" data-copy="pre-ref-{{ row_id }}">
                     <svg class="copy-icon h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-ref-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.reference or '—' }}</pre>
+                <pre id="pre-ref-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-blue-200/60 bg-blue-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.reference or '—' }}</pre>
               </div>
               <div class="data-block group">
                 <div class="mb-1.5 flex items-center justify-between">
                   <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Metadata</span>
-                  <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="pre-meta-{{ row_id }}">
+                  <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-blue-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-blue-500" data-copy="pre-meta-{{ row_id }}">
                     <svg class="copy-icon h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-meta-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.metadata or '—' }}</pre>
+                <pre id="pre-meta-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-blue-200/60 bg-blue-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.metadata or '—' }}</pre>
               </div>
             </div>
 
@@ -334,19 +334,19 @@
             <div class="data-block group mt-3 view-section">
               <div class="mb-1.5 flex items-center justify-between">
                 <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Run Data</span>
-                <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-amber-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-amber-400" data-copy="pre-run-{{ row_id }}">
+                <button class="copy-btn flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-blue-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-blue-500" data-copy="pre-run-{{ row_id }}">
                   <svg class="copy-icon h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                 </button>
               </div>
-              <pre id="pre-run-{{ row_id }}" class="max-h-48 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.run_data | tojson(indent=2) }}</pre>
+              <pre id="pre-run-{{ row_id }}" class="max-h-48 overflow-auto rounded border border-blue-200/60 bg-blue-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.run_data | tojson(indent=2) }}</pre>
             </div>
             {% endif %}
 
             <!-- Edit metadata JSON -->
             <div class="edit-section hidden mt-3">
               <label class="mb-1 block text-[11px] font-medium text-zinc-500">Metadata (JSON)</label>
-              <textarea id="metadata-input-{{ row_id }}" class="w-full rounded border border-zinc-300 bg-white px-2.5 py-2 font-mono text-[12px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" rows="4">{% if r.result.metadata %}{{ r.result.metadata | tojson(indent=2) }}{% endif %}</textarea>
+              <textarea id="metadata-input-{{ row_id }}" class="w-full rounded border border-zinc-300 bg-white px-2.5 py-2 font-mono text-[12px] text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" rows="4">{% if r.result.metadata %}{{ r.result.metadata | tojson(indent=2) }}{% endif %}</textarea>
             </div>
 
             <!-- Scores -->
@@ -355,7 +355,7 @@
               <div class="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Scores</div>
               <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {% for s in r.result.scores %}
-                <div class="flex items-center justify-between rounded border border-amber-200/60 bg-amber-50/30 px-3 py-2 dark:border-zinc-800/40 dark:bg-zinc-900/30">
+                <div class="flex items-center justify-between rounded border border-blue-200/60 bg-blue-50/30 px-3 py-2 dark:border-zinc-800/40 dark:bg-zinc-900/30">
                   <span class="font-mono text-[12px] text-zinc-600 dark:text-zinc-300">{{ s.key }}</span>
                   <div class="flex items-center gap-2">
                     {% if s.value is not none %}
@@ -377,15 +377,15 @@
               {% set scores = r.result.scores or [] %}
               <div id="scores-editor-{{ row_id }}" class="space-y-2">
                 {% for s in scores %}
-                <div class="grid gap-2 rounded border border-amber-200/60 bg-amber-50/30 p-2 sm:grid-cols-4 dark:border-zinc-800/40 dark:bg-zinc-900/30">
-                  <input type="text" class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-key" value="{{ s.key }}" placeholder="Key" />
-                  <input type="number" step="any" class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-value" value="{% if s.value is not none %}{{ s.value }}{% endif %}" placeholder="Value" />
-                  <select class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-passed">
+                <div class="grid gap-2 rounded border border-blue-200/60 bg-blue-50/30 p-2 sm:grid-cols-4 dark:border-zinc-800/40 dark:bg-zinc-900/30">
+                  <input type="text" class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-key" value="{{ s.key }}" placeholder="Key" />
+                  <input type="number" step="any" class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-value" value="{% if s.value is not none %}{{ s.value }}{% endif %}" placeholder="Value" />
+                  <select class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-passed">
                     <option value="">—</option>
                     <option value="true" {% if s.passed is true %}selected{% endif %}>Pass</option>
                     <option value="false" {% if s.passed is false %}selected{% endif %}>Fail</option>
                   </select>
-                  <input type="text" class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-notes" value="{% if s.notes %}{{ s.notes }}{% endif %}" placeholder="Notes" />
+                  <input type="text" class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-notes" value="{% if s.notes %}{{ s.notes }}{% endif %}" placeholder="Notes" />
                 </div>
                 {% endfor %}
               </div>
@@ -396,13 +396,13 @@
               <div class="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Annotation</div>
               <div class="view-section">
                 {% if r.result.annotation %}
-                <div class="whitespace-pre-wrap rounded border border-amber-200/60 bg-amber-50/30 px-3 py-2 text-[12px] text-zinc-700 dark:border-zinc-800/40 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.annotation }}</div>
+                <div class="whitespace-pre-wrap rounded border border-blue-200/60 bg-blue-50/30 px-3 py-2 text-[12px] text-zinc-700 dark:border-zinc-800/40 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.annotation }}</div>
                 {% else %}
                 <div class="text-[12px] text-zinc-400 dark:text-zinc-600">—</div>
                 {% endif %}
               </div>
               <div class="edit-section hidden">
-                <textarea id="annotation-input-{{ row_id }}" class="w-full rounded border border-zinc-300 bg-white px-2.5 py-2 text-[12px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" placeholder="Add a note..." rows="3">{% if r.result.annotation %}{{ r.result.annotation }}{% endif %}</textarea>
+                <textarea id="annotation-input-{{ row_id }}" class="w-full rounded border border-zinc-300 bg-white px-2.5 py-2 text-[12px] text-zinc-700 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" placeholder="Add a note..." rows="3">{% if r.result.annotation %}{{ r.result.annotation }}{% endif %}</textarea>
               </div>
             </div>
           </div>
