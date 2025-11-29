@@ -1,4 +1,3 @@
-import asyncio
 import click
 import sys
 import inspect
@@ -9,14 +8,13 @@ import time
 import webbrowser
 from pathlib import Path
 from typing import Optional, List, Dict
-from threading import Lock, Thread
+from threading import Thread
 
 from rich.console import Console
 
-from twevals.runner import EvalRunner
 from twevals.formatters import format_results_table, format_eval_list_table
-from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
+from twevals.run_manager import start_run
 
 
 console = Console()
@@ -422,96 +420,23 @@ def _serve(
     # Always create a fresh run on startup
     from twevals.storage import ResultsStore
 
-    discovery = EvalDiscovery()
-    functions = discovery.discover(
-        path=path,
-        dataset=dataset,
-        labels=labels,
-        function_name=function_name,
-    )
-
-    if limit is not None:
-        functions = functions[:limit]
-
-    runner = EvalRunner(concurrency=concurrency, verbose=verbose)
     store = ResultsStore(results_dir)
-    run_id = store.generate_run_id()
-
-    # Seed a pending run immediately so the UI has rows to render
-    def _pending_result(func: EvalFunction) -> Dict:
-        return {
-            "function": func.func.__name__,
-            "dataset": func.dataset,
-            "labels": func.labels,
-            "result": {
-                "input": func.context_kwargs.get("input"),
-                "reference": func.context_kwargs.get("reference"),
-                "metadata": func.context_kwargs.get("metadata"),
-                "output": None,
-                "error": None,
-                "scores": None,
-                "latency": None,
-                "run_data": None,
-                "annotation": None,
-                "annotations": None,
-                "status": "pending",
-            },
-        }
-
-    pending_results = [_pending_result(f) for f in functions]
-    current_results = list(pending_results)
-    initial_summary = runner._calculate_summary(current_results)
-    initial_summary["results"] = current_results
-    store.save_run(initial_summary, run_id)
-
-    # Stream updates to disk as results finish
-    results_lock = Lock()
-    func_index = {id(func): idx for idx, func in enumerate(functions)}
-
-    def _persist():
-        summary = runner._calculate_summary(current_results)
-        summary["results"] = current_results
-        store.save_run(summary, run_id)
-
-    def _on_start(func: EvalFunction):
-        idx = func_index.get(id(func))
-        if idx is None:
-            return
-        with results_lock:
-            current_results[idx]["result"]["status"] = "running"
-            _persist()
-
-    def _on_complete(func: EvalFunction, result_dict: Dict):
-        idx = func_index.get(id(func))
-        status = "error" if result_dict.get("result", {}).get("error") else "completed"
-        result_dict.setdefault("result", {})["status"] = status
-        with results_lock:
-            if idx is not None and idx < len(current_results):
-                current_results[idx] = result_dict
-            else:
-                current_results.append(result_dict)
-            _persist()
-
-    def _run_evals():
-        try:
-            async def _execute():
-                await runner.run_all_async(
-                    functions,
-                    on_start=_on_start,
-                    on_complete=_on_complete,
-                )
-                _persist()
-
-            asyncio.run(_execute())
-        except Exception as e:
-            console.print(f"[red]Error during evaluation run: {e}[/red]")
-            console.print(traceback.format_exc())
-        else:
-            console.print("[green]Background evaluation run complete.[/green]")
+    run_cfg = {
+        "path": path,
+        "dataset": dataset,
+        "labels": labels,
+        "function_name": function_name,
+        "limit": limit,
+        "concurrency": concurrency,
+        "verbose": verbose,
+    }
+    handle = start_run(run_cfg, store)
+    run_id = handle.run_id
+    functions = handle.functions
 
     # Kick off evaluations in the background so the UI can load immediately
     if functions:
-        Thread(target=_run_evals, daemon=True).start()
+        handle.start_background()
     else:
         console.print("[yellow]No evaluations found; serving UI with an empty run.[/yellow]")
 

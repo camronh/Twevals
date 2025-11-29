@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from twevals.storage import ResultsStore
-from twevals.runner import EvalRunner
+from twevals.run_manager import start_run
 
 
 class ResultUpdateBody(BaseModel):
@@ -118,26 +118,41 @@ def create_app(
 
     @app.post("/api/runs/rerun")
     def rerun():
-        # Ensure we have rerun configuration
-        if not app.state.path:
-            raise HTTPException(status_code=400, detail="Server not configured with path to evals")
-        runner = EvalRunner(concurrency=app.state.concurrency, verbose=app.state.verbose)
+        # Build rerun configuration from live state or the last run's stored config
+        cfg = {
+            "path": app.state.path,
+            "dataset": app.state.dataset,
+            "labels": app.state.labels,
+            "function_name": app.state.function_name,
+            "limit": app.state.limit,
+            "concurrency": app.state.concurrency,
+            "verbose": app.state.verbose,
+        }
+        if not cfg["path"]:
+            try:
+                summary = store.load_run(app.state.active_run_id)
+                stored = summary.get("rerun_config") or {}
+                for k, v in stored.items():
+                    if cfg.get(k) is None:
+                        cfg[k] = v
+            except Exception:
+                pass
+        if not cfg["path"]:
+            raise HTTPException(status_code=400, detail="Rerun unavailable: missing eval path")
+
         try:
-            summary = runner.run(
-                path=app.state.path,
-                dataset=app.state.dataset,
-                labels=app.state.labels,
-                function_name=app.state.function_name,
-                limit=app.state.limit,
-                verbose=app.state.verbose,
-            )
+            handle = start_run(cfg, store)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-        # Save as a fresh run and update active run id
-        new_run_id = store.save_run(summary)
-        app.state.active_run_id = new_run_id
-        return {"ok": True, "run_id": new_run_id}
+        app.state.active_run_id = handle.run_id
+        handle.start_background()
+
+        return {"ok": True, "run_id": handle.run_id}
 
     @app.get("/api/runs/{run_id}/export/json")
     def export_json(run_id: str):
