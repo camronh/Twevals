@@ -117,6 +117,20 @@
       .expand-chevron {
         transition: transform 0.15s ease;
       }
+      /* Scores wrap when row expanded */
+      tr[data-row="main"].expanded td[data-col="scores"] > div {
+        flex-wrap: wrap;
+        overflow: visible;
+      }
+      tr[data-row="main"].expanded .score-badge {
+        max-width: unset;
+      }
+      tr[data-row="main"].expanded .score-extra {
+        display: inline-flex;
+      }
+      tr[data-row="main"].expanded .score-overflow {
+        display: none;
+      }
       /* Prevent cell content overflow */
       #results-table td {
         overflow: hidden;

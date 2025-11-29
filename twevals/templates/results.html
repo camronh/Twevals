@@ -199,17 +199,15 @@
           <div class="flex gap-1 overflow-hidden">
             {% set max_scores = 2 %}
             {% for s in r.result.scores %}
-              {% if loop.index0 < max_scores %}
-                {% set badge_class = 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400' %}
-                {% if s.passed is true %}{% set badge_class = 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' %}
-                {% elif s.passed is false %}{% set badge_class = 'bg-rose-500/15 text-rose-600 dark:text-rose-400' %}{% endif %}
-                <span class="score-badge shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium {{ badge_class }}" title="{{ s.key }}{% if s.value is not none %}: {{ s.value }}{% endif %}">
-                  {% if s.value is not none %}{{ s.key }}:{{ (s.value is number) and (s.value | round(1)) or s.value }}{% else %}{{ s.key }}{% endif %}
-                </span>
-              {% endif %}
+              {% set badge_class = 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400' %}
+              {% if s.passed is true %}{% set badge_class = 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' %}
+              {% elif s.passed is false %}{% set badge_class = 'bg-rose-500/15 text-rose-600 dark:text-rose-400' %}{% endif %}
+              <span class="score-badge shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium {{ badge_class }}{% if loop.index0 >= max_scores %} score-extra hidden{% endif %}" title="{{ s.key }}{% if s.value is not none %}: {{ s.value }}{% endif %}">
+                {% if s.value is not none %}{{ s.key }}:{{ (s.value is number) and (s.value | round(1)) or s.value }}{% else %}{{ s.key }}{% endif %}
+              </span>
             {% endfor %}
             {% if r.result.scores | length > max_scores %}
-              <span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">+{{ r.result.scores | length - max_scores }}</span>
+              <span class="score-overflow shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">+{{ r.result.scores | length - max_scores }}</span>
             {% endif %}
           </div>
         {% else %}
