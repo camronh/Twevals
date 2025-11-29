@@ -1,6 +1,6 @@
 """Tests for the parametrize decorator functionality"""
 import pytest
-from twevals import eval, EvalResult, parametrize
+from twevals import eval, EvalResult, parametrize, EvalContext
 from twevals.discovery import EvalDiscovery
 from twevals.parametrize import generate_eval_functions
 from twevals.decorators import EvalFunction
@@ -12,7 +12,7 @@ class TestParametrize:
         captured_inputs = []
         captured_metadata = []
 
-        def target(ctx):
+        def target(ctx: EvalContext):
             captured_inputs.append(ctx.input)
             captured_metadata.append(ctx.metadata)
             ctx.add_output(ctx.input["prompt"] + "-out")
@@ -22,7 +22,7 @@ class TestParametrize:
             ("hello", "hello-out"),
             ("world", "world-out"),
         ])
-        def test_func(ctx, prompt, expected):
+        def test_func(ctx: EvalContext, prompt, expected):
             # Param data should be present in both input and metadata
             assert ctx.input["prompt"] == prompt
             assert ctx.metadata["expected"] == expected
@@ -45,7 +45,7 @@ class TestParametrize:
     def test_parametrize_does_not_override_explicit_input(self):
         @eval(input="my prompt")
         @parametrize("temperature", [0.1, 0.2])
-        def test_func(ctx, temperature):
+        def test_func(ctx: EvalContext, temperature):
             # Explicit decorator input should win over param payload
             assert ctx.input == "my prompt"
             return ctx.build()

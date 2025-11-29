@@ -2,6 +2,7 @@ from typing import Any, Callable, List, Optional, Union, Dict
 import inspect
 
 from twevals.decorators import EvalFunction
+from twevals.context import EvalContext
 
 
 def generate_eval_functions(func: Callable) -> List[EvalFunction]:
@@ -28,9 +29,9 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
     ids = func.__param_ids__
     functions = []
 
-    # Detect if base function has a context parameter
+    # Detect if base function has a parameter annotated with EvalContext
     sig = inspect.signature(base_func)
-    has_context = any(param in sig.parameters for param in ['context', 'ctx', 'carrier'])
+    has_context = any(p.annotation is EvalContext for p in sig.parameters.values())
 
     # EvalResult field names that can be auto-mapped to context
     context_field_names = {'input', 'output', 'reference', 'metadata', 'run_data', 'latency'}
@@ -71,37 +72,14 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
         # Create the wrapper based on whether base function is async
         # If base function has context param, wrapper must also have it
         if has_context:
-            # Wrapper with context parameter
-            context_param_name = [p for p in ['context', 'ctx', 'carrier'] if p in sig.parameters][0]
-
             if inspect.iscoroutinefunction(base_func):
-                # Create wrapper with explicit context parameter
-                if context_param_name == 'context':
-                    async def wrapper(context, _params=function_params, **kwargs):
-                        merged_kwargs = {**_params, **kwargs}
-                        return await base_func(context, **merged_kwargs)
-                elif context_param_name == 'ctx':
-                    async def wrapper(ctx, _params=function_params, **kwargs):
-                        merged_kwargs = {**_params, **kwargs}
-                        return await base_func(ctx, **merged_kwargs)
-                else:  # carrier
-                    async def wrapper(carrier, _params=function_params, **kwargs):
-                        merged_kwargs = {**_params, **kwargs}
-                        return await base_func(carrier, **merged_kwargs)
+                async def wrapper(ctx: EvalContext, _params=function_params, **kwargs):
+                    merged_kwargs = {**_params, **kwargs}
+                    return await base_func(ctx, **merged_kwargs)
             else:
-                # Sync version
-                if context_param_name == 'context':
-                    def wrapper(context, _params=function_params, **kwargs):
-                        merged_kwargs = {**_params, **kwargs}
-                        return base_func(context, **merged_kwargs)
-                elif context_param_name == 'ctx':
-                    def wrapper(ctx, _params=function_params, **kwargs):
-                        merged_kwargs = {**_params, **kwargs}
-                        return base_func(ctx, **merged_kwargs)
-                else:  # carrier
-                    def wrapper(carrier, _params=function_params, **kwargs):
-                        merged_kwargs = {**_params, **kwargs}
-                        return base_func(carrier, **merged_kwargs)
+                def wrapper(ctx: EvalContext, _params=function_params, **kwargs):
+                    merged_kwargs = {**_params, **kwargs}
+                    return base_func(ctx, **merged_kwargs)
         else:
             # No context, use original logic
             if inspect.iscoroutinefunction(base_func):

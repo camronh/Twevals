@@ -52,10 +52,10 @@ class EvalFunction:
         functools.update_wrapper(self, func)
 
     def _detect_context_param(self, func: Callable) -> Optional[str]:
-        """Detect if function has a context parameter (context, ctx, or carrier)"""
+        """Detect if function has a parameter annotated with EvalContext"""
         sig = inspect.signature(func)
-        for param_name in ['context', 'ctx', 'carrier']:
-            if param_name in sig.parameters:
+        for param_name, param in sig.parameters.items():
+            if param.annotation is EvalContext:
                 return param_name
         return None
 

@@ -2,6 +2,7 @@ import pytest
 import asyncio
 import time
 
+from twevals import EvalContext
 from twevals.decorators import eval, EvalFunction
 from twevals.schemas import EvalResult
 
@@ -177,12 +178,12 @@ class TestEvalTimeout:
 
     @pytest.mark.asyncio
     async def test_target_async_timeout_exceeded(self):
-        async def slow_target(ctx):
+        async def slow_target(ctx: EvalContext):
             await asyncio.sleep(0.3)
             return "target_done"
 
         @eval(target=slow_target, timeout=0.1)
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             assert ctx.output == "target_done"
             return EvalResult(input="test", output="success")
 
@@ -192,12 +193,12 @@ class TestEvalTimeout:
         assert "timeout" in result.error.lower() or "timed out" in result.error.lower()
 
     def test_target_sync_timeout_exceeded(self):
-        def slow_target(ctx):
+        def slow_target(ctx: EvalContext):
             time.sleep(0.3)
             return "target_done"
 
         @eval(target=slow_target, timeout=0.1)
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             assert ctx.output == "target_done"
             return EvalResult(input="test", output="success")
 

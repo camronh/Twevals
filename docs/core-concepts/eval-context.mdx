@@ -7,7 +7,7 @@ The `EvalContext` is the heart of Twevals. It's a mutable builder that accumulat
 
 ## Basic Usage
 
-When your function accepts a parameter named `ctx`, `context`, or `carrier`, Twevals automatically injects an `EvalContext`:
+When your function accepts a parameter with type annotation `: EvalContext`, Twevals automatically injects it:
 
 ```python
 from twevals import eval, EvalContext

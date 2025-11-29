@@ -14,7 +14,7 @@ class TestSimpleContextUsage:
         """Test basic context usage with async"""
 
         @eval(dataset="test", labels=["integration"])
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             ctx.input = "Hello"
             ctx.reference = "Hello"
 
@@ -50,7 +50,7 @@ class TestContextWithDefaults:
             default_score_key="correctness",
             metadata={"model": "test-model", "version": "1.0"},
         )
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test input"
             ctx.reference = "test input"
             ctx.add_output("test input")
@@ -108,7 +108,7 @@ class TestParametrizeAutoMapping:
                 ("neutral text", "neutral"),
             ],
         )
-        def test_sentiment(ctx):
+        def test_sentiment(ctx: EvalContext):
             # ctx.input and ctx.reference already set!
             # Simple sentiment detection
             if "positive" in ctx.input:
@@ -148,7 +148,7 @@ class TestParametrizeCustomParams:
             "operation,a,b,expected",
             [("add", 2, 3, 5), ("multiply", 4, 7, 28), ("subtract", 10, 3, 7)],
         )
-        def test_calculator(ctx, operation, a, b, expected):
+        def test_calculator(ctx: EvalContext, operation, a, b, expected):
             ctx.input = {"operation": operation, "a": a, "b": b}
             ctx.reference = expected
 
@@ -183,7 +183,7 @@ class TestMultipleScoreTypes:
         """Test adding multiple different types of scores"""
 
         @eval(dataset="test", default_score_key="exact_match")
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             ctx.input = "What is the capital of France?"
             ctx.reference = "Paris"
             await asyncio.sleep(0.01)
@@ -224,7 +224,7 @@ class TestAssertionPreservation:
         """Test that assertion failures preserve context data and create failing scores"""
 
         @eval(dataset="test", default_score_key="correctness")
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             ctx.input = "test input"
             ctx.reference = "expected output"
             ctx.metadata = {"model": "test-model"}
@@ -259,7 +259,7 @@ class TestAssertionPreservation:
         """Test that assertions without messages still work"""
 
         @eval(dataset="test", default_score_key="accuracy")
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("wrong")
             assert False  # Assertion without message
@@ -277,7 +277,7 @@ class TestAssertionPreservation:
         """Test that non-assertion errors still set the error field"""
 
         @eval(dataset="test", default_score_key="correctness")
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("some output")
             # Raise a non-assertion error
@@ -298,7 +298,7 @@ class TestAssertionPreservation:
         """Test that only the first failed assertion is captured"""
 
         @eval(dataset="test", default_score_key="test")
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("output")
             assert False, "First assertion failed"
@@ -325,7 +325,7 @@ class TestMetadataFromParams:
         )
         @parametrize("model", ["model-a", "model-b"])
         @parametrize("temperature", [0.0, 1.0])
-        async def test_func(ctx, model, temperature):
+        async def test_func(ctx: EvalContext, model, temperature):
             # Manually add params to metadata using set_params or direct assignment
             ctx.metadata["model"] = model
             ctx.metadata["temperature"] = temperature
@@ -359,7 +359,7 @@ class TestSetParamsHelper:
 
         @eval(dataset="test")
         @parametrize("model,temperature", [("model-a", 0.0), ("model-b", 1.0)])
-        async def test_func(ctx, model, temperature):
+        async def test_func(ctx: EvalContext, model, temperature):
             # Use set_params to set both input and metadata
             ctx.set_params(model=model, temperature=temperature)
 
@@ -389,7 +389,7 @@ class TestUltraMinimal:
         @parametrize(
             "input,reference", [("I love this!", "positive"), ("Terrible!", "negative")]
         )
-        def test_ultra_minimal(ctx):
+        def test_ultra_minimal(ctx: EvalContext):
             sentiment = "positive" if "love" in ctx.input.lower() else "negative"
             ctx.add_output(sentiment)
             ctx.add_score(ctx.output == ctx.reference)
@@ -409,7 +409,7 @@ class TestExplicitReturn:
         """Test explicit return of context"""
 
         @eval(dataset="test", default_score_key="correctness")
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             ctx.input = "test"
             await asyncio.sleep(0.01)
             ctx.add_output("test output")
@@ -432,7 +432,7 @@ class TestAutoReturn:
         """Test auto-return when no explicit return"""
 
         @eval(dataset="test", default_score_key="correctness")
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             ctx.input = "test"
             await asyncio.sleep(0.01)
             ctx.add_output("test output")
@@ -474,7 +474,7 @@ class TestBackwardCompatibility:
             return EvalResult(input="old", output="old")
 
         @eval(dataset="test", default_score_key="test")
-        def new_style(ctx):
+        def new_style(ctx: EvalContext):
             ctx.input = "new"
             ctx.add_output("new")
             ctx.add_score(True, "New style")
@@ -494,7 +494,7 @@ class TestEdgeCases:
         """Test context without required input field"""
 
         @eval(default_score_key="test")
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             # Don't set input
             ctx.add_output("output")
             ctx.add_score(True, "Test")
@@ -508,7 +508,7 @@ class TestEdgeCases:
         """Test context with no scores added - should auto-add default passing score"""
 
         @eval()
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("output")
             # No scores added - should default to passed=True
@@ -525,7 +525,7 @@ class TestEdgeCases:
         """Test add_score without notes parameter"""
 
         @eval(default_score_key="test")
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("output")
             ctx.add_score(True)  # No notes

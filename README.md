@@ -53,7 +53,7 @@ async def test_refund(ctx: EvalContext):
 
 ### EvalContext
 
-`EvalContext` is a mutable builder that makes writing evals clean and intuitive. When your function has a `ctx`, `context`, or `carrier` parameter, Twevals automatically injects an `EvalContext` instance.
+`EvalContext` is a mutable builder that makes writing evals clean and intuitive. When your function has a parameter with type annotation `: EvalContext`, Twevals automatically injects an instance.
 
 **Key features:**
 - **Auto-injection**: Just add `ctx: EvalContext` parameter

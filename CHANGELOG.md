@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Changed: EvalContext detection now uses type annotation (`: EvalContext`) instead of parameter name matching. Any parameter name works as long as it's typed correctly.
 - Added: Session management for grouping related eval runs together with `--session` and `--run-name` CLI flags.
 - Added: Auto-generated friendly names (adjective-noun format like "swift-falcon") when session/run names not provided.
 - Added: File naming with run-name prefix: `{run_name}_{timestamp}.json`.

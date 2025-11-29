@@ -333,7 +333,7 @@ class TestContextWithDecorator:
         """Test context is auto-injected when function has ctx param"""
 
         @eval(dataset="test", default_score_key="test")
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("output")
             ctx.add_score(True, "Passed")
@@ -353,7 +353,7 @@ class TestContextWithDecorator:
             default_score_key="accuracy",
             metadata={"source": "decorator"},
         )
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             # Context should have values from decorator
             assert ctx.input == "from decorator"
             assert ctx.default_score_key == "accuracy"
@@ -369,7 +369,7 @@ class TestContextWithDecorator:
         """Test context is auto-returned when function returns None"""
 
         @eval(default_score_key="test")
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("output")
             ctx.add_score(True, "Passed")
@@ -384,7 +384,7 @@ class TestContextWithDecorator:
         """Test explicit return of context works"""
 
         @eval(default_score_key="test")
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("output")
             ctx.add_score(True, "Passed")
@@ -400,7 +400,7 @@ class TestContextWithDecorator:
         """Test context works with async functions"""
 
         @eval(default_score_key="test")
-        async def test_func(ctx):
+        async def test_func(ctx: EvalContext):
             import asyncio
 
             ctx.input = "async test"
@@ -418,7 +418,7 @@ class TestContextWithDecorator:
         """Test context data is preserved when exception occurs"""
 
         @eval(default_score_key="test")
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test input"
             ctx.output = "partial output"
             ctx.metadata = {"model": "test"}
@@ -436,13 +436,13 @@ class TestContextWithDecorator:
 
 
 class TestContextParameterNames:
-    """Test different context parameter names (context, ctx, carrier)"""
+    """Test EvalContext detection via type annotation"""
 
     def test_context_param_name(self):
-        """Test 'context' parameter name works"""
+        """Test 'context' parameter name with type annotation"""
 
         @eval(default_score_key="test")
-        def test_func(context):
+        def test_func(context: EvalContext):
             context.input = "test"
             context.add_output("output")
             context.add_score(True, "Passed")
@@ -451,10 +451,10 @@ class TestContextParameterNames:
         assert result.input == "test"
 
     def test_ctx_param_name(self):
-        """Test 'ctx' parameter name works"""
+        """Test 'ctx' parameter name with type annotation"""
 
         @eval(default_score_key="test")
-        def test_func(ctx):
+        def test_func(ctx: EvalContext):
             ctx.input = "test"
             ctx.add_output("output")
             ctx.add_score(True, "Passed")
@@ -462,14 +462,14 @@ class TestContextParameterNames:
         result = test_func()
         assert result.input == "test"
 
-    def test_carrier_param_name(self):
-        """Test 'carrier' parameter name works"""
+    def test_arbitrary_param_name(self):
+        """Test arbitrary parameter name works with type annotation"""
 
         @eval(default_score_key="test")
-        def test_func(carrier):
-            carrier.input = "test"
-            carrier.add_output("output")
-            carrier.add_score(True, "Passed")
+        def test_func(my_custom_context: EvalContext):
+            my_custom_context.input = "test"
+            my_custom_context.add_output("output")
+            my_custom_context.add_score(True, "Passed")
 
         result = test_func()
         assert result.input == "test"
