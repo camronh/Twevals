@@ -171,6 +171,33 @@ def create_app(
     def index(request: Request):
         return templates.TemplateResponse("index.html", {"request": request})
 
+    @app.get("/runs/{run_id}/results/{index}")
+    def result_detail(request: Request, run_id: str, index: int):
+        """Full-page detail view for a single result."""
+        rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else run_id
+        try:
+            summary = store.load_run(rid)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+        results = summary.get("results", [])
+        if index < 0 or index >= len(results):
+            raise HTTPException(status_code=404, detail="Result not found")
+
+        result = results[index]
+        return templates.TemplateResponse(
+            "result_detail.html",
+            {
+                "request": request,
+                "result": result,
+                "index": index,
+                "total": len(results),
+                "run_id": rid,
+                "session_name": summary.get("session_name"),
+                "run_name": summary.get("run_name"),
+            },
+        )
+
     @app.get("/results")
     def results(request: Request):
         # Always load fresh from disk so external edits are reflected

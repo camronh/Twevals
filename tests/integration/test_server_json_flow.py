@@ -65,11 +65,8 @@ def test_results_template_reads_from_json(tmp_path: Path):
     # Function names and datasets should appear in the rendered table
     assert "f1" in html and "ds1" in html
     assert "f2" in html and "ds2" in html
-    # Run data rendered in expanded panel content (as JSON); presence check
-    assert "foo" in html
-    # Expand controls and hidden detail rows should be present
-    assert "expand-btn" in html
-    assert 'data-row="detail"' in html
+    # Rows should link to detail pages
+    assert "/runs/" in html and "/results/" in html
 
 
 def test_patch_endpoint_updates_json(tmp_path: Path):
@@ -111,14 +108,14 @@ def test_annotation_via_patch(tmp_path: Path):
     # Add annotation
     pr = client.patch(f"/api/runs/{run_id}/results/0", json={"result": {"annotation": "hello"}})
     assert pr.status_code == 200
-    # Render and check
-    r = client.get("/results")
+    # Check annotation on detail page
+    r = client.get(f"/runs/{run_id}/results/0")
     assert "hello" in r.text
 
     # Update annotation
     pu = client.patch(f"/api/runs/{run_id}/results/0", json={"result": {"annotation": "hi"}})
     assert pu.status_code == 200
-    r = client.get("/results")
+    r = client.get(f"/runs/{run_id}/results/0")
     assert "hi" in r.text and "hello" not in r.text
 
     # Delete annotation

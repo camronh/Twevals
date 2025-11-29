@@ -96,6 +96,27 @@
         border-color: #60a5fa;
         background: rgba(96, 165, 250, 0.1);
       }
+      /* Expanded row styling */
+      tr[data-row="main"].expanded {
+        background: rgba(59, 130, 246, 0.04);
+      }
+      .dark tr[data-row="main"].expanded {
+        background: rgba(59, 130, 246, 0.08);
+      }
+      tr[data-row="main"].expanded td {
+        vertical-align: top;
+      }
+      tr[data-row="main"].expanded .line-clamp-2 {
+        -webkit-line-clamp: unset;
+        line-clamp: unset;
+        white-space: pre-wrap;
+      }
+      tr[data-row="main"].expanded .expand-chevron {
+        transform: rotate(90deg);
+      }
+      .expand-chevron {
+        transition: transform 0.15s ease;
+      }
     </style>
     <script>
       // Apply saved theme before page renders to prevent flash
@@ -314,7 +335,6 @@
       // In-memory state (not persisted)
       let _sortState = [];
       let _filters = { valueRules: [], passedRules: [], annotation: 'any' };
-      let _expandedRow = null;
       const selectedIndices = new Set();
 
       // Helpers
@@ -880,197 +900,19 @@
         });
       }
 
-      // Expand/collapse
-      function initExpandHandlers() {
-        const container = document.getElementById('results');
-        const tbody = document.querySelector('#results-table tbody');
-        if (!container || !tbody) return;
-
-        function closeAll() {
-          tbody.querySelectorAll("tr[data-row='detail']").forEach((tr) => tr.setAttribute('hidden', ''));
-          container.querySelectorAll('.expand-btn[aria-expanded="true"]').forEach((b) => {
-            b.setAttribute('aria-expanded', 'false');
-            b.querySelector('.icon').textContent = '▸';
-          });
-        }
-
-        function openRow(rowId) {
-          const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
-          const btn = container.querySelector(`.expand-btn[data-row-id='${rowId}']`);
-          if (!detail || !btn) return;
-          closeAll();
-          detail.removeAttribute('hidden');
-          btn.setAttribute('aria-expanded', 'true');
-          btn.querySelector('.icon').textContent = '▾';
-          _expandedRow = rowId;
-        }
-
-        container.querySelectorAll('.expand-btn').forEach((btn) => {
-          const clone = btn.cloneNode(true);
-          btn.parentNode.replaceChild(clone, btn);
-          clone.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const rowId = clone.getAttribute('data-row-id');
-            const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
-            const isOpen = detail && !detail.hasAttribute('hidden');
-            if (isOpen) {
-              closeAll();
-              _expandedRow = null;
-            } else {
-              openRow(rowId);
-            }
-          });
-        });
-
-        window.restoreExpandedRow = function() {
-          if (_expandedRow) openRow(_expandedRow);
-        };
-      }
-
-      // Inline editing
-      function initInlineEditing() {
-        const container = document.getElementById('results');
-        const table = document.getElementById('results-table');
-        if (!container || !table) return;
-        const runId = table.getAttribute('data-run-id') || 'latest';
-
-        container.querySelectorAll('.edit-btn').forEach((btn) => {
-          const rowId = btn.getAttribute('data-row-id');
-          const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
-          const saveBtn = container.querySelector(`.save-btn[data-row-id='${rowId}']`);
-          const cancelBtn = container.querySelector(`.cancel-btn[data-row-id='${rowId}']`);
-          if (!detail || !saveBtn || !cancelBtn) return;
-
-          btn.addEventListener('click', () => enterEdit(rowId));
-          cancelBtn.addEventListener('click', () => exitEdit(rowId, true));
-          saveBtn.addEventListener('click', () => saveEdit(rowId, runId));
-        });
-
-        function toggleEditUI(detail, editing) {
-          detail.querySelectorAll('.view-section').forEach((el) => el.classList.toggle('hidden', editing));
-          detail.querySelectorAll('.edit-section').forEach((el) => el.classList.toggle('hidden', !editing));
-          const rowId = detail.getAttribute('data-row-id');
-          container.querySelector(`.edit-btn[data-row-id='${rowId}']`)?.classList.toggle('hidden', editing);
-          container.querySelector(`.save-btn[data-row-id='${rowId}']`)?.classList.toggle('hidden', !editing);
-          container.querySelector(`.cancel-btn[data-row-id='${rowId}']`)?.classList.toggle('hidden', !editing);
-        }
-
-        function enterEdit(rowId) {
-          const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
-          if (!detail) return;
-          toggleEditUI(detail, true);
-          const ds = detail.getAttribute('data-original-dataset') || '';
-          const lbls = JSON.parse(detail.getAttribute('data-original-labels') || '[]');
-          const md = JSON.parse(detail.getAttribute('data-original-metadata') || 'null');
-          const ann = detail.getAttribute('data-original-annotation') || '';
-          const dsInput = detail.querySelector(`#dataset-input-${rowId}`);
-          const lbInput = detail.querySelector(`#labels-input-${rowId}`);
-          const mdInput = detail.querySelector(`#metadata-input-${rowId}`);
-          const annInput = detail.querySelector(`#annotation-input-${rowId}`);
-          if (dsInput) dsInput.value = ds;
-          if (lbInput) lbInput.value = (lbls || []).join(', ');
-          if (mdInput) mdInput.value = md ? JSON.stringify(md, null, 2) : '';
-          if (annInput) annInput.value = ann;
-        }
-
-        function exitEdit(rowId, resetValues) {
-          const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
-          if (!detail) return;
-          if (resetValues) {
-            const ds = detail.getAttribute('data-original-dataset') || '';
-            const lbls = JSON.parse(detail.getAttribute('data-original-labels') || '[]');
-            const md = JSON.parse(detail.getAttribute('data-original-metadata') || 'null');
-            const ann = detail.getAttribute('data-original-annotation') || '';
-            const dsInput = detail.querySelector(`#dataset-input-${rowId}`);
-            const lbInput = detail.querySelector(`#labels-input-${rowId}`);
-            const mdInput = detail.querySelector(`#metadata-input-${rowId}`);
-            const annInput = detail.querySelector(`#annotation-input-${rowId}`);
-            if (dsInput) dsInput.value = ds;
-            if (lbInput) lbInput.value = (lbls || []).join(', ');
-            if (mdInput) mdInput.value = md ? JSON.stringify(md, null, 2) : '';
-            if (annInput) annInput.value = ann;
-
-            const scores = JSON.parse(detail.getAttribute('data-original-scores') || '[]');
-            const editor = detail.querySelector(`#scores-editor-${rowId}`);
-            if (editor) {
-              const cards = editor.querySelectorAll('.score-card');
-              cards.forEach((card, i) => {
-                const s = scores[i];
-                if (!s) return;
-                const k = card.querySelector('[name="score-key"]');
-                const v = card.querySelector('[name="score-value"]');
-                const p = card.querySelector('[name="score-passed"]');
-                const n = card.querySelector('[name="score-notes"]');
-                if (k) k.value = s.key || '';
-                if (v) v.value = s.value ?? '';
-                if (p) p.value = s.passed === true ? 'true' : s.passed === false ? 'false' : '';
-                if (n) n.value = s.notes ?? '';
-              });
-            }
+      // Scroll restoration for returning from detail page
+      function initScrollRestoration() {
+        const params = new URLSearchParams(window.location.search);
+        const scrollTo = params.get('scroll');
+        if (scrollTo !== null) {
+          const row = document.querySelector(`tr[data-row="main"][data-row-id="${scrollTo}"]`);
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+            setTimeout(() => row.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2'), 2000);
           }
-          toggleEditUI(detail, false);
-        }
-
-        async function saveEdit(rowId, runId) {
-          const detail = container.querySelector(`tr[data-row='detail'][data-row-id='${rowId}']`);
-          if (!detail) return;
-          const dsInput = detail.querySelector(`#dataset-input-${rowId}`);
-          const lbInput = detail.querySelector(`#labels-input-${rowId}`);
-          const mdInput = detail.querySelector(`#metadata-input-${rowId}`);
-          const editor = detail.querySelector(`#scores-editor-${rowId}`);
-
-          let metadata = null;
-          const mdRaw = (mdInput && mdInput.value.trim()) || '';
-          if (mdRaw) {
-            try { metadata = JSON.parse(mdRaw); }
-            catch { alert('Invalid metadata JSON'); return; }
-          }
-
-          const scorePayload = [];
-          if (editor) {
-            editor.querySelectorAll('.score-card').forEach((card) => {
-              const k = card.querySelector('[name="score-key"]').value.trim();
-              const vRaw = card.querySelector('[name="score-value"]').value.trim();
-              const pVal = card.querySelector('[name="score-passed"]').value;
-              const nVal = card.querySelector('[name="score-notes"]').value.trim();
-              const s = { key: k };
-              if (vRaw !== '') {
-                const num = Number(vRaw);
-                if (!Number.isNaN(num)) s.value = num;
-              }
-              if (pVal === 'true') s.passed = true;
-              else if (pVal === 'false') s.passed = false;
-              if (nVal !== '') s.notes = nVal;
-              if (s.key && (s.value !== undefined || s.passed !== undefined || s.notes !== undefined)) {
-                scorePayload.push(s);
-              }
-            });
-          }
-
-          const annInput = detail.querySelector(`#annotation-input-${rowId}`);
-          const annValue = annInput ? annInput.value.trim() : '';
-
-          const payload = {
-            dataset: dsInput ? dsInput.value.trim() : undefined,
-            labels: lbInput ? lbInput.value.split(',').map(x => x.trim()).filter(Boolean) : undefined,
-            result: { metadata, scores: scorePayload, annotation: annValue || null }
-          };
-
-          try {
-            const resp = await fetch(`/api/runs/${runId}/results/${rowId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            if (!resp.ok) throw new Error(await resp.text());
-          } catch (e) {
-            alert(`Save failed: ${e}`);
-            return;
-          }
-
-          _expandedRow = rowId;
-          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+          // Clean up URL
+          history.replaceState(null, '', window.location.pathname);
         }
       }
 
@@ -1228,9 +1070,7 @@
             initResizableColumns(table);
           }
           applyColumnVisibility();
-          initExpandHandlers();
-          initInlineEditing();
-          if (window.restoreExpandedRow) restoreExpandedRow();
+          initScrollRestoration();
           wireActionsMenu();
           try { populateScoreKeySelects(); applyAllFilters(); } catch {}
           syncCheckboxesToSelection();

@@ -1,3 +1,4 @@
+import re
 import threading
 import time
 
@@ -83,7 +84,7 @@ def make_summary():
 
 
 
-def test_expand_sort_and_toggle_columns(tmp_path):
+def test_row_expand_sort_and_toggle_columns(tmp_path):
     # Seed a run JSON
     store = ResultsStore(tmp_path / "runs")
     run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
@@ -99,16 +100,24 @@ def test_expand_sort_and_toggle_columns(tmp_path):
             # Wait for HTMX content
             page.wait_for_selector("#results-table")
 
-            # Expand first row
-            page.locator(".expand-btn").nth(0).click()
-            detail0 = page.locator("tr[data-row='detail'][data-row-id='0']")
-            expect(detail0).to_be_visible()
+            # Click first row to expand it (not navigate)
+            first_row = page.locator("tbody tr[data-row='main']").nth(0)
+            first_row.click()
+            # Row should have expanded class
+            expect(first_row).to_have_class(re.compile(r"expanded"))
 
-            # Expand second row; first should close
-            page.locator(".expand-btn").nth(1).click()
-            detail1 = page.locator("tr[data-row='detail'][data-row-id='1']")
-            expect(detail1).to_be_visible()
-            expect(detail0).to_be_hidden()
+            # Click again to collapse
+            first_row.click()
+            expect(first_row).not_to_have_class(re.compile(r"expanded"))
+
+            # Click function name to navigate to detail page
+            page.locator("tbody tr[data-row='main'] td[data-col='function'] a").first.click()
+            page.wait_for_url(f"**/runs/{run_id}/results/0")
+            expect(page.locator("text=Result 1 of 3")).to_be_visible()
+
+            # Navigate back and test sorting
+            page.goto(url)
+            page.wait_for_selector("#results-table")
 
             # Sort by latency ascending (one click)
             page.locator("thead th[data-col='latency']").click()
@@ -127,7 +136,8 @@ def test_expand_sort_and_toggle_columns(tmp_path):
             browser.close()
 
 
-def test_inline_edit_and_save(tmp_path):
+def test_detail_page_navigation(tmp_path):
+    """Test navigating to detail page and keyboard navigation."""
     store = ResultsStore(tmp_path / "runs")
     run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
     app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
@@ -136,75 +146,30 @@ def test_inline_edit_and_save(tmp_path):
         with sync_playwright() as p:
             browser = p.chromium.launch()
             page = browser.new_page()
-            page.goto(url)
+
+            # Go directly to detail page
+            page.goto(f"{url}/runs/{run_id}/results/0")
+            expect(page.locator("text=Result 1 of 3")).to_be_visible()
+            # Function name should be visible in the header
+            expect(page.locator(".font-mono.text-xl")).to_contain_text("a")
+
+            # Use arrow key to navigate to next
+            page.keyboard.press("ArrowDown")
+            page.wait_for_url(f"**/runs/{run_id}/results/1")
+            expect(page.locator("text=Result 2 of 3")).to_be_visible()
+
+            # Use arrow key to navigate back
+            page.keyboard.press("ArrowUp")
+            page.wait_for_url(f"**/runs/{run_id}/results/0")
+            expect(page.locator("text=Result 1 of 3")).to_be_visible()
+
+            # Press Escape to go back to table
+            page.keyboard.press("Escape")
+            page.wait_for_url("**/?scroll=0")
             page.wait_for_selector("#results-table")
 
-            # Expand first row
-            page.locator(".expand-btn").nth(0).click()
-            # Enter edit mode
-            page.locator(".edit-btn").nth(0).click()
-            ds_input = page.locator("#dataset-input-0")
-            ds_input.fill("ds_edited")
-            # Save
-            page.locator(".save-btn").nth(0).click()
-            # Wait for refresh and verify dataset is updated (shown inside function cell in new template)
-            page.wait_for_selector("#results-table")
-            row = page.locator("tr[data-row='main']").filter(
-                has=page.locator("td[data-col='function']"), has_text="a"
-            )
-            expect(row.locator("td[data-col='function']").first).to_contain_text("ds_edited")
             browser.close()
 
 
 # Sticky headers are intentionally disabled per product decision; related test removed.
-
-
-def test_annotations_crud(tmp_path):
-    store = ResultsStore(tmp_path / "runs")
-    run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
-    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
-
-    with run_server(app) as url:
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.goto(url)
-            page.wait_for_selector("#results-table")
-
-            # Expand third row (index 2)
-            page.locator(".expand-btn").nth(2).click()
-            page.wait_for_selector("tr[data-row='detail'][data-row-id='2']", state="visible")
-            # Enter edit mode and set annotation
-            page.locator(".edit-btn[data-row-id='2']").click()
-            page.fill("#annotation-input-2", "First note")
-            page.locator(".save-btn[data-row-id='2']").click()
-            page.wait_for_selector("#results-table")
-            page.wait_for_timeout(500)  # Wait for JS to initialize after htmx refresh
-            # The row should auto-expand from localStorage, but if not, click again
-            detail = page.locator("tr[data-row='detail'][data-row-id='2']")
-            if detail.is_hidden():
-                page.locator(".expand-btn").nth(2).click()
-            page.wait_for_selector("tr[data-row='detail'][data-row-id='2']:not([hidden])")
-            assert page.locator("[data-testid='annotations-section']").locator("text=First note").count() > 0
-
-            # Edit it
-            page.locator(".edit-btn[data-row-id='2']").click()
-            page.fill("#annotation-input-2", "Updated note")
-            page.locator(".save-btn[data-row-id='2']").click()
-            page.wait_for_selector("#results-table")
-            page.wait_for_timeout(500)  # Wait for JS to initialize after htmx refresh
-            # The row should auto-expand from localStorage, but if not, click again
-            detail = page.locator("tr[data-row='detail'][data-row-id='2']")
-            if detail.is_hidden():
-                page.locator(".expand-btn").nth(2).click()
-            page.wait_for_selector("tr[data-row='detail'][data-row-id='2']:not([hidden])")
-            assert page.locator("[data-testid='annotations-section']").locator("text=Updated note").count() > 0
-
-            # Clear it
-            page.locator(".edit-btn[data-row-id='2']").click()
-            page.fill("#annotation-input-2", "")
-            page.locator(".save-btn[data-row-id='2']").click()
-            page.wait_for_selector("#results-table")
-            page.locator(".expand-btn").nth(2).click()
-            assert page.locator("[data-testid='annotations-section']").locator("text=Updated note").count() == 0
-            browser.close()
+# Inline editing tests removed - editing now happens on detail page.
