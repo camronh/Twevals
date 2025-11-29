@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 - Changed: `EvalFunction.__call__` now detects `__param_sets__` attribute and automatically runs all parametrized variants.
 - Added: UI redesign with dark mode support, amber/zinc color scheme, improved typography, and responsive layout.
 - Added: Background evaluation execution - UI loads immediately while evals run in background with live status updates.
-- Added: Auto-open browser when starting `twevals serve` for faster workflow.
+- Added: Auto-open browser when starting `twevals --serve` for faster workflow.
 - Added: Rerun configuration stored in run JSON for reproducible reruns from UI.
 - Changed: Simplified server/CLI code by inlining background execution logic.
 
