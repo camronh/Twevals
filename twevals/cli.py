@@ -35,98 +35,55 @@ class ProgressReporter:
 
     def __init__(self):
         self.failures: List[Dict] = []
-        self.current_line = ""
         self.current_file = None
 
     def _get_file_display(self, func: EvalFunction) -> str:
         """Get the display name for the file containing the function"""
         try:
-            # Try to get the file path directly from the function
             file_path = inspect.getfile(func.func)
-            # Try to make it relative to CWD
             try:
                 return str(Path(file_path).relative_to(os.getcwd()))
             except ValueError:
                 return Path(file_path).name
         except (TypeError, OSError):
-            # Fallback: try to get from module
-            module = inspect.getmodule(func.func)
-            if module and hasattr(module, '__file__') and module.__file__:
-                try:
-                    return str(Path(module.__file__).relative_to(os.getcwd()))
-                except ValueError:
-                    return Path(module.__file__).name
-            # Final fallback: use dataset name
             return func.dataset
 
-    def on_start(self, func: EvalFunction):
-        """Called when an evaluation starts"""
-        # In sequential mode, we could print the header here.
-        # But to be safe with how runner calls things, we'll handle it in on_complete
-        # or check if we need to initialize the first file line.
-        file_display = self._get_file_display(func)
-        if file_display != self.current_file:
-            if self.current_file is not None:
-                console.print("") # Newline for previous file
-            console.print(f"{file_display} ", end="")
-            self.current_file = file_display
-            self.current_line = ""
-
-    def on_complete(self, func: EvalFunction, result_dict: Dict):
-        """Called when an evaluation completes"""
-        # Ensure we're on the right file line (in case on_start didn't catch it or out of order - though runner is ordered)
+    def _switch_file_if_needed(self, func: EvalFunction):
+        """Print newline and new file header if file changed."""
         file_display = self._get_file_display(func)
         if file_display != self.current_file:
             if self.current_file is not None:
                 console.print("")
             console.print(f"{file_display} ", end="")
             self.current_file = file_display
-            self.current_line = ""
 
+    def on_start(self, func: EvalFunction):
+        """Called when an evaluation starts"""
+        self._switch_file_if_needed(func)
+
+    def on_complete(self, func: EvalFunction, result_dict: Dict):
+        """Called when an evaluation completes"""
+        self._switch_file_if_needed(func)
         result = result_dict["result"]
 
         # Determine status character and color
         if result.get("error"):
-            char = "E"
-            color = "red"
-            self.failures.append({
-                "func": func,
-                "result_dict": result_dict,
-                "type": "error"
-            })
+            char, color = "E", "red"
+            self.failures.append({"func": func, "result_dict": result_dict, "type": "error"})
         elif result.get("scores"):
-            # Check if any score has passed=True
-            passed = any(
-                score.get("passed") is True
-                for score in result["scores"]
-            )
+            passed = any(s.get("passed") is True for s in result["scores"])
+            failed = any(s.get("passed") is False for s in result["scores"])
             if passed:
-                char = "."
-                color = "green"
+                char, color = ".", "green"
+            elif failed:
+                char, color = "F", "red"
+                self.failures.append({"func": func, "result_dict": result_dict, "type": "failure"})
             else:
-                # Check if there are explicit failures
-                failed = any(
-                    score.get("passed") is False
-                    for score in result["scores"]
-                )
-                if failed:
-                    char = "F"
-                    color = "red"
-                    self.failures.append({
-                        "func": func,
-                        "result_dict": result_dict,
-                        "type": "failure"
-                    })
-                else:
-                    char = "."
-                    color = "green"
+                char, color = ".", "green"
         else:
-            char = "."
-            color = "green"
+            char, color = ".", "green"
 
-        # Print character inline with color (no newline)
         console.print(f"[{color}]{char}[/{color}]", end="")
-        self.current_line += char
 
     def print_failures(self):
         """Print detailed failure information"""

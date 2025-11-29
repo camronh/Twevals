@@ -5,11 +5,42 @@ import io
 import traceback
 from contextlib import redirect_stdout, nullcontext
 from pathlib import Path
+from threading import Thread
 from typing import Dict, List, Optional, Union, Callable
 
 from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
 from twevals.schemas import EvalResult, Score
+
+
+def _run_async_with_loop_handling(coro_fn):
+    """Run an async function, handling existing event loops by running in a new thread."""
+    try:
+        asyncio.get_running_loop()
+        in_loop = True
+    except RuntimeError:
+        in_loop = False
+
+    if not in_loop:
+        return asyncio.run(coro_fn())
+
+    result_holder, error_holder = {}, {}
+    def _runner():
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+            result_holder["res"] = loop.run_until_complete(coro_fn())
+        except BaseException as e:
+            error_holder["err"] = e
+        finally:
+            loop.close()
+
+    t = Thread(target=_runner, daemon=True)
+    t.start()
+    t.join()
+    if "err" in error_holder:
+        raise error_holder["err"]
+    return result_holder.get("res")
 
 
 class EvalRunner:
@@ -28,41 +59,38 @@ class EvalRunner:
             return EvalResult(**result_dict)
         return result
 
+    def _wrap_results(self, result, func: EvalFunction) -> List[EvalResult]:
+        """Convert result to list of EvalResults with default scores."""
+        results = [result] if isinstance(result, EvalResult) else result
+        return [self._ensure_default_score(r) for r in results]
+
+    def _make_error_result(self, func: EvalFunction, e: Exception) -> List[EvalResult]:
+        """Create error result from exception."""
+        return [EvalResult(
+            input=None, output=None,
+            error=f"Error running {func.func.__name__}: {str(e)}",
+            run_data={"traceback": traceback.format_exc()}
+        )]
+
     async def run_async_eval(self, func: EvalFunction) -> List[EvalResult]:
         should_capture = not self.verbose and self.concurrency == 0
         stdout_capture = io.StringIO() if should_capture else None
         try:
             with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
                 result = await func.call_async()
-            if isinstance(result, EvalResult):
-                return [self._ensure_default_score(result)]
-            return [self._ensure_default_score(r) for r in result]
+            return self._wrap_results(result, func)
         except Exception as e:
-            tb = traceback.format_exc()
-            return [EvalResult(
-                input=None,
-                output=None,
-                error=f"Error running {func.func.__name__}: {str(e)}",
-                run_data={"traceback": tb}
-            )]
-    
+            return self._make_error_result(func, e)
+
     def run_sync_eval(self, func: EvalFunction) -> List[EvalResult]:
         should_capture = not self.verbose and self.concurrency == 0
         stdout_capture = io.StringIO() if should_capture else None
         try:
             with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
                 result = func()
-            if isinstance(result, EvalResult):
-                return [self._ensure_default_score(result)]
-            return [self._ensure_default_score(r) for r in result]
+            return self._wrap_results(result, func)
         except Exception as e:
-            tb = traceback.format_exc()
-            return [EvalResult(
-                input=None,
-                output=None,
-                error=f"Error running {func.func.__name__}: {str(e)}",
-                run_data={"traceback": tb}
-            )]
+            return self._make_error_result(func, e)
     
     async def run_all_async(
         self,
@@ -223,55 +251,9 @@ class EvalRunner:
                 "results": []
             }
         
-        # Run evaluations
-        # If we're inside a running event loop (e.g., under certain test runners),
-        # run the coroutine in a dedicated thread with its own loop.
-        try:
-            asyncio.get_running_loop()
-            in_loop = True
-        except RuntimeError:
-            in_loop = False
-
-        if not in_loop:
-            all_results = asyncio.run(self.run_all_async(
-                functions,
-                on_start=on_start,
-                on_complete=on_complete,
-                cancel_event=cancel_event,
-            ))
-        else:
-            # Execute in a separate thread with a fresh loop
-            from threading import Thread
-
-            result_holder: Dict[str, List[Dict]] = {}
-            error_holder: Dict[str, BaseException] = {}
-
-            def _runner():
-                loop = asyncio.new_event_loop()
-                try:
-                    asyncio.set_event_loop(loop)
-                    res = loop.run_until_complete(self.run_all_async(
-                        functions,
-                        on_start=on_start,
-                        on_complete=on_complete,
-                        cancel_event=cancel_event,
-                    ))
-                    result_holder["res"] = res
-                except BaseException as e:
-                    error_holder["err"] = e
-                finally:
-                    try:
-                        loop.close()
-                    except Exception:
-                        pass
-
-            t = Thread(target=_runner, daemon=True)
-            t.start()
-            t.join()
-
-            if "err" in error_holder:
-                raise error_holder["err"]
-            all_results = result_holder.get("res", [])
+        all_results = _run_async_with_loop_handling(
+            lambda: self.run_all_async(functions, on_start=on_start, on_complete=on_complete, cancel_event=cancel_event)
+        )
         
         # Calculate summary statistics
         summary = self._calculate_summary(all_results)
@@ -372,85 +354,24 @@ def run_evals(
     labels: Optional[List[str]] = None,
     limit: Optional[int] = None,
 ) -> List[EvalResult]:
-    """
-    Run evals programmatically. Accepts a list of eval functions and/or paths.
-
-    Args:
-        evals: List of EvalFunction instances or path strings to discover
-        concurrency: Number of concurrent evals (0 = sequential)
-        verbose: Print verbose output
-        timeout: Global timeout for each eval
-        dataset: Filter discovered evals by dataset
-        labels: Filter discovered evals by labels
-        limit: Limit total number of evals to run
-
-    Returns:
-        List[EvalResult] - flat list of all results
-
-    Example:
-        results = run_evals([test_sentiment, test_accuracy, "evals/"])
-        results = run_evals([test_a, test_b], concurrency=5)
-    """
+    """Run evals programmatically. Accepts a list of eval functions and/or paths."""
     from .parametrize import generate_eval_functions
 
-    # Collect all eval functions
     functions: List[EvalFunction] = []
     for item in evals:
         if isinstance(item, EvalFunction):
-            # Direct function - expand if parametrized
             if hasattr(item.func, '__param_sets__'):
                 functions.extend(generate_eval_functions(item.func, item))
             else:
                 functions.append(item)
         elif isinstance(item, str):
-            # Path - use discovery
-            discovered = EvalDiscovery().discover(item, dataset, labels)
-            functions.extend(discovered)
+            functions.extend(EvalDiscovery().discover(item, dataset, labels))
 
     if limit is not None:
         functions = functions[:limit]
-
     if not functions:
         return []
 
-    # Use EvalRunner infrastructure
     runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
-
-    # Handle event loop detection (same as EvalRunner.run)
-    try:
-        asyncio.get_running_loop()
-        in_loop = True
-    except RuntimeError:
-        in_loop = False
-
-    if not in_loop:
-        raw_results = asyncio.run(runner.run_all_async(functions))
-    else:
-        from threading import Thread
-        result_holder: Dict[str, List[Dict]] = {}
-        error_holder: Dict[str, BaseException] = {}
-
-        def _runner():
-            loop = asyncio.new_event_loop()
-            try:
-                asyncio.set_event_loop(loop)
-                res = loop.run_until_complete(runner.run_all_async(functions))
-                result_holder["res"] = res
-            except BaseException as e:
-                error_holder["err"] = e
-            finally:
-                try:
-                    loop.close()
-                except Exception:
-                    pass
-
-        t = Thread(target=_runner, daemon=True)
-        t.start()
-        t.join()
-
-        if "err" in error_holder:
-            raise error_holder["err"]
-        raw_results = result_holder.get("res", [])
-
-    # Extract EvalResult objects from the runner's dict format
+    raw_results = _run_async_with_loop_handling(lambda: runner.run_all_async(functions))
     return [EvalResult(**r["result"]) for r in raw_results]

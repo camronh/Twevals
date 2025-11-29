@@ -118,11 +118,7 @@ class EvalFunction:
 
     def _inject_target_result(self, target_result: Any, context: EvalContext) -> None:
         """Apply target output to context in a flexible way"""
-        if target_result is None:
-            return
-
-        if isinstance(target_result, EvalContext):
-            # Target replaced/returned context directly
+        if target_result is None or isinstance(target_result, EvalContext):
             return
 
         if isinstance(target_result, EvalResult):
@@ -132,11 +128,6 @@ class EvalFunction:
                 "run_data": target_result.run_data,
                 "metadata": target_result.metadata,
             })
-            return
-
-        # Dict or any other value -> treat as output payload
-        if isinstance(target_result, dict):
-            context.add_output(target_result)
         else:
             context.add_output(target_result)
 
@@ -205,19 +196,37 @@ class EvalFunction:
 
     def _process_result(self, result: Any, context: Optional[EvalContext] = None) -> Union[EvalResult, List[EvalResult]]:
         """Process function result, handling EvalContext and auto-return"""
-        # If result is None and we have a context, auto-return context.build()
         if result is None and context is not None:
             return context.build()
-
-        # If result is EvalContext, convert to EvalResult
         if isinstance(result, EvalContext):
             return result.build()
-
-        # Otherwise, result should be EvalResult or List[EvalResult]
         if not isinstance(result, (EvalResult, list)):
             raise ValueError(f"Evaluation function must return EvalResult, List[EvalResult], EvalContext, or None (with context param), got {type(result)}")
-
         return result
+
+    def _handle_exception(self, e: Exception, context: Optional[EvalContext], args, kwargs) -> EvalResult:
+        """Handle exceptions uniformly for both sync and async execution."""
+        if context is not None:
+            if isinstance(e, AssertionError):
+                context.add_score(False, notes=str(e) or "Assertion failed")
+                return context.build()
+            return context.build_with_error(str(e))
+        return EvalResult(
+            input=kwargs.get('input', args[0] if args else None),
+            output=None,
+            error=str(e)
+        )
+
+    def _set_latency(self, result: Union[EvalResult, List[EvalResult]], latency: float) -> None:
+        """Set latency on result(s) if not already set."""
+        if isinstance(result, EvalResult):
+            if result.latency is None:
+                result.latency = latency
+        elif isinstance(result, list):
+            per_item = latency / len(result) if result else 0
+            for r in result:
+                if isinstance(r, EvalResult) and r.latency is None:
+                    r.latency = per_item
     
     def _process_evaluator_result(self, eval_result, processed_result: EvalResult) -> EvalResult:
         """Process the result from an evaluator and update the EvalResult accordingly."""
@@ -270,34 +279,25 @@ class EvalFunction:
         """Apply evaluators synchronously to results."""
         if not self.evaluators:
             return result
-        
+
+        def apply_to_single(r: EvalResult) -> EvalResult:
+            for evaluator in self.evaluators:
+                r = self._process_evaluator_result(evaluator(r), r)
+            return r
+
         if isinstance(result, list):
-            return [self._apply_evaluators_to_single(r) for r in result]
-        else:
-            return self._apply_evaluators_to_single(result)
-    
-    def _apply_evaluators_to_single(self, result: EvalResult) -> EvalResult:
-        """Apply all evaluators to a single result."""
-        processed_result = result
-        for evaluator in self.evaluators:
-            eval_result = evaluator(processed_result)
-            processed_result = self._process_evaluator_result(eval_result, processed_result)
-        return processed_result
+            return [apply_to_single(r) for r in result]
+        return apply_to_single(result)
 
     async def _execute_async(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
-        # Create context if function expects it
         context = None
         if self.context_param:
             context = self._create_context(kwargs)
-            # Inject context as first argument
             args = (context,) + args
-
-            # Run target before main eval
             target_error = await self._run_target_async(context)
             if target_error:
                 return target_error
 
-        # Measure only the main function execution time
         start = time.time()
         try:
             if self.timeout and not self.target:
@@ -309,53 +309,20 @@ class EvalFunction:
                 result = await self.func(*args, **kwargs)
             result = self._process_result(result, context)
         except Exception as e:
-            # If we have a context with partial data, preserve it
-            if context is not None:
-                if isinstance(e, AssertionError):
-                    # Failed assertion = validation failure, add as failing score
-                    assertion_msg = str(e) if str(e) else "Assertion failed"
-                    context.add_score(False, notes=assertion_msg)
-                    result = context.build()
-                else:
-                    # Actual error (network, bug, etc.) - set error field
-                    result = context.build_with_error(str(e))
-            else:
-                result = EvalResult(
-                    input=kwargs.get('input', args[0] if args else None),
-                    output=None,
-                    error=str(e)
-                )
-        latency = time.time() - start
+            result = self._handle_exception(e, context, args, kwargs)
 
-        # Set latency first (only for main function, excludes evaluators)
-        if isinstance(result, EvalResult):
-            if result.latency is None:
-                result.latency = latency
-        elif isinstance(result, list):
-            for r in result:
-                if isinstance(r, EvalResult) and r.latency is None:
-                    r.latency = latency / len(result)
-        else:
-            raise ValueError(f"Evaluation function must return EvalResult or List[EvalResult], got {type(result)}")
-
-        # Apply evaluators after latency is set (not included in latency measurement)
-        result = await self._apply_evaluators_async(result)
-        return result
+        self._set_latency(result, time.time() - start)
+        return await self._apply_evaluators_async(result)
 
     def _execute_sync(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
-        # Create context if function expects it
         context = None
         if self.context_param:
             context = self._create_context(kwargs)
-            # Inject context as first argument
             args = (context,) + args
-
-            # Run target before main eval
             target_error = self._run_target_sync(context)
             if target_error:
                 return target_error
 
-        # Measure only the main function execution time
         start = time.time()
         try:
             if self.timeout and not self.target:
@@ -369,38 +336,10 @@ class EvalFunction:
                 result = self.func(*args, **kwargs)
             result = self._process_result(result, context)
         except Exception as e:
-            # If we have a context with partial data, preserve it
-            if context is not None:
-                if isinstance(e, AssertionError):
-                    # Failed assertion = validation failure, add as failing score
-                    assertion_msg = str(e) if str(e) else "Assertion failed"
-                    context.add_score(False, notes=assertion_msg)
-                    result = context.build()
-                else:
-                    # Actual error (network, bug, etc.) - set error field
-                    result = context.build_with_error(str(e))
-            else:
-                result = EvalResult(
-                    input=kwargs.get('input', args[0] if args else None),
-                    output=None,
-                    error=str(e)
-                )
-        latency = time.time() - start
+            result = self._handle_exception(e, context, args, kwargs)
 
-        # Set latency first (only for main function, excludes evaluators)
-        if isinstance(result, EvalResult):
-            if result.latency is None:
-                result.latency = latency
-        elif isinstance(result, list):
-            for r in result:
-                if isinstance(r, EvalResult) and r.latency is None:
-                    r.latency = latency / len(result)
-        else:
-            raise ValueError(f"Evaluation function must return EvalResult or List[EvalResult], got {type(result)}")
-
-        # Apply evaluators after latency is set (not included in latency measurement)
-        result = self._apply_evaluators_sync(result)
-        return result
+        self._set_latency(result, time.time() - start)
+        return self._apply_evaluators_sync(result)
 
     def __call__(self, *args, **kwargs) -> Union[EvalResult, List[EvalResult]]:
         # Check if this is a parametrized function - run all variants
