@@ -65,16 +65,20 @@ class EvalRunner:
             )]
     
     async def run_all_async(
-        self, 
+        self,
         functions: List[EvalFunction],
         on_start: Optional[Callable[[EvalFunction], None]] = None,
-        on_complete: Optional[Callable[[EvalFunction, Dict], None]] = None
+        on_complete: Optional[Callable[[EvalFunction, Dict], None]] = None,
+        cancel_event: Optional[object] = None,
     ) -> List[Dict]:
         all_results = []
+        is_cancelled = cancel_event.is_set if cancel_event else (lambda: False)
         
         if self.concurrency == 0:
             # Sequential execution
             for func in functions:
+                if is_cancelled():
+                    break
                 # Apply global timeout if set
                 if self.timeout is not None:
                     func.timeout = self.timeout
@@ -83,12 +87,20 @@ class EvalRunner:
                 if on_start:
                     on_start(func)
                 
+                if is_cancelled():
+                    break
+                
                 if func.is_async:
                     results = await self.run_async_eval(func)
                 else:
                     results = self.run_sync_eval(func)
+
+                if is_cancelled():
+                    break
                 
                 for result in results:
+                    if is_cancelled():
+                        break
                     result_dict = {
                         "function": func.func.__name__,
                         "dataset": func.dataset,
@@ -98,52 +110,88 @@ class EvalRunner:
                     all_results.append(result_dict)
                     
                     # Call on_complete callback if provided
-                    if on_complete:
+                    if on_complete and not is_cancelled():
                         on_complete(func, result_dict)
         else:
             # Concurrent execution
-            tasks = []
-            for func in functions:
+            semaphore = asyncio.Semaphore(self.concurrency)
+
+            async def run_single(func: EvalFunction):
+                if is_cancelled():
+                    return []
                 # Apply global timeout if set
                 if self.timeout is not None:
                     func.timeout = self.timeout
 
-                # Call on_start callback before creating task
-                if on_start:
-                    on_start(func)
-                
-                if func.is_async:
-                    # Ensure async functions are wrapped in tasks for concurrent execution
-                    tasks.append((func, asyncio.create_task(self.run_async_eval(func))))
-                else:
-                    # Wrap sync functions in asyncio
-                    tasks.append((func, asyncio.create_task(
-                        asyncio.to_thread(self.run_sync_eval, func)
-                    )))
-            
-            # Limit concurrency
-            semaphore = asyncio.Semaphore(self.concurrency)
-            
-            async def run_with_semaphore(func, task):
                 async with semaphore:
-                    results = await task
-                    return func, results
-            
-            # Wait for all tasks
-            for func, task in tasks:
-                func_obj, results = await run_with_semaphore(func, task)
-                for result in results:
-                    result_dict = {
-                        "function": func_obj.func.__name__,
-                        "dataset": func_obj.dataset,
-                        "labels": func_obj.labels,
-                        "result": result.model_dump()
-                    }
-                    all_results.append(result_dict)
-                    
-                    # Call on_complete callback if provided
-                    if on_complete:
-                        on_complete(func_obj, result_dict)
+                    if is_cancelled():
+                        return []
+
+                    if on_start:
+                        on_start(func)
+
+                    if is_cancelled():
+                        return []
+
+                    if func.is_async:
+                        results = await self.run_async_eval(func)
+                    else:
+                        results = await asyncio.to_thread(self.run_sync_eval, func)
+
+                    if is_cancelled():
+                        return []
+
+                    completed = []
+                    for result in results:
+                        result_dict = {
+                            "function": func.func.__name__,
+                            "dataset": func.dataset,
+                            "labels": func.labels,
+                            "result": result.model_dump()
+                        }
+                        completed.append(result_dict)
+
+                        # Call on_complete callback if provided
+                        if on_complete and not is_cancelled():
+                            on_complete(func, result_dict)
+                    return completed
+
+            tasks = []
+            func_iter = iter(functions)
+
+            def launch_next():
+                if is_cancelled():
+                    return False
+                try:
+                    func = next(func_iter)
+                except StopIteration:
+                    return False
+                tasks.append(asyncio.create_task(run_single(func)))
+                return True
+
+            for _ in range(self.concurrency):
+                if not launch_next():
+                    break
+
+            while tasks:
+                done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                for d in done:
+                    try:
+                        results = d.result()
+                    except asyncio.CancelledError:
+                        results = []
+                    if is_cancelled():
+                        continue
+                    for result_dict in results or []:
+                        all_results.append(result_dict)
+                if is_cancelled():
+                    for t in pending:
+                        t.cancel()
+                    await asyncio.gather(*pending, return_exceptions=True)
+                    break
+                tasks = list(pending)
+                while len(tasks) < self.concurrency and launch_next():
+                    pass
         
         return all_results
     
@@ -158,7 +206,8 @@ class EvalRunner:
         verbose: bool = False,
         on_start: Optional[Callable[[EvalFunction], None]] = None,
         on_complete: Optional[Callable[[EvalFunction, Dict], None]] = None,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
+        cancel_event: Optional[object] = None,
     ) -> Dict:
         # Discover functions
         discovery = EvalDiscovery()
@@ -184,7 +233,12 @@ class EvalRunner:
             in_loop = False
 
         if not in_loop:
-            all_results = asyncio.run(self.run_all_async(functions, on_start=on_start, on_complete=on_complete))
+            all_results = asyncio.run(self.run_all_async(
+                functions,
+                on_start=on_start,
+                on_complete=on_complete,
+                cancel_event=cancel_event,
+            ))
         else:
             # Execute in a separate thread with a fresh loop
             from threading import Thread
@@ -196,7 +250,12 @@ class EvalRunner:
                 loop = asyncio.new_event_loop()
                 try:
                     asyncio.set_event_loop(loop)
-                    res = loop.run_until_complete(self.run_all_async(functions, on_start=on_start, on_complete=on_complete))
+                    res = loop.run_until_complete(self.run_all_async(
+                        functions,
+                        on_start=on_start,
+                        on_complete=on_complete,
+                        cancel_event=cancel_event,
+                    ))
                     result_holder["res"] = res
                 except BaseException as e:
                     error_holder["err"] = e

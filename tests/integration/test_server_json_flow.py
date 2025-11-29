@@ -1,3 +1,5 @@
+import json
+import time
 from pathlib import Path
 
 import pytest
@@ -242,3 +244,144 @@ def case():
     r = client.get("/results")
     assert r.status_code == 200
     assert "rerun_ds" in r.text
+
+
+def test_rerun_with_indices(tmp_path: Path):
+    """Test selective rerun updates in place, keeping all results."""
+    # Create eval file with 3 test cases
+    eval_dir = tmp_path / "evals"
+    eval_dir.mkdir()
+    f = eval_dir / "test_selective.py"
+    f.write_text(
+        """
+from twevals import eval, EvalResult
+
+@eval(dataset="selective_ds")
+def case1():
+    return EvalResult(input="input1", output="output1")
+
+@eval(dataset="selective_ds")
+def case2():
+    return EvalResult(input="input2", output="output2")
+
+@eval(dataset="selective_ds")
+def case3():
+    return EvalResult(input="input3", output="output3")
+"""
+    )
+
+    # Create initial run with all 3 results
+    store = ResultsStore(tmp_path / "runs")
+    initial_summary = {
+        "total_evaluations": 3,
+        "results": [
+            {"function": "case1", "dataset": "selective_ds", "labels": [], "result": {"input": "input1", "output": "old1", "status": "completed"}},
+            {"function": "case2", "dataset": "selective_ds", "labels": [], "result": {"input": "input2", "output": "old2", "status": "completed"}},
+            {"function": "case3", "dataset": "selective_ds", "labels": [], "result": {"input": "input3", "output": "old3", "status": "completed"}},
+        ],
+        "rerun_config": {"path": str(f)},
+    }
+    run_id = store.save_run(initial_summary, "2024-01-01T00-00-00Z")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run_id,
+        path=str(f),
+    )
+    client = TestClient(app)
+
+    # Rerun only indices 0 and 2 (case1 and case3)
+    rr = client.post("/api/runs/rerun", json={"indices": [0, 2]})
+    assert rr.status_code == 200
+    payload = rr.json()
+    assert payload.get("ok") is True
+
+    # Same run_id should be returned (update in place)
+    assert payload["run_id"] == run_id
+
+    # Run should still have all 3 results
+    updated_run = store.load_run(run_id)
+    assert len(updated_run["results"]) == 3
+
+    # case2 should be unchanged (still has old output)
+    assert updated_run["results"][1]["result"]["output"] == "old2"
+
+
+def test_stop_endpoint_stops_pending_tasks(tmp_path: Path):
+    """Stop should prevent runner from executing additional evals."""
+    log_file = tmp_path / "log.json"
+    log_file.write_text("[]")
+
+    eval_dir = tmp_path / "evals"
+    eval_dir.mkdir()
+    f = eval_dir / "stop_eval.py"
+    f.write_text(
+        f"""
+from twevals import eval, EvalResult
+import time, json, pathlib
+
+log_file = pathlib.Path(r"{log_file}")
+
+def log(msg):
+    data = json.loads(log_file.read_text())
+    data.append(msg)
+    log_file.write_text(json.dumps(data))
+
+@eval(dataset="stop_ds")
+def first():
+    log("start1")
+    time.sleep(0.2)
+    log("end1")
+    return EvalResult(input="a", output="one")
+
+@eval(dataset="stop_ds")
+def second():
+    log("start2")
+    time.sleep(0.1)
+    log("end2")
+    return EvalResult(input="b", output="two")
+
+@eval(dataset="stop_ds")
+def third():
+    log("start3")
+    time.sleep(0.1)
+    log("end3")
+    return EvalResult(input="c", output="three")
+"""
+    )
+
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run({"total_evaluations": 0, "results": [], "rerun_config": {"path": str(f)}}, "2024-01-01T00-00-00Z")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run_id,
+        path=str(f),
+        concurrency=0,
+    )
+    client = TestClient(app)
+
+    rr = client.post("/api/runs/rerun")
+    assert rr.status_code == 200
+    new_run_id = rr.json()["run_id"]
+
+    # Stop shortly after start while first eval is still running
+    time.sleep(0.05)
+    client.post("/api/runs/stop")
+    time.sleep(0.35)
+
+    entries = json.loads(log_file.read_text())
+    assert "start1" in entries
+    assert not any(e.startswith("start2") or e.startswith("start3") for e in entries)
+
+    data = store.load_run(new_run_id)
+    statuses = [r["result"].get("status") for r in data["results"]]
+    assert len(statuses) == 3
+    assert all(status == "cancelled" for status in statuses)
+    # Outputs should remain cleared for cancelled rows
+    assert all(r["result"].get("output") in (None, "") for r in data["results"])
+    # Wait longer than all tasks would take and ensure we did not resume
+    time.sleep(0.4)
+    data2 = store.load_run(new_run_id)
+    statuses2 = [r["result"].get("status") for r in data2["results"]]
+    assert all(status == "cancelled" for status in statuses2)

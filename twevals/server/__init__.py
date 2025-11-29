@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Lock, Thread, Event
 from typing import Optional, List, Dict
 
 from fastapi import FastAPI, HTTPException, Request
@@ -19,6 +19,10 @@ class ResultUpdateBody(BaseModel):
     dataset: Optional[str] = None
     labels: Optional[list[str]] = None
     result: Optional[dict] = None
+
+
+class RerunRequest(BaseModel):
+    indices: Optional[List[int]] = None
 
 
 def create_app(
@@ -54,6 +58,9 @@ def create_app(
     app.state.limit = limit
     app.state.concurrency = concurrency
     app.state.verbose = verbose
+    # Cancellation event for stopping running evals
+    app.state.cancel_event = Event()
+    app.state.cancel_lock = Lock()
 
     @app.get("/")
     def index(request: Request):
@@ -122,8 +129,32 @@ def create_app(
             raise HTTPException(status_code=404, detail="Run not found")
         return {"ok": True, "result": updated}
 
+    @app.post("/api/runs/stop")
+    def stop_run():
+        """Stop all running/pending evals by marking them as cancelled."""
+        with app.state.cancel_lock:
+            app.state.cancel_event.set()
+            try:
+                data = store.load_run(app.state.active_run_id)
+                changed = False
+                for r in data.get("results", []):
+                    status = r.get("result", {}).get("status")
+                    if status in ("pending", "running"):
+                        r["result"]["status"] = "cancelled"
+                        changed = True
+                if changed:
+                    from twevals.storage import _atomic_write_json
+                    run_file = store._find_run_file(app.state.active_run_id)
+                    _atomic_write_json(run_file, data)
+            except Exception:
+                pass
+        return {"ok": True}
+
     @app.post("/api/runs/rerun")
-    def rerun():
+    def rerun(request: RerunRequest = RerunRequest()):
+        # Clear any previous cancellation
+        app.state.cancel_event.clear()
+
         cfg = {
             "path": app.state.path,
             "dataset": app.state.dataset,
@@ -147,7 +178,7 @@ def create_app(
             raise HTTPException(status_code=400, detail=f"Eval path not found: {path_obj}")
 
         discovery = EvalDiscovery()
-        functions = discovery.discover(
+        all_functions = discovery.discover(
             path=str(path_obj),
             dataset=cfg.get("dataset"),
             labels=cfg.get("labels"),
@@ -155,7 +186,7 @@ def create_app(
         )
         limit = cfg.get("limit")
         if limit is not None:
-            functions = functions[:limit]
+            all_functions = all_functions[:limit]
 
         runner = EvalRunner(concurrency=cfg.get("concurrency") or 0, verbose=bool(cfg.get("verbose")))
         rerun_config = {
@@ -164,6 +195,84 @@ def create_app(
             "concurrency": cfg.get("concurrency"), "verbose": cfg.get("verbose"),
         }
 
+        # Selective rerun: update in place, don't create new run
+        if request.indices is not None:
+            run_id = app.state.active_run_id
+            current_run = store.load_run(run_id)
+            current_results = current_run["results"]
+
+            # Build map of (function_name, dataset) -> index in current results
+            selected_keys = {}
+            for i in request.indices:
+                r = current_results[i]
+                key = (r["function"], r.get("dataset"))
+                selected_keys[key] = i
+                # Set to pending
+                current_results[i]["result"]["status"] = "pending"
+                current_results[i]["result"]["output"] = None
+                current_results[i]["result"]["error"] = None
+                current_results[i]["result"]["scores"] = None
+                current_results[i]["result"]["latency"] = None
+
+            # Filter functions to only those matching selected results
+            functions = [f for f in all_functions if (f.func.__name__, f.dataset) in selected_keys]
+            # Map function id to index in current_results
+            func_to_result_idx = {id(f): selected_keys[(f.func.__name__, f.dataset)] for f in functions}
+
+            results_lock = Lock()
+            cancel_event = app.state.cancel_event
+
+            def _persist():
+                if cancel_event.is_set():
+                    return
+                s = runner._calculate_summary(current_results)
+                s["results"] = current_results
+                s["rerun_config"] = rerun_config
+                store.save_run(s, run_id=run_id, session_name=app.state.session_name)
+
+            # Save initial pending state
+            _persist()
+
+            def _on_start(func: EvalFunction):
+                if cancel_event.is_set():
+                    return
+                with results_lock:
+                    if cancel_event.is_set():
+                        return
+                    idx = func_to_result_idx[id(func)]
+                    current_results[idx]["result"]["status"] = "running"
+                    _persist()
+
+            def _on_complete(func: EvalFunction, result_dict: Dict):
+                with app.state.cancel_lock:
+                    if cancel_event.is_set():
+                        return  # Don't overwrite cancelled results
+                    status = "error" if result_dict.get("result", {}).get("error") else "completed"
+                    result_dict.setdefault("result", {})["status"] = status
+                    with results_lock:
+                        if cancel_event.is_set():
+                            return
+                        idx = func_to_result_idx[id(func)]
+                        current_results[idx] = result_dict
+                        _persist()
+
+            def _run_evals():
+                asyncio.run(runner.run_all_async(
+                    functions,
+                    on_start=_on_start,
+                    on_complete=_on_complete,
+                    cancel_event=cancel_event,
+                ))
+                if not cancel_event.is_set():
+                    _persist()
+
+            if functions:
+                Thread(target=_run_evals, daemon=True).start()
+
+            return {"ok": True, "run_id": run_id}
+
+        # Full rerun: create new run
+        functions = all_functions
         current_results = [{
             "function": f.func.__name__,
             "dataset": f.dataset,
@@ -181,33 +290,50 @@ def create_app(
         summary = runner._calculate_summary(current_results)
         summary["results"] = current_results
         summary["rerun_config"] = rerun_config
-        # Use current session, generate new run name for rerun
         store.save_run(summary, run_id=run_id, session_name=app.state.session_name)
 
         results_lock = Lock()
         func_index = {id(func): idx for idx, func in enumerate(functions)}
+        cancel_event = app.state.cancel_event
 
         def _persist():
+            if cancel_event.is_set():
+                return
             s = runner._calculate_summary(current_results)
             s["results"] = current_results
             s["rerun_config"] = rerun_config
             store.save_run(s, run_id=run_id, session_name=app.state.session_name)
 
         def _on_start(func: EvalFunction):
+            if cancel_event.is_set():
+                return
             with results_lock:
+                if cancel_event.is_set():
+                    return
                 current_results[func_index[id(func)]]["result"]["status"] = "running"
                 _persist()
 
         def _on_complete(func: EvalFunction, result_dict: Dict):
-            status = "error" if result_dict.get("result", {}).get("error") else "completed"
-            result_dict.setdefault("result", {})["status"] = status
-            with results_lock:
-                current_results[func_index[id(func)]] = result_dict
-                _persist()
+            with app.state.cancel_lock:
+                if cancel_event.is_set():
+                    return  # Don't overwrite cancelled results
+                status = "error" if result_dict.get("result", {}).get("error") else "completed"
+                result_dict.setdefault("result", {})["status"] = status
+                with results_lock:
+                    if cancel_event.is_set():
+                        return
+                    current_results[func_index[id(func)]] = result_dict
+                    _persist()
 
         def _run_evals():
-            asyncio.run(runner.run_all_async(functions, on_start=_on_start, on_complete=_on_complete))
-            _persist()
+            asyncio.run(runner.run_all_async(
+                functions,
+                on_start=_on_start,
+                on_complete=_on_complete,
+                cancel_event=cancel_event,
+            ))
+            if not cancel_event.is_set():
+                _persist()
 
         app.state.active_run_id = run_id
         if functions:

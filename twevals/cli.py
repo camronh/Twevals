@@ -443,7 +443,6 @@ def _serve(
         "concurrency": concurrency, "verbose": verbose,
     }
 
-    # Seed pending results
     current_results = [{
         "function": f.func.__name__,
         "dataset": f.dataset,
@@ -463,36 +462,7 @@ def _serve(
     summary["rerun_config"] = rerun_config
     store.save_run(summary, run_id=run_id, session_name=session_name, run_name=run_name)
 
-    results_lock = Lock()
-    func_index = {id(func): idx for idx, func in enumerate(functions)}
-
-    def _persist():
-        s = runner._calculate_summary(current_results)
-        s["results"] = current_results
-        s["rerun_config"] = rerun_config
-        store.save_run(s, run_id=run_id, session_name=session_name, run_name=run_name)
-
-    def _on_start(func: EvalFunction):
-        with results_lock:
-            current_results[func_index[id(func)]]["result"]["status"] = "running"
-            _persist()
-
-    def _on_complete(func: EvalFunction, result_dict: Dict):
-        status = "error" if result_dict.get("result", {}).get("error") else "completed"
-        result_dict.setdefault("result", {})["status"] = status
-        with results_lock:
-            current_results[func_index[id(func)]] = result_dict
-            _persist()
-
-    def _run_evals():
-        asyncio.run(runner.run_all_async(functions, on_start=_on_start, on_complete=_on_complete))
-        _persist()
-
-    if functions:
-        Thread(target=_run_evals, daemon=True).start()
-    else:
-        console.print("[yellow]No evaluations found; serving UI with an empty run.[/yellow]")
-
+    # Create the app *before* starting the run, so we can use its cancel event
     app = create_app(
         results_dir=results_dir,
         active_run_id=run_id,
@@ -506,6 +476,54 @@ def _serve(
         session_name=session_name,
         run_name=run_name,
     )
+    
+    # Now, set up the runner thread with the app's cancellation objects
+    results_lock = Lock()
+    func_index = {id(func): idx for idx, func in enumerate(functions)}
+    cancel_event = app.state.cancel_event
+    cancel_lock = app.state.cancel_lock
+
+    def _persist():
+        if cancel_event.is_set():
+            return
+        s = runner._calculate_summary(current_results)
+        s["results"] = current_results
+        s["rerun_config"] = rerun_config
+        store.save_run(s, run_id=run_id, session_name=session_name, run_name=run_name)
+
+    def _on_start(func: EvalFunction):
+        if cancel_event.is_set():
+            return
+        with results_lock:
+            if cancel_event.is_set():
+                return
+            current_results[func_index[id(func)]]["result"]["status"] = "running"
+            _persist()
+
+    def _on_complete(func: EvalFunction, result_dict: Dict):
+        with cancel_lock:
+            if cancel_event.is_set():
+                return
+            status = "error" if result_dict.get("result", {}).get("error") else "completed"
+            result_dict.setdefault("result", {})["status"] = status
+            with results_lock:
+                current_results[func_index[id(func)]] = result_dict
+                _persist()
+
+    def _run_evals():
+        asyncio.run(runner.run_all_async(
+            functions,
+            on_start=_on_start,
+            on_complete=_on_complete,
+            cancel_event=cancel_event,
+        ))
+        if not cancel_event.is_set():
+            _persist()
+
+    if functions:
+        Thread(target=_run_evals, daemon=True).start()
+    else:
+        console.print("[yellow]No evaluations found; serving UI with an empty run.[/yellow]")
 
     url = f"http://{host}:{port}"
     console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")

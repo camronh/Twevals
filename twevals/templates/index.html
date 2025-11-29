@@ -38,6 +38,65 @@
       .col-resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; }
       .col-resizer:hover { background: linear-gradient(to right, transparent, rgba(37, 99, 235, 0.2)); }
       body.twevals-col-resize { cursor: col-resize !important; }
+      /* Custom checkbox styling */
+      .row-checkbox, #select-all-checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1.5px solid #a1a1aa;
+        border-radius: 4px;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        position: relative;
+        vertical-align: middle;
+        margin-top: 2px;
+      }
+      .row-checkbox:hover, #select-all-checkbox:hover {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.08);
+      }
+      .row-checkbox:checked, #select-all-checkbox:checked {
+        background: #3b82f6;
+        border-color: #3b82f6;
+      }
+      .row-checkbox:checked::after, #select-all-checkbox:checked::after {
+        content: '';
+        position: absolute;
+        left: 4.5px;
+        top: 1.5px;
+        width: 4px;
+        height: 8px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+      .row-checkbox:indeterminate, #select-all-checkbox:indeterminate {
+        background: #3b82f6;
+        border-color: #3b82f6;
+      }
+      .row-checkbox:indeterminate::after, #select-all-checkbox:indeterminate::after {
+        content: '';
+        position: absolute;
+        left: 3px;
+        top: 6px;
+        width: 8px;
+        height: 2px;
+        background: white;
+        border-radius: 1px;
+      }
+      .row-checkbox:focus, #select-all-checkbox:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+      }
+      .dark .row-checkbox, .dark #select-all-checkbox {
+        border-color: #52525b;
+      }
+      .dark .row-checkbox:hover, .dark #select-all-checkbox:hover {
+        border-color: #60a5fa;
+        background: rgba(96, 165, 250, 0.1);
+      }
     </style>
     <script>
       // Apply saved theme before page renders to prevent flash
@@ -67,6 +126,19 @@
               <path d="M21 21l-4.35-4.35"></path>
             </svg>
             <input id="search-input" type="search" class="search-input w-72 rounded-lg border border-blue-200 bg-white px-10 py-2 text-sm text-zinc-800 shadow-sm placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100 dark:shadow-none dark:placeholder:text-zinc-500" placeholder="Search results..." />
+          </div>
+
+          <!-- Run Controls -->
+          <div id="run-controls" class="flex items-center gap-2">
+            <button id="play-btn" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500" title="Rerun evals">
+              <svg class="play-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              <svg class="stop-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12"/>
+              </svg>
+              <span id="play-btn-text">Run</span>
+            </button>
           </div>
 
           <div class="dropdown relative">
@@ -257,6 +329,7 @@
       let _sortState = [];
       let _filters = { valueRules: [], passedRules: [], annotation: 'any' };
       let _expandedRow = null;
+      const selectedIndices = new Set();
 
       // Helpers
       const DEFAULT_HIDDEN_COLS = ["error"];
@@ -278,6 +351,70 @@
         _filters = f;
         renderActiveFilters();
         applyAllFilters();
+      }
+
+      // Selection management
+      let _isRunning = false;
+
+      function updateSelectionUI() {
+        const count = selectedIndices.size;
+        const playBtnText = document.getElementById('play-btn-text');
+        if (playBtnText && !_isRunning) {
+          playBtnText.textContent = count ? `Run (${count})` : 'Run';
+        }
+        updateSelectAllState();
+      }
+
+      function setRunningState(running) {
+        _isRunning = running;
+        const btn = document.getElementById('play-btn');
+        const playIcon = btn?.querySelector('.play-icon');
+        const stopIcon = btn?.querySelector('.stop-icon');
+        const btnText = document.getElementById('play-btn-text');
+        if (running) {
+          btn?.classList.remove('bg-emerald-500', 'hover:bg-emerald-600', 'dark:bg-emerald-600', 'dark:hover:bg-emerald-500');
+          btn?.classList.add('bg-rose-500', 'hover:bg-rose-600', 'dark:bg-rose-600', 'dark:hover:bg-rose-500');
+          playIcon?.classList.add('hidden');
+          stopIcon?.classList.remove('hidden');
+          if (btnText) btnText.textContent = 'Stop';
+        } else {
+          btn?.classList.remove('bg-rose-500', 'hover:bg-rose-600', 'dark:bg-rose-600', 'dark:hover:bg-rose-500');
+          btn?.classList.add('bg-emerald-500', 'hover:bg-emerald-600', 'dark:bg-emerald-600', 'dark:hover:bg-emerald-500');
+          playIcon?.classList.remove('hidden');
+          stopIcon?.classList.add('hidden');
+          updateSelectionUI();
+        }
+      }
+
+      function checkRunningState() {
+        const hasPending = document.querySelector('[data-status="pending"], [data-status="running"]');
+        setRunningState(!!hasPending);
+      }
+
+      function updateSelectAllState() {
+        const selectAll = document.getElementById('select-all-checkbox');
+        if (!selectAll) return;
+        const visibleRows = getVisibleMainRows();
+        if (visibleRows.length === 0) {
+          selectAll.checked = false;
+          selectAll.indeterminate = false;
+          return;
+        }
+        const visibleSelected = visibleRows.filter(r => selectedIndices.has(parseInt(r.dataset.rowId))).length;
+        selectAll.checked = visibleSelected === visibleRows.length;
+        selectAll.indeterminate = visibleSelected > 0 && visibleSelected < visibleRows.length;
+      }
+
+      function getVisibleMainRows() {
+        return Array.from(document.querySelectorAll('tr[data-row="main"]:not([hidden]):not(.filtered-out)'));
+      }
+
+      function syncCheckboxesToSelection() {
+        document.querySelectorAll('.row-checkbox').forEach(cb => {
+          const idx = parseInt(cb.dataset.rowId);
+          cb.checked = selectedIndices.has(idx);
+        });
+        updateSelectionUI();
       }
 
       // Dropdown toggles
@@ -1032,6 +1169,76 @@
         }
       });
 
+      // Play/Stop button - rerun selected or all, or stop if running
+      document.getElementById('play-btn')?.addEventListener('click', async () => {
+        if (_isRunning) {
+          // Stop running evals
+          try {
+            await fetch('/api/runs/stop', { method: 'POST' });
+          } catch (e) {
+            console.error('Stop failed:', e);
+          }
+          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+          return;
+        }
+        let started = false;
+        try {
+          showLoading();
+          const body = selectedIndices.size > 0 ? { indices: Array.from(selectedIndices) } : {};
+          const resp = await fetch('/api/runs/rerun', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (!resp.ok) {
+            let msg = '';
+            try {
+              const data = await resp.json();
+              msg = data?.detail || data?.message || '';
+            } catch {
+              msg = await resp.text();
+            }
+            throw new Error(msg || `HTTP ${resp.status}`);
+          }
+          started = true;
+          setRunningState(true);
+          htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' });
+        } catch (e) {
+          alert('Rerun failed: ' + e);
+        } finally {
+          if (!started) hideLoading();
+        }
+      });
+
+      // Select-all checkbox
+      document.addEventListener('change', (e) => {
+        if (e.target.id === 'select-all-checkbox') {
+          const visibleRows = getVisibleMainRows();
+          visibleRows.forEach(row => {
+            const idx = parseInt(row.dataset.rowId);
+            const cb = row.querySelector('.row-checkbox');
+            if (e.target.checked) {
+              selectedIndices.add(idx);
+              if (cb) cb.checked = true;
+            } else {
+              selectedIndices.delete(idx);
+              if (cb) cb.checked = false;
+            }
+          });
+          updateSelectionUI();
+        }
+        // Individual row checkbox
+        if (e.target.classList.contains('row-checkbox')) {
+          const idx = parseInt(e.target.dataset.rowId);
+          if (e.target.checked) {
+            selectedIndices.add(idx);
+          } else {
+            selectedIndices.delete(idx);
+          }
+          updateSelectionUI();
+        }
+      });
+
       // Lightweight live refresh when runs are still pending
       let liveUpdateTimer = null;
       function scheduleLiveRefresh() {
@@ -1065,6 +1272,8 @@
           if (window.restoreExpandedRow) restoreExpandedRow();
           wireActionsMenu();
           try { populateScoreKeySelects(); applyAllFilters(); } catch {}
+          syncCheckboxesToSelection();
+          checkRunningState();
           scheduleLiveRefresh();
         }
       });

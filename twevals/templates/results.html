@@ -19,7 +19,8 @@
   'pending': 'text-blue-300 bg-blue-500/10 border border-blue-500/40',
   'running': 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/40',
   'completed': 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/40',
-  'error': 'text-rose-300 bg-rose-500/10 border border-rose-500/40'
+  'error': 'text-rose-300 bg-rose-500/10 border border-rose-500/40',
+  'cancelled': 'text-amber-300 bg-amber-500/10 border border-amber-500/40'
 } %}
 
 <!-- Compact Stats Bar -->
@@ -122,6 +123,9 @@
 <table id="results-table" data-run-id="{{ run_id }}" class="w-full overflow-hidden rounded-lg border border-blue-200/60 bg-white text-sm text-zinc-700 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200 dark:shadow-none">
   <thead>
     <tr class="border-b border-blue-200/60 bg-blue-50/50 dark:border-zinc-800/60 dark:bg-transparent">
+      <th style="width:32px;" class="px-2 py-2.5">
+        <input type="checkbox" id="select-all-checkbox" />
+      </th>
       <th style="width:36px;" class="px-2 py-2.5"></th>
       <th data-col="function" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
       <th data-col="input" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
@@ -138,6 +142,9 @@
     {% set is_running = status == 'running' %}
     <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" class="hover:bg-blue-50/50 transition-colors dark:hover:bg-zinc-800/30">
       <td class="px-2 py-2 align-top">
+        <input type="checkbox" class="row-checkbox" data-row-id="{{ row_id }}" />
+      </td>
+      <td class="px-2 py-2 align-top">
         <button class="expand-btn flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition hover:bg-blue-100 hover:text-blue-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-blue-500" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
           <span class="icon text-[10px]">▸</span>
         </button>
@@ -150,6 +157,8 @@
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status) }}">running</span>
             {% elif status == 'error' %}
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get('error') }}">err</span>
+            {% elif status == 'cancelled' %}
+              <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get('cancelled') }}">stopped</span>
             {% endif %}
           </div>
           <div class="flex items-center gap-1.5 text-[11px] text-zinc-500">
@@ -233,7 +242,7 @@
         data-original-metadata='{{ (r.result.metadata or none) | tojson | e }}'
         data-original-scores='{{ (r.result.scores or []) | tojson | e }}'
         data-original-annotation='{{ (r.result.annotation or "") | e }}'>
-      <td colspan="7" class="bg-blue-50/30 px-2 py-3 dark:bg-zinc-950/50">
+      <td colspan="8" class="bg-blue-50/30 px-2 py-3 dark:bg-zinc-950/50">
         <div class="detail-panel rounded-lg border border-blue-200/60 bg-white shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:shadow-none">
           <!-- Header -->
           <div class="detail-header flex items-center justify-between border-b border-blue-200/60 bg-blue-50/30 px-4 py-2.5 dark:border-zinc-800/40 dark:bg-transparent">
