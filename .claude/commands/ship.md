@@ -1,4 +1,6 @@
-Ship recent changes in the current branch to dev.
+Ship recent changes in the current branch to dev (and optionally to main).
+
+**Arguments:** If the user says "to main" or "push to main", also merge dev to main after completing the dev ship.
 
 Follow these steps in order:
 
@@ -28,7 +30,7 @@ Follow these steps in order:
 
 
 ## 4. Update Documentation (Only If Needed)
-- Review if changes require README and/or documentation (docs/) updates
+- Review if changes require README and/or documentation (./docs/) updates
 - Update ONLY if new features need documentation or existing feature docs are outdated
 - When updating:
   - Rewrite relevant sections to be current
@@ -63,6 +65,21 @@ Follow these steps in order:
 
 ### If already on dev:
 - Push dev: `git push origin dev`
+
+## 7. Ship to Main (Only If Requested)
+
+**Skip this step unless the user explicitly asked to ship to main.**
+
+If shipping to main:
+1. Ask the user what version number to use (suggest next alpha based on CHANGELOG)
+2. Update CHANGELOG.md: change `## Unreleased` to `## <version> - <today's date>`
+3. Commit: `git commit -m "release <version>"`
+4. Push dev: `git push origin dev`
+5. Checkout main: `git checkout main`
+6. Pull latest: `git pull origin main`
+7. Merge dev: `git merge dev`
+8. Push main: `git push origin main`
+9. Return to dev: `git checkout dev`
 
 ## Error Handling
 - If tests fail → stop and report
