@@ -113,7 +113,7 @@ def test_expand_sort_and_toggle_columns(tmp_path):
             # Sort by latency ascending (one click)
             page.locator("thead th[data-col='latency']").click()
             first_func = page.locator("tbody tr[data-row='main'] td[data-col='function']").first
-            expect(first_func).to_have_text("b")  # 0.1s row should be first
+            expect(first_func).to_contain_text("b")  # 0.1s row should be first
 
             # Toggle Output column visibility off
             page.locator("#columns-toggle").click()
@@ -147,12 +147,12 @@ def test_inline_edit_and_save(tmp_path):
             ds_input.fill("ds_edited")
             # Save
             page.locator(".save-btn").nth(0).click()
-            # Wait for refresh and verify dataset for function 'a'
+            # Wait for refresh and verify dataset is updated (shown inside function cell in new template)
             page.wait_for_selector("#results-table")
             row = page.locator("tr[data-row='main']").filter(
                 has=page.locator("td[data-col='function']"), has_text="a"
             )
-            expect(row.locator("td[data-col='dataset']").first).to_have_text("ds_edited")
+            expect(row.locator("td[data-col='function']").first).to_contain_text("ds_edited")
             browser.close()
 
 

@@ -8,13 +8,14 @@ import time
 import webbrowser
 from pathlib import Path
 from typing import Optional, List, Dict
-from threading import Thread
+from threading import Lock, Thread
 
 from rich.console import Console
 
 from twevals.formatters import format_results_table, format_eval_list_table
+from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
-from twevals.run_manager import start_run
+from twevals.runner import EvalRunner
 
 
 console = Console()
@@ -413,30 +414,73 @@ def _serve(
     try:
         from twevals.server import create_app
         import uvicorn
-    except Exception as e:
+    except Exception:
         console.print("[red]Missing server dependencies. Install with:[/red] \n  uv add fastapi uvicorn jinja2")
         raise
 
-    # Always create a fresh run on startup
     from twevals.storage import ResultsStore
+    import asyncio
 
     store = ResultsStore(results_dir)
-    run_cfg = {
-        "path": path,
-        "dataset": dataset,
-        "labels": labels,
-        "function_name": function_name,
-        "limit": limit,
-        "concurrency": concurrency,
-        "verbose": verbose,
-    }
-    handle = start_run(run_cfg, store)
-    run_id = handle.run_id
-    functions = handle.functions
+    discovery = EvalDiscovery()
+    functions = discovery.discover(path=path, dataset=dataset, labels=labels, function_name=function_name)
+    if limit is not None:
+        functions = functions[:limit]
 
-    # Kick off evaluations in the background so the UI can load immediately
+    runner = EvalRunner(concurrency=concurrency or 0, verbose=verbose)
+    rerun_config = {
+        "path": path, "dataset": dataset, "labels": labels,
+        "function_name": function_name, "limit": limit,
+        "concurrency": concurrency, "verbose": verbose,
+    }
+
+    # Seed pending results
+    current_results = [{
+        "function": f.func.__name__,
+        "dataset": f.dataset,
+        "labels": f.labels,
+        "result": {
+            "input": f.context_kwargs.get("input"),
+            "reference": f.context_kwargs.get("reference"),
+            "metadata": f.context_kwargs.get("metadata"),
+            "output": None, "error": None, "scores": None, "latency": None,
+            "run_data": None, "annotation": None, "annotations": None, "status": "pending",
+        },
+    } for f in functions]
+
+    run_id = store.generate_run_id()
+    summary = runner._calculate_summary(current_results)
+    summary["results"] = current_results
+    summary["rerun_config"] = rerun_config
+    store.save_run(summary, run_id)
+
+    results_lock = Lock()
+    func_index = {id(func): idx for idx, func in enumerate(functions)}
+
+    def _persist():
+        s = runner._calculate_summary(current_results)
+        s["results"] = current_results
+        s["rerun_config"] = rerun_config
+        store.save_run(s, run_id)
+
+    def _on_start(func: EvalFunction):
+        with results_lock:
+            current_results[func_index[id(func)]]["result"]["status"] = "running"
+            _persist()
+
+    def _on_complete(func: EvalFunction, result_dict: Dict):
+        status = "error" if result_dict.get("result", {}).get("error") else "completed"
+        result_dict.setdefault("result", {})["status"] = status
+        with results_lock:
+            current_results[func_index[id(func)]] = result_dict
+            _persist()
+
+    def _run_evals():
+        asyncio.run(runner.run_all_async(functions, on_start=_on_start, on_complete=_on_complete))
+        _persist()
+
     if functions:
-        handle.start_background()
+        Thread(target=_run_evals, daemon=True).start()
     else:
         console.print("[yellow]No evaluations found; serving UI with an empty run.[/yellow]")
 
@@ -451,37 +495,23 @@ def _serve(
         function_name=function_name,
         limit=limit,
     )
-    # Friendly startup message
+
     url = f"http://{host}:{port}"
     console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
     if functions:
         console.print("[cyan]Evaluations are running in the background; rows will update live as they finish.[/cyan]")
     console.print("Press Ctrl+C to stop\n")
 
-    # Open browser automatically so users don't need to click the link
-    def _open_browser():
-        try:
-            time.sleep(0.5)  # small delay to let server come up
-            webbrowser.open(url)
-        except Exception:
-            pass
+    Thread(target=lambda: (time.sleep(0.5), webbrowser.open(url)), daemon=True).start()
 
-    Thread(target=_open_browser, daemon=True).start()
-
-    # Control logging verbosity
     log_level = "warning" if quiet and not verbose else ("info" if not verbose else "debug")
-    access_log = False if quiet else True
+    access_log = not quiet
 
     if dev:
-        # Enable hot reload watching the repo (code + templates).
-        # Uvicorn requires an import string/factory for reload to work.
-        # We use twevals.server:load_app_from_env and pass config via env.
         from pathlib import Path as _Path
         import os as _os, json as _json
 
         repo_root = _Path('.').resolve()
-
-        # Pass config to the child reloader process
         _os.environ["TWEVALS_RESULTS_DIR"] = str(results_dir)
         _os.environ["TWEVALS_ACTIVE_RUN_ID"] = str(run_id)
         _os.environ["TWEVALS_PATH"] = str(path)

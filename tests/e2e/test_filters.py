@@ -93,7 +93,7 @@ def test_advanced_filters_ui(tmp_path):
             btn = page.locator("#filters-toggle")
             btn.click()
             # Menu visible and anchored within viewport to the right
-            page.wait_for_selector("#filters-menu:not(.hidden)")
+            page.wait_for_selector("#filters-menu.active")
             menu_box = page.eval_on_selector('#filters-menu', 'el => el.getBoundingClientRect()')
             btn_box = page.eval_on_selector('#filters-toggle', 'el => el.getBoundingClientRect()')
             vp = page.viewport_size
@@ -104,7 +104,7 @@ def test_advanced_filters_ui(tmp_path):
 
             # Clicking again should close
             btn.click()
-            page.wait_for_selector("#filters-menu.hidden", state='attached')
+            page.wait_for_selector("#filters-menu:not(.active)", state='attached')
 
             # Open again for adding rules
             btn.click()
@@ -134,7 +134,7 @@ def test_advanced_filters_ui(tmp_path):
 
             # Dynamic key type detection: fluency has numeric only -> value section visible, passed hidden
             # Ensure menu is visible before interacting with selects
-            page.wait_for_selector("#filters-menu:not(.hidden)")
+            page.wait_for_selector("#filters-menu.active")
             page.select_option("#key-select", value="fluency")
             expect(page.locator("#value-section")).to_be_visible()
             expect(page.locator("#passed-section")).to_be_hidden()

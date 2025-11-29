@@ -1,13 +1,17 @@
+import asyncio
 from pathlib import Path
-from typing import Optional, List
+from threading import Lock, Thread
+from typing import Optional, List, Dict
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
+from twevals.decorators import EvalFunction
+from twevals.discovery import EvalDiscovery
+from twevals.runner import EvalRunner
 from twevals.storage import ResultsStore
-from twevals.run_manager import start_run
 
 
 class ResultUpdateBody(BaseModel):
@@ -110,15 +114,9 @@ def create_app(
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Run not found")
         return {"ok": True, "result": updated}
-    # Annotation endpoints removed: annotation is a single string updated via PATCH /results/{index}
-
-        # Annotation update endpoint removed
-
-        # Annotation delete endpoint removed
 
     @app.post("/api/runs/rerun")
     def rerun():
-        # Build rerun configuration from live state or the last run's stored config
         cfg = {
             "path": app.state.path,
             "dataset": app.state.dataset,
@@ -129,30 +127,85 @@ def create_app(
             "verbose": app.state.verbose,
         }
         if not cfg["path"]:
-            try:
-                summary = store.load_run(app.state.active_run_id)
-                stored = summary.get("rerun_config") or {}
-                for k, v in stored.items():
-                    if cfg.get(k) is None:
-                        cfg[k] = v
-            except Exception:
-                pass
+            summary = store.load_run(app.state.active_run_id)
+            stored = summary.get("rerun_config") or {}
+            for k, v in stored.items():
+                if cfg.get(k) is None:
+                    cfg[k] = v
         if not cfg["path"]:
             raise HTTPException(status_code=400, detail="Rerun unavailable: missing eval path")
 
-        try:
-            handle = start_run(cfg, store)
-        except FileNotFoundError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        path_obj = Path(cfg["path"])
+        if not path_obj.exists():
+            raise HTTPException(status_code=400, detail=f"Eval path not found: {path_obj}")
 
-        app.state.active_run_id = handle.run_id
-        handle.start_background()
+        discovery = EvalDiscovery()
+        functions = discovery.discover(
+            path=str(path_obj),
+            dataset=cfg.get("dataset"),
+            labels=cfg.get("labels"),
+            function_name=cfg.get("function_name"),
+        )
+        limit = cfg.get("limit")
+        if limit is not None:
+            functions = functions[:limit]
 
-        return {"ok": True, "run_id": handle.run_id}
+        runner = EvalRunner(concurrency=cfg.get("concurrency") or 0, verbose=bool(cfg.get("verbose")))
+        rerun_config = {
+            "path": str(path_obj), "dataset": cfg.get("dataset"), "labels": cfg.get("labels"),
+            "function_name": cfg.get("function_name"), "limit": limit,
+            "concurrency": cfg.get("concurrency"), "verbose": cfg.get("verbose"),
+        }
+
+        current_results = [{
+            "function": f.func.__name__,
+            "dataset": f.dataset,
+            "labels": f.labels,
+            "result": {
+                "input": f.context_kwargs.get("input"),
+                "reference": f.context_kwargs.get("reference"),
+                "metadata": f.context_kwargs.get("metadata"),
+                "output": None, "error": None, "scores": None, "latency": None,
+                "run_data": None, "annotation": None, "annotations": None, "status": "pending",
+            },
+        } for f in functions]
+
+        run_id = store.generate_run_id()
+        summary = runner._calculate_summary(current_results)
+        summary["results"] = current_results
+        summary["rerun_config"] = rerun_config
+        store.save_run(summary, run_id)
+
+        results_lock = Lock()
+        func_index = {id(func): idx for idx, func in enumerate(functions)}
+
+        def _persist():
+            s = runner._calculate_summary(current_results)
+            s["results"] = current_results
+            s["rerun_config"] = rerun_config
+            store.save_run(s, run_id)
+
+        def _on_start(func: EvalFunction):
+            with results_lock:
+                current_results[func_index[id(func)]]["result"]["status"] = "running"
+                _persist()
+
+        def _on_complete(func: EvalFunction, result_dict: Dict):
+            status = "error" if result_dict.get("result", {}).get("error") else "completed"
+            result_dict.setdefault("result", {})["status"] = status
+            with results_lock:
+                current_results[func_index[id(func)]] = result_dict
+                _persist()
+
+        def _run_evals():
+            asyncio.run(runner.run_all_async(functions, on_start=_on_start, on_complete=_on_complete))
+            _persist()
+
+        app.state.active_run_id = run_id
+        if functions:
+            Thread(target=_run_evals, daemon=True).start()
+
+        return {"ok": True, "run_id": run_id}
 
     @app.get("/api/runs/{run_id}/export/json")
     def export_json(run_id: str):
