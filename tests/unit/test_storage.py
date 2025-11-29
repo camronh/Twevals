@@ -219,3 +219,65 @@ def test_auto_generated_names(tmp_path: Path):
     # File should be named with run_name prefix
     expected_file = tmp_path / "runs" / f"{loaded['run_name']}_{run_id}.json"
     assert expected_file.exists()
+
+
+def test_save_run_updates_same_file_when_run_id_exists(tmp_path: Path):
+    """Saving with same run_id but no run_name should update existing file, not create new one."""
+    store = ResultsStore(tmp_path / "runs")
+    summary = minimal_summary()
+
+    # First save - creates the file with auto-generated names
+    run_id = "2024-01-01T00-00-00Z"
+    store.save_run(summary, run_id=run_id)
+
+    # Count files (excluding latest.json)
+    files_before = [f for f in (tmp_path / "runs").glob("*.json") if f.name != "latest.json"]
+    assert len(files_before) == 1
+    first_file = files_before[0]
+    first_loaded = store.load_run(run_id)
+    first_run_name = first_loaded["run_name"]
+
+    # Second save with same run_id but no run_name - should update same file
+    summary2 = minimal_summary()
+    summary2["total_evaluations"] = 99
+    store.save_run(summary2, run_id=run_id)
+
+    # Should still be only 1 file (not 2!)
+    files_after = [f for f in (tmp_path / "runs").glob("*.json") if f.name != "latest.json"]
+    assert len(files_after) == 1, f"Expected 1 file but got {len(files_after)}: {[f.name for f in files_after]}"
+
+    # The file should have the updated data
+    loaded = store.load_run(run_id)
+    assert loaded["total_evaluations"] == 99
+    # run_name should be preserved from first save
+    assert loaded["run_name"] == first_run_name
+
+
+def test_save_run_different_store_instances_update_same_file(tmp_path: Path):
+    """Different ResultsStore instances should update the same file for same run_id."""
+    runs_dir = tmp_path / "runs"
+
+    # First store creates the file
+    store1 = ResultsStore(runs_dir)
+    summary1 = minimal_summary()
+    run_id = "2024-01-01T00-00-00Z"
+    store1.save_run(summary1, run_id=run_id)
+
+    first_loaded = store1.load_run(run_id)
+    first_run_name = first_loaded["run_name"]
+
+    # Second store (simulating server's separate instance) updates
+    store2 = ResultsStore(runs_dir)
+    summary2 = minimal_summary()
+    summary2["total_evaluations"] = 42
+    store2.save_run(summary2, run_id=run_id)
+
+    # Should still be only 1 file
+    files = [f for f in runs_dir.glob("*.json") if f.name != "latest.json"]
+    assert len(files) == 1, f"Expected 1 file but got {len(files)}: {[f.name for f in files]}"
+
+    # The file should have the updated data
+    loaded = store2.load_run(run_id)
+    assert loaded["total_evaluations"] == 42
+    # run_name should be preserved
+    assert loaded["run_name"] == first_run_name

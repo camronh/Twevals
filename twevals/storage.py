@@ -91,9 +91,19 @@ class ResultsStore:
         run_name: Optional[str] = None,
     ) -> str:
         rid = run_id or self.generate_run_id()
-        # Generate friendly names if not provided
-        sess = session_name or _generate_friendly_name()
-        rname = run_name or _generate_friendly_name()
+        # If run_id exists on disk and no names provided, reuse existing names/file
+        existing_file = self._find_run_file(rid)
+        if existing_file.exists() and (session_name is None or run_name is None):
+            with open(existing_file, "r") as f:
+                existing = json.load(f)
+            sess = session_name or existing.get("session_name") or _generate_friendly_name()
+            rname = run_name or existing.get("run_name") or _generate_friendly_name()
+            path = existing_file  # Reuse existing file path
+        else:
+            # Generate friendly names if not provided (new run)
+            sess = session_name or _generate_friendly_name()
+            rname = run_name or _generate_friendly_name()
+            path = self.run_path(rid, rname)
         # Add session/run metadata to summary
         summary = {
             "session_name": sess,
@@ -101,7 +111,6 @@ class ResultsStore:
             "run_id": rid,
             **summary,
         }
-        path = self.run_path(rid, rname)
         _atomic_write_json(path, summary)
         # Cache the mapping
         self._run_id_to_file[rid] = path.name
