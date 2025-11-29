@@ -23,7 +23,7 @@
 } %}
 
 <!-- Compact Stats Bar -->
-<div class="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 dark:border-zinc-800/60 dark:bg-zinc-900/50">
+<div class="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-amber-200/60 bg-white px-4 py-2.5 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:shadow-none">
   <!-- Run Progress / Total Tests -->
   {% if pending_total > 0 %}
     <div class="flex items-center gap-2">
@@ -91,9 +91,9 @@
 </div>
 
 <!-- Results Table -->
-<table id="results-table" data-run-id="{{ run_id }}" class="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white text-sm text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200">
+<table id="results-table" data-run-id="{{ run_id }}" class="w-full overflow-hidden rounded-lg border border-amber-200/60 bg-white text-sm text-zinc-700 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200 dark:shadow-none">
   <thead>
-    <tr class="border-b border-zinc-200 dark:border-zinc-800/60">
+    <tr class="border-b border-amber-200/60 bg-amber-50/50 dark:border-zinc-800/60 dark:bg-transparent">
       <th style="width:36px;" class="px-2 py-2.5"></th>
       <th data-col="function" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
       <th data-col="input" style="width:20%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
@@ -103,14 +103,14 @@
       <th data-col="latency" data-type="number" style="width:80px;" class="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-zinc-500">Time</th>
     </tr>
   </thead>
-  <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/40">
+  <tbody class="divide-y divide-amber-100 dark:divide-zinc-800/40">
     {% for r in summary.results %}
     {% set row_id = loop.index0 %}
     {% set status = r.result.status or 'completed' %}
     {% set is_running = status == 'running' %}
-    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" class="hover:bg-zinc-50 transition-colors dark:hover:bg-zinc-800/30">
+    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" class="hover:bg-amber-50/50 transition-colors dark:hover:bg-zinc-800/30">
       <td class="px-2 py-2 align-top">
-        <button class="expand-btn flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition hover:bg-zinc-200 hover:text-amber-600 dark:hover:bg-zinc-800 dark:hover:text-amber-400" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
+        <button class="expand-btn flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition hover:bg-amber-100 hover:text-amber-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-amber-400" data-row-id="{{ row_id }}" aria-expanded="false" aria-label="Expand row">
           <span class="icon text-[10px]">▸</span>
         </button>
       </td>
@@ -127,9 +127,9 @@
           <div class="flex items-center gap-1.5 text-[11px] text-zinc-500">
             <span>{{ r.dataset }}</span>
             {% if r.labels %}
-              <span class="text-zinc-400 dark:text-zinc-700">·</span>
+              <span class="text-amber-300 dark:text-zinc-700">·</span>
               {% for la in r.labels %}
-                <span class="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-400">{{ la }}</span>
+                <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-zinc-800/80 dark:text-zinc-400">{{ la }}</span>
               {% endfor %}
             {% endif %}
           </div>
@@ -205,10 +205,10 @@
         data-original-metadata='{{ (r.result.metadata or none) | tojson | e }}'
         data-original-scores='{{ (r.result.scores or []) | tojson | e }}'
         data-original-annotation='{{ (r.result.annotation or "") | e }}'>
-      <td colspan="7" class="bg-zinc-50 px-2 py-3 dark:bg-zinc-950/50">
-        <div class="detail-panel rounded-lg border border-zinc-200 bg-white dark:border-zinc-800/60 dark:bg-zinc-900/50">
+      <td colspan="7" class="bg-amber-50/30 px-2 py-3 dark:bg-zinc-950/50">
+        <div class="detail-panel rounded-lg border border-amber-200/60 bg-white shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/50 dark:shadow-none">
           <!-- Header -->
-          <div class="detail-header flex items-center justify-between border-b border-zinc-200 px-4 py-2.5 dark:border-zinc-800/40">
+          <div class="detail-header flex items-center justify-between border-b border-amber-200/60 bg-amber-50/30 px-4 py-2.5 dark:border-zinc-800/40 dark:bg-transparent">
             <div class="flex items-center gap-3">
               <span class="font-mono text-[13px] font-medium text-amber-600 dark:text-amber-400">{{ r.function }}</span>
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status, pill_tones.get('completed')) }}">{{ status }}</span>
@@ -217,9 +217,9 @@
               {% endif %}
             </div>
             <div class="detail-actions flex gap-1.5">
-              <button class="detail-btn edit edit-btn rounded px-2.5 py-1 text-[11px] text-zinc-500 transition hover:bg-zinc-200 hover:text-amber-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-amber-400" data-row-id="{{ row_id }}">Edit</button>
+              <button class="detail-btn edit edit-btn rounded px-2.5 py-1 text-[11px] text-amber-700 transition hover:bg-amber-100 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-amber-400" data-row-id="{{ row_id }}">Edit</button>
               <button class="detail-btn save save-btn hidden rounded bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-emerald-500" data-row-id="{{ row_id }}">Save</button>
-              <button class="detail-btn cancel cancel-btn hidden rounded px-2.5 py-1 text-[11px] text-zinc-500 transition hover:bg-zinc-200 hover:text-rose-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-rose-400" data-row-id="{{ row_id }}">Cancel</button>
+              <button class="detail-btn cancel cancel-btn hidden rounded px-2.5 py-1 text-[11px] text-rose-600 transition hover:bg-rose-50 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-rose-400" data-row-id="{{ row_id }}">Cancel</button>
             </div>
           </div>
 
@@ -234,7 +234,7 @@
               <div class="flex items-center gap-2">
                 <span class="text-zinc-500">Labels:</span>
                 <div class="flex gap-1">
-                  {% for la in r.labels %}<span class="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">{{ la }}</span>{% endfor %}
+                  {% for la in r.labels %}<span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-zinc-800 dark:text-zinc-400">{{ la }}</span>{% endfor %}
                 </div>
               </div>
               {% endif %}
@@ -268,7 +268,7 @@
                     <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-input-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-zinc-200 bg-zinc-50 px-2.5 py-2 font-mono text-[12px] text-zinc-600 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.input }}</pre>
+                <pre id="pre-input-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.input }}</pre>
               </div>
               <div class="data-block group">
                 <div class="mb-1.5 flex items-center justify-between">
@@ -278,7 +278,7 @@
                     <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-output-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-zinc-200 bg-zinc-50 px-2.5 py-2 font-mono text-[12px] dark:border-zinc-800/60 dark:bg-zinc-950/50 {% if r.result.error %}text-rose-600 dark:text-rose-400{% else %}text-zinc-600 dark:text-zinc-300{% endif %}">{% if is_running %}…{% elif r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% else %}—{% endif %}</pre>
+                <pre id="pre-output-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] dark:border-zinc-800/60 dark:bg-zinc-950/50 {% if r.result.error %}text-rose-600 dark:text-rose-400{% else %}text-zinc-700 dark:text-zinc-300{% endif %}">{% if is_running %}…{% elif r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% else %}—{% endif %}</pre>
               </div>
               <div class="data-block group">
                 <div class="mb-1.5 flex items-center justify-between">
@@ -288,7 +288,7 @@
                     <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-ref-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-zinc-200 bg-zinc-50 px-2.5 py-2 font-mono text-[12px] text-zinc-600 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.reference or '—' }}</pre>
+                <pre id="pre-ref-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.reference or '—' }}</pre>
               </div>
               <div class="data-block group">
                 <div class="mb-1.5 flex items-center justify-between">
@@ -298,7 +298,7 @@
                     <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                   </button>
                 </div>
-                <pre id="pre-meta-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-zinc-200 bg-zinc-50 px-2.5 py-2 font-mono text-[12px] text-zinc-600 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.metadata or '—' }}</pre>
+                <pre id="pre-meta-{{ row_id }}" class="max-h-32 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.metadata or '—' }}</pre>
               </div>
             </div>
 
@@ -311,7 +311,7 @@
                   <svg class="check-icon hidden h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                 </button>
               </div>
-              <pre id="pre-run-{{ row_id }}" class="max-h-48 overflow-auto rounded border border-zinc-200 bg-zinc-50 px-2.5 py-2 font-mono text-[12px] text-zinc-600 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.run_data | tojson(indent=2) }}</pre>
+              <pre id="pre-run-{{ row_id }}" class="max-h-48 overflow-auto rounded border border-amber-200/60 bg-amber-50/30 px-2.5 py-2 font-mono text-[12px] text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.run_data | tojson(indent=2) }}</pre>
             </div>
             {% endif %}
 
@@ -327,7 +327,7 @@
               <div class="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Scores</div>
               <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {% for s in r.result.scores %}
-                <div class="flex items-center justify-between rounded border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800/40 dark:bg-zinc-900/30">
+                <div class="flex items-center justify-between rounded border border-amber-200/60 bg-amber-50/30 px-3 py-2 dark:border-zinc-800/40 dark:bg-zinc-900/30">
                   <span class="font-mono text-[12px] text-zinc-600 dark:text-zinc-300">{{ s.key }}</span>
                   <div class="flex items-center gap-2">
                     {% if s.value is not none %}
@@ -349,7 +349,7 @@
               {% set scores = r.result.scores or [] %}
               <div id="scores-editor-{{ row_id }}" class="space-y-2">
                 {% for s in scores %}
-                <div class="grid gap-2 rounded border border-zinc-200 bg-zinc-50 p-2 sm:grid-cols-4 dark:border-zinc-800/40 dark:bg-zinc-900/30">
+                <div class="grid gap-2 rounded border border-amber-200/60 bg-amber-50/30 p-2 sm:grid-cols-4 dark:border-zinc-800/40 dark:bg-zinc-900/30">
                   <input type="text" class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-key" value="{{ s.key }}" placeholder="Key" />
                   <input type="number" step="any" class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-value" value="{% if s.value is not none %}{{ s.value }}{% endif %}" placeholder="Value" />
                   <select class="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200" name="score-passed">
@@ -368,7 +368,7 @@
               <div class="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Annotation</div>
               <div class="view-section">
                 {% if r.result.annotation %}
-                <div class="whitespace-pre-wrap rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-600 dark:border-zinc-800/40 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.annotation }}</div>
+                <div class="whitespace-pre-wrap rounded border border-amber-200/60 bg-amber-50/30 px-3 py-2 text-[12px] text-zinc-700 dark:border-zinc-800/40 dark:bg-zinc-950/50 dark:text-zinc-300">{{ r.result.annotation }}</div>
                 {% else %}
                 <div class="text-[12px] text-zinc-400 dark:text-zinc-600">—</div>
                 {% endif %}

@@ -46,9 +46,9 @@
       })();
     </script>
   </head>
-  <body class="min-h-screen bg-zinc-100 font-sans text-zinc-900 dark:bg-neutral-950 dark:text-zinc-100">
+  <body class="min-h-screen bg-amber-50/40 font-sans text-zinc-800 dark:bg-neutral-950 dark:text-zinc-100">
     <div class="mx-auto w-full px-4 md:px-6">
-      <header class="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 py-6 dark:border-zinc-900">
+      <header class="flex flex-wrap items-center justify-between gap-4 border-b border-amber-200/60 py-6 dark:border-zinc-900">
         <div class="flex items-center gap-3">
           <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 font-mono text-lg font-bold text-neutral-900 shadow-lg shadow-amber-500/20">tw</div>
           <div class="font-mono text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">twevals</div>
@@ -65,31 +65,31 @@
               <circle cx="11" cy="11" r="8"></circle>
               <path d="M21 21l-4.35-4.35"></path>
             </svg>
-            <input id="search-input" type="search" class="search-input w-72 rounded-lg border border-zinc-300 bg-white px-10 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100 dark:placeholder:text-zinc-500" placeholder="Search results..." />
+            <input id="search-input" type="search" class="search-input w-72 rounded-lg border border-amber-200 bg-white px-10 py-2 text-sm text-zinc-800 shadow-sm placeholder:text-zinc-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100 dark:shadow-none dark:placeholder:text-zinc-500" placeholder="Search results..." />
           </div>
 
           <div class="dropdown relative">
-            <button id="actions-toggle" class="btn btn-primary inline-flex items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-amber-300">
+            <button id="actions-toggle" class="btn btn-primary inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-amber-500/25 transition hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/30 dark:bg-amber-400 dark:text-neutral-900 dark:shadow-none dark:hover:bg-amber-300">
               <span>Actions</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M6 9l6 6 6-6"/>
               </svg>
             </button>
-            <div id="actions-menu" class="dropdown-menu absolute right-0 mt-2 w-56 rounded-xl border border-zinc-200 bg-white/95 px-2 py-2 shadow-2xl backdrop-blur dark:border-zinc-800 dark:bg-neutral-900/95">
-              <button class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-neutral-800/70" data-action="refresh">
+            <div id="actions-menu" class="dropdown-menu absolute right-0 z-50 mt-2 w-56 rounded-xl border border-amber-200/80 bg-white px-2 py-2 shadow-xl shadow-amber-900/10 dark:border-zinc-800 dark:bg-neutral-900 dark:shadow-2xl dark:shadow-black/20">
+              <button class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-amber-50 hover:text-amber-800 dark:text-zinc-200 dark:hover:bg-neutral-800/70 dark:hover:text-zinc-200" data-action="refresh">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M23 4v6h-6M1 20v-6h6"/>
                   <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
                 </svg>
                 Refresh
               </button>
-              <button class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-neutral-800/70" data-action="rerun">
+              <button class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-amber-50 hover:text-amber-800 dark:text-zinc-200 dark:hover:bg-neutral-800/70 dark:hover:text-zinc-200" data-action="rerun">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polygon points="5 3 19 12 5 21 5 3"/>
                 </svg>
                 Rerun Evals
               </button>
-              <button id="theme-toggle" class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-neutral-800/70">
+              <button id="theme-toggle" class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-amber-50 hover:text-amber-800 dark:text-zinc-200 dark:hover:bg-neutral-800/70 dark:hover:text-zinc-200">
                 <svg id="theme-icon-sun" class="hidden dark:block" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="5"/>
                   <line x1="12" y1="1" x2="12" y2="3"/>
@@ -108,7 +108,7 @@
                 <span id="theme-label-dark" class="hidden dark:inline">Light Mode</span>
               </button>
               <div class="my-1 h-px bg-zinc-200 dark:bg-zinc-800"></div>
-              <button class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-neutral-800/70" data-action="export-json">
+              <button class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-amber-50 hover:text-amber-800 dark:text-zinc-200 dark:hover:bg-neutral-800/70 dark:hover:text-zinc-200" data-action="export-json">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
@@ -116,7 +116,7 @@
                 </svg>
                 Export JSON
               </button>
-              <button class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-neutral-800/70" data-action="export-csv">
+              <button class="dropdown-item flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-700 transition hover:bg-amber-50 hover:text-amber-800 dark:text-zinc-200 dark:hover:bg-neutral-800/70 dark:hover:text-zinc-200" data-action="export-csv">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
@@ -128,27 +128,27 @@
           </div>
 
           <div class="dropdown relative">
-            <button id="filters-toggle" class="btn btn-ghost relative inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-600 transition hover:border-amber-500/40 hover:text-amber-600 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:text-amber-300">
+            <button id="filters-toggle" class="btn btn-ghost relative inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-600 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:shadow-none dark:hover:border-amber-500/40 dark:hover:bg-transparent dark:hover:text-amber-300">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
               </svg>
               <span id="filters-count-badge" class="filter-badge absolute -right-2 -top-2 h-5 min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[11px] font-semibold text-neutral-900"></span>
             </button>
-            <div id="filters-menu" class="filters-panel absolute right-0 mt-2 w-[420px] max-w-[90vw] rounded-2xl border border-zinc-200 bg-white/95 p-4 text-sm text-zinc-700 shadow-2xl backdrop-blur dark:border-zinc-800 dark:bg-neutral-900/95 dark:text-zinc-200">
+            <div id="filters-menu" class="filters-panel absolute right-0 z-50 mt-2 w-[420px] max-w-[90vw] rounded-2xl border border-amber-200/80 bg-white p-4 text-sm text-zinc-700 shadow-xl shadow-amber-900/10 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-200 dark:shadow-2xl dark:shadow-black/20">
               <div class="filters-header mb-4 flex items-center justify-between">
-                <span class="filters-title font-mono text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Filters</span>
-                <button id="clear-filters" class="filter-btn rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 transition hover:border-amber-500/40 hover:text-amber-600 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:text-amber-300">Clear All</button>
+                <span class="filters-title font-mono text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-zinc-300">Filters</span>
+                <button id="clear-filters" class="filter-btn rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 transition hover:bg-amber-100 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:text-amber-300">Clear All</button>
               </div>
 
               <div class="filter-section mb-4">
-                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Score Key</div>
-                <select id="key-select" class="filter-select w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100"></select>
+                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700/70 dark:text-zinc-400">Score Key</div>
+                <select id="key-select" class="filter-select w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-800 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100"></select>
               </div>
 
               <div class="filter-section mb-4" id="value-section">
-                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Value Condition</div>
+                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700/70 dark:text-zinc-400">Value Condition</div>
                 <div class="filter-row flex gap-2">
-                  <select id="fv-op" class="filter-select w-20 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100">
+                  <select id="fv-op" class="filter-select w-20 rounded-lg border border-amber-200 bg-white px-2 py-2 text-sm text-zinc-800 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100">
                     <option value=">">&gt;</option>
                     <option value=">=">&gt;=</option>
                     <option value="<">&lt;</option>
@@ -156,25 +156,25 @@
                     <option value="==">=</option>
                     <option value="!=">!=</option>
                   </select>
-                  <input id="fv-val" type="number" step="any" placeholder="value" class="filter-input flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100" />
-                  <button id="add-fv" class="filter-btn rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 transition hover:border-amber-500/40 hover:text-amber-600 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:text-amber-300">Add</button>
+                  <input id="fv-val" type="number" step="any" placeholder="value" class="filter-input flex-1 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-800 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100" />
+                  <button id="add-fv" class="filter-btn rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 transition hover:bg-amber-100 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:text-amber-300">Add</button>
                 </div>
               </div>
 
               <div class="filter-section mb-4" id="passed-section">
-                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Pass/Fail</div>
+                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700/70 dark:text-zinc-400">Pass/Fail</div>
                 <div class="filter-row flex gap-2">
-                  <select id="fp-val" class="filter-select flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100">
+                  <select id="fp-val" class="filter-select flex-1 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-800 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100">
                     <option value="true">Passed</option>
                     <option value="false">Failed</option>
                   </select>
-                  <button id="add-fp" class="filter-btn rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 transition hover:border-amber-500/40 hover:text-amber-600 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:text-amber-300">Add</button>
+                  <button id="add-fp" class="filter-btn rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 transition hover:bg-amber-100 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:text-amber-300">Add</button>
                 </div>
               </div>
 
               <div class="filter-section mb-4">
-                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Has Annotation</div>
-                <select id="fa-val" class="filter-select w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100">
+                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700/70 dark:text-zinc-400">Has Annotation</div>
+                <select id="fa-val" class="filter-select w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-800 focus:border-amber-500 focus:outline-none dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-100">
                   <option value="any">Any</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
@@ -189,7 +189,7 @@
           </div>
 
           <div class="dropdown relative">
-            <button id="columns-toggle" class="btn btn-ghost inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-600 transition hover:border-amber-500/40 hover:text-amber-600 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:hover:text-amber-300">
+            <button id="columns-toggle" class="btn btn-ghost inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-600 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-300 dark:shadow-none dark:hover:border-amber-500/40 dark:hover:bg-transparent dark:hover:text-amber-300">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="3" width="7" height="7"/>
                 <rect x="14" y="3" width="7" height="7"/>
@@ -197,8 +197,8 @@
                 <rect x="3" y="14" width="7" height="7"/>
               </svg>
             </button>
-            <div id="columns-menu" class="columns-panel absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-2xl dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-200">
-              <div class="filters-title mb-3 font-mono text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Toggle Columns</div>
+            <div id="columns-menu" class="columns-panel absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-amber-200/80 bg-white p-4 text-sm text-zinc-700 shadow-xl shadow-amber-900/10 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-200 dark:shadow-2xl dark:shadow-black/20">
+              <div class="filters-title mb-3 font-mono text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-zinc-300">Toggle Columns</div>
               <label class="column-toggle flex items-center gap-3 py-1 text-sm text-zinc-700 dark:text-zinc-200">
                 <input type="checkbox" data-col="function" checked class="h-4 w-4 accent-amber-500" /><span>Function</span>
               </label>
@@ -220,10 +220,10 @@
               <label class="column-toggle flex items-center gap-3 py-1 text-sm text-zinc-700 dark:text-zinc-200">
                 <input type="checkbox" data-col="latency" checked class="h-4 w-4 accent-amber-500" /><span>Latency</span>
               </label>
-              <div class="panel-actions mt-3 flex gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
-                <button id="reset-columns" class="flex-1 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-xs text-zinc-500 transition hover:border-amber-500/40 hover:text-amber-600 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-400 dark:hover:text-amber-300">Reset Cols</button>
-                <button id="reset-sorting" class="flex-1 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-xs text-zinc-500 transition hover:border-amber-500/40 hover:text-amber-600 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-400 dark:hover:text-amber-300">Reset Sort</button>
-                <button id="reset-widths" class="flex-1 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-xs text-zinc-500 transition hover:border-amber-500/40 hover:text-amber-600 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-400 dark:hover:text-amber-300">Reset Width</button>
+              <div class="panel-actions mt-3 flex gap-2 border-t border-amber-200/60 pt-3 dark:border-zinc-800">
+                <button id="reset-columns" class="flex-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-700 transition hover:bg-amber-100 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-400 dark:hover:text-amber-300">Reset Cols</button>
+                <button id="reset-sorting" class="flex-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-700 transition hover:bg-amber-100 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-400 dark:hover:text-amber-300">Reset Sort</button>
+                <button id="reset-widths" class="flex-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-700 transition hover:bg-amber-100 dark:border-zinc-800 dark:bg-neutral-900 dark:text-zinc-400 dark:hover:text-amber-300">Reset Width</button>
               </div>
             </div>
           </div>
