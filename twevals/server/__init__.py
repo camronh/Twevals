@@ -97,7 +97,11 @@ def create_app(
             store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
             return
 
-        runner = EvalRunner(concurrency=app.state.concurrency or 0, verbose=app.state.verbose)
+        config = load_config()
+        runner = EvalRunner(
+            concurrency=config.get("concurrency", 0),
+            verbose=config.get("verbose", False),
+        )
         cancel_event = app.state.cancel_event
         results_lock = Lock()
 

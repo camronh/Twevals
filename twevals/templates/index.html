@@ -367,18 +367,6 @@
             <label class="text-sm text-zinc-700 dark:text-zinc-300">Timeout (seconds)</label>
             <input type="number" name="timeout" min="0" step="0.1" class="w-24 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm text-zinc-800 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-neutral-800 dark:text-zinc-100" placeholder="none" />
           </div>
-          <div class="flex items-center justify-between">
-            <label class="text-sm text-zinc-700 dark:text-zinc-300">Port</label>
-            <input type="number" name="port" min="1" max="65535" class="w-24 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm text-zinc-800 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-neutral-800 dark:text-zinc-100" placeholder="8000" />
-          </div>
-          <div class="flex items-center justify-between">
-            <label class="text-sm text-zinc-700 dark:text-zinc-300">Verbose</label>
-            <input type="checkbox" name="verbose" class="h-4 w-4 accent-blue-500" />
-          </div>
-          <div class="flex items-center justify-between">
-            <label class="text-sm text-zinc-700 dark:text-zinc-300">Quiet mode</label>
-            <input type="checkbox" name="quiet" class="h-4 w-4 accent-blue-500" />
-          </div>
 
           <div class="flex justify-end gap-3 border-t border-blue-200/60 pt-4 dark:border-zinc-800">
             <button type="button" id="settings-cancel" class="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm text-zinc-600 transition hover:bg-blue-50 dark:border-zinc-700 dark:bg-neutral-800 dark:text-zinc-300 dark:hover:bg-neutral-700">Cancel</button>
@@ -1158,13 +1146,9 @@
           try {
             const resp = await fetch('/api/config');
             const config = await resp.json();
-            // Populate form with flat config
             form.querySelector('[name="concurrency"]').value = config.concurrency ?? '';
             form.querySelector('[name="results_dir"]').value = config.results_dir ?? '';
             form.querySelector('[name="timeout"]').value = config.timeout ?? '';
-            form.querySelector('[name="port"]').value = config.port ?? '';
-            form.querySelector('[name="verbose"]').checked = config.verbose ?? false;
-            form.querySelector('[name="quiet"]').checked = config.quiet ?? false;
           } catch (e) {
             console.error('Failed to load config:', e);
           }
@@ -1172,7 +1156,6 @@
 
         async function saveConfig(e) {
           e.preventDefault();
-          // Build flat config, only include non-empty values
           const data = {};
           const concurrency = parseInt(form.querySelector('[name="concurrency"]').value);
           if (!isNaN(concurrency)) data.concurrency = concurrency;
@@ -1180,10 +1163,6 @@
           if (results_dir) data.results_dir = results_dir;
           const timeout = parseFloat(form.querySelector('[name="timeout"]').value);
           if (!isNaN(timeout)) data.timeout = timeout;
-          const port = parseInt(form.querySelector('[name="port"]').value);
-          if (!isNaN(port)) data.port = port;
-          if (form.querySelector('[name="verbose"]').checked) data.verbose = true;
-          if (form.querySelector('[name="quiet"]').checked) data.quiet = true;
           try {
             const resp = await fetch('/api/config', {
               method: 'PUT',
