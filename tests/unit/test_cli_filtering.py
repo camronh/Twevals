@@ -16,8 +16,8 @@ def func_a(): return EvalResult(input='a', output='a')
 @eval()
 def func_b(): return EvalResult(input='b', output='b')
 """)
-            
-            result = runner.invoke(cli, ['run', 'test_cli_filter.py::func_a'])
+
+            result = runner.invoke(cli, ['run', 'test_cli_filter.py::func_a', '--visual'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
             assert 'Total Evaluations: 1' in result.output
@@ -34,15 +34,15 @@ from twevals import eval, EvalResult, parametrize
 @eval()
 def param_func(val): return EvalResult(input=str(val), output=str(val))
 """)
-            
+
             # Test running base name (should run all variants)
-            result = runner.invoke(cli, ['run', 'test_cli_param.py::param_func'])
+            result = runner.invoke(cli, ['run', 'test_cli_param.py::param_func', '--visual'])
             assert result.exit_code == 0
             assert 'Total Functions: 2' in result.output
             assert 'Total Evaluations: 2' in result.output
-            
+
             # Test running specific variant
-            result = runner.invoke(cli, ['run', 'test_cli_param.py::param_func[0]'])
+            result = runner.invoke(cli, ['run', 'test_cli_param.py::param_func[0]', '--visual'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
             assert 'Total Evaluations: 1' in result.output
@@ -57,8 +57,8 @@ from twevals import eval, EvalResult
 @eval()
 def existing_func(): return EvalResult(input='a', output='b')
 """)
-            
-            result = runner.invoke(cli, ['run', 'test_cli_nonexistent.py::non_existent'])
+
+            result = runner.invoke(cli, ['run', 'test_cli_nonexistent.py::non_existent', '--visual'])
             assert result.exit_code == 0
             assert 'No evaluations found' in result.output
 
@@ -83,10 +83,11 @@ def func_a(): return EvalResult(input='a', output='a')
 @eval(dataset="ds2")
 def func_b(): return EvalResult(input='b', output='b')
 """)
-            
+
             result = runner.invoke(cli, [
                 'run', 'test_cli_combo.py::func_a',
-                '--dataset', 'ds1'
+                '--dataset', 'ds1',
+                '--visual'
             ])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output

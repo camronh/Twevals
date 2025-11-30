@@ -24,9 +24,9 @@ class TestCLI:
         assert '--dataset' in result.output
         assert '--label' in result.output
         assert '--output FILE' in result.output
-        assert '--csv FILE' in result.output
         assert '--concurrency' in result.output
         assert '--verbose' in result.output
+        assert '--visual' in result.output
     
     def test_run_with_file(self):
         with self.runner.isolated_filesystem():
@@ -40,7 +40,14 @@ def test_cli():
     return EvalResult(input="cli", output="test")
 """)
 
+            # Default mode: minimal output
             result = self.runner.invoke(cli, ['run', 'test_eval.py'])
+            assert result.exit_code == 0
+            assert 'Running test_eval.py' in result.output
+            assert 'Results saved to' in result.output
+
+            # Visual mode: full output with summary
+            result = self.runner.invoke(cli, ['run', 'test_eval.py', '--visual'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
             assert 'Total Evaluations: 1' in result.output
@@ -61,7 +68,7 @@ def test_two():
     return EvalResult(input="2", output="2")
 """)
 
-            result = self.runner.invoke(cli, ['run', 'test_dataset.py', '--dataset', 'dataset1'])
+            result = self.runner.invoke(cli, ['run', 'test_dataset.py', '--dataset', 'dataset1', '--visual'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
             assert 'Total Evaluations: 1' in result.output
@@ -82,7 +89,7 @@ def test_dev():
     return EvalResult(input="d", output="d")
 """)
 
-            result = self.runner.invoke(cli, ['run', 'test_labels.py', '--label', 'prod'])
+            result = self.runner.invoke(cli, ['run', 'test_labels.py', '--label', 'prod', '--visual'])
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
 
@@ -109,7 +116,8 @@ def test_c():
             result = self.runner.invoke(cli, [
                 'run', 'test_multi_labels.py',
                 '--label', 'a',
-                '--label', 'b'
+                '--label', 'b',
+                '--visual'
             ])
             assert result.exit_code == 0
             assert 'Total Functions: 2' in result.output
@@ -135,7 +143,7 @@ def test_json():
                 '--output', 'results.json'
             ])
             assert result.exit_code == 0
-            assert 'Results saved to: results.json' in result.output
+            assert 'Results saved to results.json' in result.output
 
             # Verify JSON file
             assert Path('results.json').exists()
@@ -143,55 +151,6 @@ def test_json():
                 data = json.load(f)
             assert data['total_evaluations'] == 1
             assert data['total_functions'] == 1
-
-    def test_run_with_csv_output(self):
-        with self.runner.isolated_filesystem():
-            # Create test file
-            with open('test_csv.py', 'w') as f:
-                f.write("""
-from twevals import eval, EvalResult
-
-@eval()
-def test_csv():
-    return EvalResult(input="test", output="result")
-""")
-
-            result = self.runner.invoke(cli, [
-                'run', 'test_csv.py',
-                '--csv', 'results.csv'
-            ])
-            assert result.exit_code == 0
-            assert 'Results saved to: results.csv' in result.output
-
-            # Verify CSV file
-            assert Path('results.csv').exists()
-            with open('results.csv') as f:
-                lines = f.read().strip().splitlines()
-            assert len(lines) == 2  # header + one result
-
-    def test_run_with_json_and_csv_output(self):
-        with self.runner.isolated_filesystem():
-            # Create test file
-            with open('test_both.py', 'w') as f:
-                f.write("""
-from twevals import eval, EvalResult
-
-@eval()
-def test_both():
-    return EvalResult(input="test", output="result")
-""")
-
-            result = self.runner.invoke(cli, [
-                'run', 'test_both.py',
-                '--output', 'results.json',
-                '--csv', 'results.csv'
-            ])
-            assert result.exit_code == 0
-            assert 'Results saved to: results.json' in result.output
-            assert 'Results saved to: results.csv' in result.output
-
-            assert Path('results.json').exists()
-            assert Path('results.csv').exists()
     
     def test_run_with_verbose(self):
         with self.runner.isolated_filesystem():
@@ -205,13 +164,17 @@ def test_verbose():
     print("This should show with verbose")
     return EvalResult(input="v", output="verbose", scores={"key": "test", "passed": True})
 """)
-            
+
+            # Verbose shows print statements from eval functions
             result = self.runner.invoke(cli, ['run', 'test_verbose.py', '--verbose'])
             assert result.exit_code == 0
-            # Verbose shows print statements
             assert 'This should show with verbose' in result.output
-            # Table is always shown now
-            assert 'Evaluation Results' in result.output
+            assert 'Results saved to' in result.output
+
+            # Without verbose, print statements are hidden
+            result = self.runner.invoke(cli, ['run', 'test_verbose.py'])
+            assert result.exit_code == 0
+            assert 'This should show with verbose' not in result.output
     
     def test_run_with_concurrency(self):
         with self.runner.isolated_filesystem():
@@ -228,15 +191,16 @@ def test_1():
 def test_2():
     return EvalResult(input="2", output="2")
 """)
-            
+
             result = self.runner.invoke(cli, [
                 'run', 'test_concurrent.py',
-                '--concurrency', '2'
+                '--concurrency', '2',
+                '--visual'
             ])
             assert result.exit_code == 0
             assert 'Total Functions: 2' in result.output
             assert 'Total Evaluations: 2' in result.output
-    
+
     def test_run_no_evaluations_found(self):
         with self.runner.isolated_filesystem():
             # Create test file without eval functions
@@ -245,11 +209,11 @@ def test_2():
 def regular_function():
     return "not an eval"
 """)
-            
-            result = self.runner.invoke(cli, ['run', 'test_empty.py'])
+
+            result = self.runner.invoke(cli, ['run', 'test_empty.py', '--visual'])
             assert result.exit_code == 0
             assert 'No evaluations found' in result.output
-    
+
     def test_run_with_error(self):
         with self.runner.isolated_filesystem():
             # Create test file with error
@@ -261,11 +225,11 @@ from twevals import eval, EvalResult
 def test_error():
     raise ValueError("Test error")
 """)
-            
-            result = self.runner.invoke(cli, ['run', 'test_error.py'])
+
+            result = self.runner.invoke(cli, ['run', 'test_error.py', '--visual'])
             assert result.exit_code == 0  # Should still complete
             assert 'Errors: 1' in result.output
-    
+
     def test_run_nonexistent_path(self):
         result = self.runner.invoke(cli, ['run', 'nonexistent.py'])
         assert result.exit_code == 1  # Error code for missing file

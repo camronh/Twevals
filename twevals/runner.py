@@ -73,6 +73,8 @@ class EvalRunner:
         )]
 
     async def run_async_eval(self, func: EvalFunction) -> List[EvalResult]:
+        # Only capture stdout when running sequentially and not in verbose mode
+        # (redirect_stdout doesn't work reliably with concurrent async code)
         should_capture = not self.verbose and self.concurrency == 0
         stdout_capture = io.StringIO() if should_capture else None
         try:
@@ -83,6 +85,7 @@ class EvalRunner:
             return self._make_error_result(func, e)
 
     def run_sync_eval(self, func: EvalFunction) -> List[EvalResult]:
+        # Only capture stdout when running sequentially and not in verbose mode
         should_capture = not self.verbose and self.concurrency == 0
         stdout_capture = io.StringIO() if should_capture else None
         try:

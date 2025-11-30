@@ -7,7 +7,7 @@ class TestCLIProgress:
         self.runner = CliRunner()
 
     def test_progress_output_pass(self):
-        """Test that passing tests show dots"""
+        """Test that passing tests show dots in visual mode"""
         with self.runner.isolated_filesystem():
             with open('test_pass.py', 'w') as f:
                 f.write("""
@@ -17,8 +17,8 @@ from twevals import eval, EvalResult
 def test_pass():
     return EvalResult(input="p", output="p")
 """)
-            
-            result = self.runner.invoke(cli, ['run', 'test_pass.py'])
+
+            result = self.runner.invoke(cli, ['run', 'test_pass.py', '--visual'])
             assert result.exit_code == 0
             # Should see "Running evaluations..." followed by a dot
             assert "Running evaluations" in result.output
@@ -31,7 +31,7 @@ def test_pass():
             assert "." in after_running
 
     def test_progress_output_fail(self):
-        """Test that failing tests show F and failure details"""
+        """Test that failing tests show F and failure details in visual mode"""
         with self.runner.isolated_filesystem():
             with open('test_fail.py', 'w') as f:
                 f.write("""
@@ -41,8 +41,8 @@ from twevals import eval, EvalResult
 def test_fail():
     return EvalResult(input="f", output="f", scores={"key": "c", "passed": False})
 """)
-            
-            result = self.runner.invoke(cli, ['run', 'test_fail.py'])
+
+            result = self.runner.invoke(cli, ['run', 'test_fail.py', '--visual'])
             assert result.exit_code == 0
             # Should see F for failure in progress output
             assert "Running evaluations" in result.output
@@ -56,7 +56,7 @@ def test_fail():
             assert "test_fail" in result.output or "FAIL" in result.output
 
     def test_progress_output_error(self):
-        """Test that error tests show E and error details"""
+        """Test that error tests show E and error details in visual mode"""
         with self.runner.isolated_filesystem():
             with open('test_error.py', 'w') as f:
                 f.write("""
@@ -66,8 +66,8 @@ from twevals import eval, EvalResult
 def test_error():
     raise ValueError("boom")
 """)
-            
-            result = self.runner.invoke(cli, ['run', 'test_error.py'])
+
+            result = self.runner.invoke(cli, ['run', 'test_error.py', '--visual'])
             assert result.exit_code == 0
             # Should see E for error in progress output
             assert "Running evaluations" in result.output

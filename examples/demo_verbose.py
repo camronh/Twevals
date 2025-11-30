@@ -107,7 +107,8 @@ Would you like me to elaborate on any of these patterns or provide more detailed
 def test_article_summarization():
     """Test summarization of a long article"""
     summary = "AI advancement transforms software development. Challenges include evaluating accuracy, bias, and safety. AI evaluation combines ML, statistics, and software engineering techniques."
-
+    print("Ran Agent!")
+    print(summary)
     return EvalResult(
         input=LONG_ARTICLE,
         output=summary,
@@ -404,6 +405,7 @@ def test_structured_data_processing(scenario):
         "validation": {"passed": True, "warnings": []},
         "transformed_data": {"...": "transformed version of input"},
     }
+
 
     return EvalResult(
         input=scenario["input_data"],

@@ -6,7 +6,7 @@ from pathlib import Path
 CONFIG_FILENAME = "twevals.json"
 
 DEFAULT_CONFIG = {
-    "concurrency": 1,
+    "concurrency": 0,
     "results_dir": ".twevals/runs",
 }
 

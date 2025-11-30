@@ -2,7 +2,6 @@ import click
 import sys
 import inspect
 import os
-import json
 import traceback
 import time
 import webbrowser
@@ -20,15 +19,6 @@ from twevals.config import load_config
 
 
 console = Console()
-
-
-def _remove_none(obj):
-    """Recursively remove None values from dictionaries"""
-    if isinstance(obj, dict):
-        return {k: _remove_none(v) for k, v in obj.items() if v is not None}
-    elif isinstance(obj, list):
-        return [_remove_none(v) for v in obj]
-    return obj
 
 
 class ProgressReporter:
@@ -152,7 +142,6 @@ def cli():
 @click.option('--label', '-l', multiple=True, help='Filter by label(s)')
 @click.option('--results-dir', default=None, help='Directory for JSON results storage')
 @click.option('--port', default=None, type=int, help='Port for the web server')
-@click.option('--quiet', '-q', is_flag=True, help='Reduce logging; hide access logs')
 @click.option('--session', default=None, help='Name for this evaluation session')
 def serve_cmd(
     path: str,
@@ -160,7 +149,6 @@ def serve_cmd(
     label: tuple,
     results_dir: Optional[str],
     port: Optional[int],
-    quiet: bool,
     session: Optional[str],
 ):
     """Start the web UI to browse and run evaluations."""
@@ -170,7 +158,6 @@ def serve_cmd(
     config = load_config()
     results_dir = results_dir if results_dir is not None else config.get("results_dir", ".twevals/runs")
     port = port if port is not None else config.get("port", 8000)
-    quiet = quiet or config.get("quiet", False)
 
     # Parse path to extract file path and optional function name
     function_name = None
@@ -193,7 +180,6 @@ def serve_cmd(
         function_name=function_name,
         results_dir=results_dir,
         port=port,
-        quiet=quiet,
         session_name=session,
     )
 
@@ -203,12 +189,11 @@ def serve_cmd(
 @click.option('--dataset', '-d', help='Filter by dataset(s), comma-separated')
 @click.option('--label', '-l', multiple=True, help='Filter by label(s)')
 @click.option('--limit', type=int, help='Limit the number of evaluations')
-@click.option('--output', '-o', type=click.Path(dir_okay=False), help='Path to JSON file for results')
-@click.option('--csv', '-s', type=click.Path(dir_okay=False), help='Path to CSV file for results')
+@click.option('--output', '-o', type=click.Path(dir_okay=False), help='Override path for results JSON file')
 @click.option('--concurrency', '-c', default=None, type=int, help='Number of concurrent evaluations (0 for sequential)')
 @click.option('--timeout', type=float, help='Global timeout in seconds')
-@click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
-@click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
+@click.option('--verbose', '-v', is_flag=True, help='Show stdout from eval functions')
+@click.option('--visual', is_flag=True, help='Show rich progress dots, table, and summary')
 @click.option('--session', default=None, help='Name for this evaluation session')
 @click.option('--run-name', default=None, help='Name for this specific run')
 def run_cmd(
@@ -217,22 +202,21 @@ def run_cmd(
     label: tuple,
     limit: Optional[int],
     output: Optional[str],
-    csv: Optional[str],
     concurrency: Optional[int],
     timeout: Optional[float],
     verbose: bool,
-    json_mode: bool,
+    visual: bool,
     session: Optional[str],
     run_name: Optional[str],
 ):
-    """Run evaluations in headless mode (for CI/CD)."""
+    """Run evaluations headless. Optimized for LLM agents by default."""
     from pathlib import Path as PathLib
+    from twevals.storage import ResultsStore
 
     # Load config and merge with CLI args
     config = load_config()
     concurrency = concurrency if concurrency is not None else config.get("concurrency", 0)
     timeout = timeout if timeout is not None else config.get("timeout")
-    verbose = verbose or config.get("verbose", False)
 
     # Parse path to extract file path and optional function name
     function_name = None
@@ -243,20 +227,19 @@ def run_cmd(
     # Validate path exists
     path_obj = PathLib(path)
     if not path_obj.exists():
-        if json_mode:
-            click.echo(json.dumps({"error": f"Path {path} does not exist"}))
-        else:
-            console.print(f"[red]Error: Path {path} does not exist[/red]")
+        console.print(f"[red]Error: Path {path} does not exist[/red]")
         sys.exit(1)
 
     labels = list(label) if label else None
 
-    # Run evaluations
+    # Set up runner and reporter based on mode
     runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
-    reporter = ProgressReporter() if not json_mode else None
+    reporter = ProgressReporter() if visual else None
 
-    if not json_mode:
+    if visual:
         console.print("[bold green]Running evaluations...[/bold green]")
+    else:
+        console.print(f"Running {path}...")
 
     try:
         summary = runner.run(
@@ -264,64 +247,56 @@ def run_cmd(
             dataset=dataset,
             labels=labels,
             function_name=function_name,
-            output_file=output,
-            csv_file=csv,
-            verbose=verbose,
             on_start=reporter.on_start if reporter else None,
             on_complete=reporter.on_complete if reporter else None,
             limit=limit
         )
     except Exception as e:
-        if json_mode:
-            click.echo(json.dumps({"error": str(e)}))
-        else:
-            console.print(f"[red]Error during runner.run(): {e}[/red]")
-            console.print("[red]Full traceback:[/red]")
+        console.print(f"[red]Error: {e}[/red]")
+        if visual:
             console.print(traceback.format_exc())
         sys.exit(1)
 
-    # Save to results store if session or run_name provided
-    if session or run_name:
-        from twevals.storage import ResultsStore
-        config = load_config()
-        results_dir = config.get("results_dir", ".twevals/runs")
-        store = ResultsStore(results_dir)
-        store.save_run(summary, session_name=session, run_name=run_name)
+    # Always save results to file
+    # Priority: --output flag > config results_dir > default .twevals/runs
+    results_dir = config.get("results_dir", ".twevals/runs")
+    store = ResultsStore(results_dir)
+    run_id = store.save_run(summary, session_name=session, run_name=run_name)
 
-    # Handle JSON output
-    if json_mode:
-        summary_clean = _remove_none(summary)
-        click.echo(json.dumps(summary_clean, separators=(',', ':'), default=str))
-        return
-
-    # Print failure details if any
-    reporter.print_failures()
-
-    # Display results
-    if summary["total_evaluations"] == 0:
-        console.print("[yellow]No evaluations found matching the criteria[/yellow]")
-        return
-
-    if summary['results']:
-        table = format_results_table(summary['results'])
-        console.print(table)
-
-    # Print summary
-    console.print("\n[bold]Evaluation Summary[/bold]")
-    console.print(f"Total Functions: {summary['total_functions']}")
-    console.print(f"Total Evaluations: {summary['total_evaluations']}")
-    console.print(f"Errors: {summary['total_errors']}")
-
-    if summary['total_with_scores'] > 0:
-        console.print(f"Passed: {summary['total_passed']}/{summary['total_with_scores']}")
-
-    if summary['average_latency'] > 0:
-        console.print(f"Average Latency: {summary['average_latency']:.3f}s")
-
+    # Determine the actual saved file path
     if output:
-        console.print(f"\n[green]Results saved to: {output}[/green]")
-    if csv:
-        console.print(f"[green]Results saved to: {csv}[/green]")
+        # If --output provided, also save to that specific path
+        runner._save_results(summary, output)
+        saved_path = output
+    else:
+        # Get the path from the store
+        saved_path = str(store._find_run_file(run_id))
+
+    if visual:
+        # Rich output mode: progress dots, failures, table, summary
+        reporter.print_failures()
+
+        if summary["total_evaluations"] == 0:
+            console.print("[yellow]No evaluations found matching the criteria[/yellow]")
+            return
+
+        if summary['results']:
+            table = format_results_table(summary['results'])
+            console.print(table)
+
+        console.print("\n[bold]Evaluation Summary[/bold]")
+        console.print(f"Total Functions: {summary['total_functions']}")
+        console.print(f"Total Evaluations: {summary['total_evaluations']}")
+        console.print(f"Errors: {summary['total_errors']}")
+
+        if summary['total_with_scores'] > 0:
+            console.print(f"Passed: {summary['total_passed']}/{summary['total_with_scores']}")
+
+        if summary['average_latency'] > 0:
+            console.print(f"Average Latency: {summary['average_latency']:.3f}s")
+
+    # Always print where results were saved
+    console.print(f"Results saved to {saved_path}")
 
 
 def _serve(
@@ -331,7 +306,6 @@ def _serve(
     function_name: Optional[str],
     results_dir: str,
     port: int,
-    quiet: bool,
     session_name: Optional[str] = None,
 ):
     """Serve a web UI to browse and run evaluations."""
@@ -374,10 +348,7 @@ def _serve(
 
     Thread(target=lambda: (time.sleep(0.5), webbrowser.open(url)), daemon=True).start()
 
-    log_level = "warning" if quiet else "info"
-    access_log = not quiet
-
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level=log_level, access_log=access_log)
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="info", access_log=True)
     server = uvicorn.Server(config)
 
     server_thread = Thread(target=server.run)
