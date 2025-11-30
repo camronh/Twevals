@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 - Changed: Removed `--limit`, `--dev`, `--host`, and `--list` flags from `twevals serve` to simplify the serve command.
 - Added: Support for running selected evaluations from the initial "not_started" state via checkbox selection in the UI.
 - Added: `twevals.json` config file for persisting CLI defaults. Auto-generated on first run with `concurrency` and `results_dir`. Supports `concurrency`, `timeout`, `verbose`, `results_dir`, `port`, and `quiet`.
-- Added: Settings UI in the web interface to view and edit config values.
+- Added: Settings UI in the web interface to edit runtime options (concurrency, results_dir, timeout). Changes take effect on next run without restarting the server.
 - Tests: Updated CLI tests to use new `run` subcommand syntax.
 
 ## 0.0.2a11 - 2025-11-29
