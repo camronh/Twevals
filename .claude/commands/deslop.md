@@ -1,5 +1,5 @@
-De-slop the changes
+De-slop
 
-Slop refers to a style of coding that I do not like. The code make work, and tests may pass, but its about the style of code thats written. Your job is to review the changes and remove the slop.
+Slop refers to a style of coding that I do not like. The code make work, and tests may pass, but its about the style of code thats written. Your job is to review the changes and remove the slop. **Also look for and suggest any opportunities to reduce lines of code, bloat, dead code, YAGNI, ways we can centralize and make things more understandable and maintainable.** None of your changes should effect the public API or behavior of the code, just making the codebase more understandable and minimalistic.
 
-This applies to uncommited changes, as well as changes against the dev branch if you are not already on it.
+This applies to uncommited changes, as well as changes against the dev branch if you are not already on it, but you should bring up any other opportunities to deslop the codebase that you run across in your review of the changes. Feel free to dig around the codebase to confirm.

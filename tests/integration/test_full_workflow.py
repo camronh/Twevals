@@ -47,7 +47,7 @@ def test_different_dataset():
 """)
         
         # Run evaluations
-        runner = EvalRunner(concurrency=0)
+        runner = EvalRunner(concurrency=1)
         summary = runner.run(str(test_file))
         
         # Verify results
@@ -206,7 +206,7 @@ async def test_slow_async():
 """)
         
         # Run sequentially
-        runner_seq = EvalRunner(concurrency=0)
+        runner_seq = EvalRunner(concurrency=1)
         import time
         start = time.time()
         summary_seq = runner_seq.run(str(test_file))

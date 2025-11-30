@@ -68,7 +68,6 @@ def create_app(
     def start_run(
         functions: List[EvalFunction],
         run_id: str,
-        rerun_config: dict,
         existing_results: Optional[List[Dict]] = None,
         indices_map: Optional[Dict[int, int]] = None,
     ):
@@ -78,12 +77,10 @@ def create_app(
         Args:
             functions: List of EvalFunction to run
             run_id: The run ID to save results under
-            rerun_config: Config to store for future reruns
             existing_results: For selective rerun - the full results list to update in place
             indices_map: For selective rerun - maps function id -> index in existing_results
         """
         if not functions:
-            # Persist an empty run so the run file exists
             summary = {
                 "total_evaluations": 0,
                 "total_functions": 0,
@@ -92,14 +89,13 @@ def create_app(
                 "total_with_scores": 0,
                 "average_latency": 0,
                 "results": [],
-                "rerun_config": rerun_config,
             }
             store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
             return
 
         config = load_config()
         runner = EvalRunner(
-            concurrency=config.get("concurrency", 0),
+            concurrency=config.get("concurrency", 1),
             verbose=config.get("verbose", False),
         )
         cancel_event = app.state.cancel_event
@@ -125,18 +121,17 @@ def create_app(
                 },
             } for f in functions]
             func_index = {id(func): idx for idx, func in enumerate(functions)}
-            # Save initial pending state
-            summary = runner._calculate_summary(current_results)
-            summary["results"] = current_results
-            summary["rerun_config"] = rerun_config
-            store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
+
+        # Save initial pending state (for both full and selective runs)
+        summary = EvalRunner._calculate_summary(current_results)
+        summary["results"] = current_results
+        store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
 
         def _persist():
             if cancel_event.is_set():
                 return
-            s = runner._calculate_summary(current_results)
+            s = EvalRunner._calculate_summary(current_results)
             s["results"] = current_results
-            s["rerun_config"] = rerun_config
             store.save_run(s, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
 
         def _on_start(func: EvalFunction):
@@ -326,23 +321,10 @@ def create_app(
     def rerun(request: RerunRequest = RerunRequest()):
         app.state.cancel_event.clear()
 
-        # Build config from app state or stored rerun_config
-        cfg = {
-            "path": app.state.path,
-            "dataset": app.state.dataset,
-            "labels": app.state.labels,
-            "function_name": app.state.function_name,
-        }
-        if not cfg["path"]:
-            summary = store.load_run(app.state.active_run_id)
-            stored = summary.get("rerun_config") or {}
-            for k, v in stored.items():
-                if cfg.get(k) is None:
-                    cfg[k] = v
-        if not cfg["path"]:
+        if not app.state.path:
             raise HTTPException(status_code=400, detail="Rerun unavailable: missing eval path")
 
-        path_obj = Path(cfg["path"])
+        path_obj = Path(app.state.path)
         if not path_obj.exists():
             raise HTTPException(status_code=400, detail=f"Eval path not found: {path_obj}")
 
@@ -350,18 +332,10 @@ def create_app(
         discovery = EvalDiscovery()
         all_functions = discovery.discover(
             path=str(path_obj),
-            dataset=cfg.get("dataset"),
-            labels=cfg.get("labels"),
-            function_name=cfg.get("function_name"),
+            dataset=app.state.dataset,
+            labels=app.state.labels,
+            function_name=app.state.function_name,
         )
-        if cfg.get("limit") is not None:
-            all_functions = all_functions[:cfg["limit"]]
-
-        rerun_config = {
-            "path": str(path_obj), "dataset": cfg.get("dataset"), "labels": cfg.get("labels"),
-            "function_name": cfg.get("function_name"), "limit": cfg.get("limit"),
-            "concurrency": app.state.concurrency, "verbose": app.state.verbose,
-        }
 
         # Selective rerun: update in place
         if request.indices is not None:
@@ -399,21 +373,13 @@ def create_app(
             functions = [f for f in all_functions if (f.func.__name__, f.dataset) in selected_keys]
             indices_map = {id(f): selected_keys[(f.func.__name__, f.dataset)] for f in functions}
 
-            # Save pending state and start run
-            from twevals.runner import EvalRunner
-            runner = EvalRunner(concurrency=0, verbose=False)
-            summary = runner._calculate_summary(current_results)
-            summary["results"] = current_results
-            summary["rerun_config"] = rerun_config
-            store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
-
-            start_run(functions, run_id, rerun_config, existing_results=current_results, indices_map=indices_map)
+            start_run(functions, run_id, existing_results=current_results, indices_map=indices_map)
             return {"ok": True, "run_id": run_id}
 
         # Full rerun: create new run
         run_id = store.generate_run_id()
         app.state.active_run_id = run_id
-        start_run(all_functions, run_id, rerun_config)
+        start_run(all_functions, run_id)
         return {"ok": True, "run_id": run_id}
 
     @app.get("/api/runs/{run_id}/export/json")

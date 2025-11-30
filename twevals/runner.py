@@ -271,7 +271,8 @@ class EvalRunner:
         
         return summary
     
-    def _calculate_summary(self, results: List[Dict]) -> Dict:
+    @staticmethod
+    def _calculate_summary(results: List[Dict]) -> Dict:
         total_results = len(results)
         total_errors = sum(1 for r in results if r["result"].get("error"))
         total_passed = 0

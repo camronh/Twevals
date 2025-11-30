@@ -9,7 +9,7 @@ class TestRunnerHooks:
     @pytest.mark.asyncio
     async def test_runner_callbacks_sequential(self):
         """Test that start/end callbacks are called in sequential execution"""
-        runner = EvalRunner(concurrency=0)
+        runner = EvalRunner(concurrency=1)
         
         # Mock callbacks
         on_start = Mock()

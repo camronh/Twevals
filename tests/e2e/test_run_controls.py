@@ -336,7 +336,7 @@ class TestRerunFunctionality:
 
         # Seed run with completed results matching the eval file
         store = ResultsStore(tmp_path / "runs")
-        runner = EvalRunner(concurrency=0, verbose=False)
+        runner = EvalRunner(concurrency=1, verbose=False)
 
         results = [{
             "function": f.func.__name__,
