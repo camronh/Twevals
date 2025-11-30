@@ -12,7 +12,7 @@ from threading import Thread
 
 from rich.console import Console
 
-from twevals.formatters import format_results_table, format_eval_list_table
+from twevals.formatters import format_results_table
 from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
 from twevals.runner import EvalRunner
@@ -149,24 +149,16 @@ def cli():
 @click.argument('path', type=str)
 @click.option('--dataset', '-d', help='Filter by dataset(s), comma-separated')
 @click.option('--label', '-l', multiple=True, help='Filter by label(s)')
-@click.option('--limit', type=int, help='Limit the number of evaluations')
-@click.option('--dev', is_flag=True, help='Enable hot-reload for development')
 @click.option('--results-dir', default='.twevals/runs', help='Directory for JSON results storage')
-@click.option('--host', default='127.0.0.1', help='Host interface for the web server')
 @click.option('--port', default=8000, type=int, help='Port for the web server')
 @click.option('--quiet', '-q', is_flag=True, help='Reduce logging; hide access logs')
-@click.option('--list', 'list_mode', is_flag=True, help='List all evaluations without running them')
 def serve_cmd(
     path: str,
     dataset: Optional[str],
     label: tuple,
-    limit: Optional[int],
-    dev: bool,
     results_dir: str,
-    host: str,
     port: int,
     quiet: bool,
-    list_mode: bool,
 ):
     """Start the web UI to browse and run evaluations."""
     from pathlib import Path as PathLib
@@ -185,21 +177,12 @@ def serve_cmd(
 
     labels = list(label) if label else None
 
-    # Handle list mode
-    if list_mode:
-        _list_evals(path, dataset, labels, function_name, limit)
-        return
-
-    # Default behavior: serve UI (don't auto-run)
     _serve(
         path=path,
         dataset=dataset,
         labels=labels,
         function_name=function_name,
-        limit=limit,
-        dev=dev,
         results_dir=results_dir,
-        host=host,
         port=port,
         quiet=quiet,
     )
@@ -313,48 +296,12 @@ def run_cmd(
         console.print(f"[green]Results saved to: {csv}[/green]")
 
 
-def _list_evals(path: str, dataset: Optional[str], labels: Optional[List[str]], function_name: Optional[str], limit: Optional[int]):
-    """List evaluations without running them."""
-    eval_functions = EvalDiscovery().discover(
-        path=path,
-        dataset=dataset,
-        labels=labels,
-        function_name=function_name
-    )
-
-    if limit is not None:
-        eval_functions = eval_functions[:limit]
-
-    if not eval_functions:
-        console.print("[yellow]No evaluations found matching the criteria[/yellow]")
-        return
-
-    eval_info_list = [{
-        "function": func.__name__,
-        "dataset": func.dataset,
-        "labels": func.labels,
-        "input": func.context_kwargs.get('input'),
-        "reference": func.context_kwargs.get('reference'),
-        "metadata": func.context_kwargs.get('metadata'),
-        "evaluators": [e.__name__ for e in func.evaluators],
-        "target": func.target.__name__ if func.target else None,
-        "has_context": func.context_param is not None,
-    } for func in eval_functions]
-
-    console.print(format_eval_list_table(eval_info_list))
-    console.print(f"\\n[bold]Total evaluations:[/bold] {len(eval_info_list)}")
-    console.print(f"[bold]Unique datasets:[/bold] {len(set(i['dataset'] for i in eval_info_list))}")
-
-
 def _serve(
     path: str,
     dataset: Optional[str],
     labels: Optional[List[str]],
     function_name: Optional[str],
-    limit: Optional[int],
-    dev: bool,
     results_dir: str,
-    host: str,
     port: int,
     quiet: bool,
 ):
@@ -371,8 +318,6 @@ def _serve(
     # Discover functions (for display, not running)
     discovery = EvalDiscovery()
     functions = discovery.discover(path=path, dataset=dataset, labels=labels, function_name=function_name)
-    if limit is not None:
-        functions = functions[:limit]
 
     # Create store and generate run_id for when user triggers run
     store = ResultsStore(results_dir)
@@ -386,14 +331,13 @@ def _serve(
         dataset=dataset,
         labels=labels,
         function_name=function_name,
-        limit=limit,
-        discovered_functions=functions,  # For display only
+        discovered_functions=functions,
     )
 
     if not functions:
         console.print("[yellow]No evaluations found matching the criteria.[/yellow]")
 
-    url = f"http://{host}:{port}"
+    url = f"http://127.0.0.1:{port}"
     console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
     console.print(f"[cyan]Found {len(functions)} evaluation(s). Click Run to start.[/cyan]")
     console.print("Press Esc to stop (or Ctrl+C)\n")
@@ -403,85 +347,56 @@ def _serve(
     log_level = "warning" if quiet else "info"
     access_log = not quiet
 
-    if dev:
-        from pathlib import Path as _Path
-        import os as _os, json as _json
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level=log_level, access_log=access_log)
+    server = uvicorn.Server(config)
 
-        repo_root = _Path('.').resolve()
-        _os.environ["TWEVALS_RESULTS_DIR"] = str(results_dir)
-        _os.environ["TWEVALS_ACTIVE_RUN_ID"] = str(run_id)
-        _os.environ["TWEVALS_PATH"] = str(path)
-        if dataset:
-            _os.environ["TWEVALS_DATASET"] = str(dataset)
-        if labels is not None:
-            _os.environ["TWEVALS_LABELS"] = _json.dumps(labels)
-        if function_name:
-            _os.environ["TWEVALS_FUNCTION_NAME"] = str(function_name)
-        if limit is not None:
-            _os.environ["TWEVALS_LIMIT"] = str(limit)
+    server_thread = Thread(target=server.run)
+    server_thread.start()
 
-        uvicorn.run(
-            "twevals.server:load_app_from_env",
-            host=host,
-            port=port,
-            log_level=log_level,
-            access_log=access_log,
-            reload=True,
-            factory=True,
-            reload_dirs=[str(repo_root)],
-            reload_includes=["*.py", "*.pyi", "*.html", "*.jinja", "*.ini", "*.toml", "*.yaml", "*.yml", "*.json"],
-        )
-    else:
-        config = uvicorn.Config(app, host=host, port=port, log_level=log_level, access_log=access_log)
-        server = uvicorn.Server(config)
+    def wait_for_stop_signal():
+        """Wait for Esc or Ctrl+C while preserving log output formatting."""
+        try:
+            if not sys.stdin.isatty():
+                server_thread.join()
+                return False
 
-        server_thread = Thread(target=server.run)
-        server_thread.start()
-
-        def wait_for_stop_signal():
-            """Wait for Esc or Ctrl+C while preserving log output formatting."""
+            import termios
+            import select
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
             try:
-                if not sys.stdin.isatty():
-                    server_thread.join()
-                    return False
+                mode = termios.tcgetattr(fd)
+                mode[3] = mode[3] & ~(termios.ICANON | termios.ECHO)
+                termios.tcsetattr(fd, termios.TCSADRAIN, mode)
 
-                import termios
-                import select
-                fd = sys.stdin.fileno()
-                old_settings = termios.tcgetattr(fd)
-                try:
-                    mode = termios.tcgetattr(fd)
-                    mode[3] = mode[3] & ~(termios.ICANON | termios.ECHO)
-                    termios.tcsetattr(fd, termios.TCSADRAIN, mode)
-
-                    while server_thread.is_alive():
-                        if select.select([sys.stdin], [], [], 0.5)[0]:
-                            ch = sys.stdin.read(1)
-                            if not ch:
-                                return False
-                            if ch == '\x1b' or ch == '\x03':
-                                return True
-                finally:
-                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-            except (ImportError, AttributeError, OSError):
-                try:
-                    while server_thread.is_alive():
-                        ch = click.getchar()
+                while server_thread.is_alive():
+                    if select.select([sys.stdin], [], [], 0.5)[0]:
+                        ch = sys.stdin.read(1)
+                        if not ch:
+                            return False
                         if ch == '\x1b' or ch == '\x03':
                             return True
-                except (EOFError, KeyboardInterrupt):
-                    return True
-            return False
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        except (ImportError, AttributeError, OSError):
+            try:
+                while server_thread.is_alive():
+                    ch = click.getchar()
+                    if ch == '\x1b' or ch == '\x03':
+                        return True
+            except (EOFError, KeyboardInterrupt):
+                return True
+        return False
 
-        try:
-            if wait_for_stop_signal():
-                console.print("\nStopping server...")
-                server.should_exit = True
-        except (KeyboardInterrupt, SystemExit):
+    try:
+        if wait_for_stop_signal():
             console.print("\nStopping server...")
             server.should_exit = True
+    except (KeyboardInterrupt, SystemExit):
+        console.print("\nStopping server...")
+        server.should_exit = True
 
-        server_thread.join()
+    server_thread.join()
 
 
 def main():

@@ -34,7 +34,6 @@ def create_app(
     concurrency: int = 0,
     verbose: bool = False,
     function_name: Optional[str] = None,
-    limit: Optional[int] = None,
     session_name: Optional[str] = None,
     run_name: Optional[str] = None,
     # Discovered functions for display (NOT auto-run)
@@ -57,7 +56,6 @@ def create_app(
     app.state.dataset = dataset
     app.state.labels = labels
     app.state.function_name = function_name
-    app.state.limit = limit
     app.state.concurrency = concurrency
     app.state.verbose = verbose
     # Discovered functions for display (before any run)
@@ -329,7 +327,6 @@ def create_app(
             "dataset": app.state.dataset,
             "labels": app.state.labels,
             "function_name": app.state.function_name,
-            "limit": app.state.limit,
         }
         if not cfg["path"]:
             summary = store.load_run(app.state.active_run_id)
@@ -528,42 +525,3 @@ def create_app(
         return {"ok": True, "run": {"run_id": run_id, "run_name": data.get("run_name")}}
 
     return app
-
-
-# Factory for uvicorn --reload usage. Reads configuration from environment
-# variables and builds the FastAPI app. This allows hot-reload while keeping
-# our dynamic configuration.
-def load_app_from_env() -> FastAPI:  # pragma: no cover (exercised in dev)
-    import os
-    import json as _json
-
-    results_dir = os.environ.get("TWEVALS_RESULTS_DIR", ".twevals/runs")
-    active_run_id = os.environ.get("TWEVALS_ACTIVE_RUN_ID", "latest")
-    path = os.environ.get("TWEVALS_PATH")
-    dataset = os.environ.get("TWEVALS_DATASET") or None
-    labels_env = os.environ.get("TWEVALS_LABELS")
-    labels = _json.loads(labels_env) if labels_env else None
-    function_name = os.environ.get("TWEVALS_FUNCTION_NAME") or None
-    limit_env = os.environ.get("TWEVALS_LIMIT")
-    limit = int(limit_env) if limit_env is not None else None
-
-    # Discover functions for display
-    discovered_functions = []
-    if path:
-        discovery = EvalDiscovery()
-        discovered_functions = discovery.discover(
-            path=path, dataset=dataset, labels=labels, function_name=function_name
-        )
-        if limit is not None:
-            discovered_functions = discovered_functions[:limit]
-
-    return create_app(
-        results_dir=results_dir,
-        active_run_id=active_run_id,
-        path=path,
-        dataset=dataset,
-        labels=labels,
-        function_name=function_name,
-        limit=limit,
-        discovered_functions=discovered_functions,
-    )
