@@ -7,27 +7,13 @@ Twevals includes a built-in web interface for exploring evaluation results.
 
 ## Launching the UI
 
-Add the `--serve` flag to any run:
+Use the `serve` command to open the web interface:
 
 ```bash
-twevals evals.py --serve
+twevals serve evals.py
 ```
 
-The browser opens automatically at `http://127.0.0.1:8000`. Evaluations run in the background while the UI loads immediately—results appear and update in real-time as each evaluation completes.
-
-### With Sessions
-
-Group related runs together using session names:
-
-```bash
-# Named session and run
-twevals evals.py --serve --session model-upgrade --run-name gpt5-baseline
-
-# Continue the session with a new run
-twevals evals.py --serve --session model-upgrade --run-name gpt5-tuned
-```
-
-When not specified, friendly names are auto-generated (e.g., "swift-falcon", "bright-flame").
+The browser opens automatically at `http://127.0.0.1:8000`. Evaluations are discovered and displayed in the UI, but not run until you click the Run button. Results appear and update in real-time as each evaluation completes.
 
 ## Features
 
@@ -131,7 +117,7 @@ Cancelled evaluations are marked with a "cancelled" status and can be rerun late
 Specify a different port:
 
 ```bash
-twevals evals.py --serve --port 3000
+twevals serve evals.py --port 3000
 ```
 
 ## Results Storage
@@ -165,7 +151,7 @@ The UI loads from `latest.json` by default.
 <AccordionGroup>
   <Accordion title="Iterative Development">
     Keep the UI open while developing. After code changes:
-    1. Run `twevals evals.py` in terminal
+    1. Run `twevals run evals.py` in terminal
     2. Click "Refresh" in UI to see new results
   </Accordion>
 

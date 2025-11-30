@@ -69,10 +69,11 @@ async def test_sentiment_analysis(ctx: EvalContext):
 
     assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
 ```
-Run with Web UI enabled for human review:
+Run headlessly, or start the web UI for human review:
 
 ```bash
-twevals sentiment_evals.py --concurrency 7 --serve
+twevals run sentiment_evals.py --concurrency 7
+twevals serve sentiment_evals.py
 ```
 
 <Card title="Ready to start?" icon="play" href="/quickstart">

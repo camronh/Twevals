@@ -98,14 +98,14 @@ async def test_rag_agent(ctx: EvalContext):
 ## Running It
 
 ```bash
-# Run just this eval
-twevals evals/rag_agent.py
+# Run headlessly
+twevals run evals/rag_agent.py
 
-# Run with the web UI
-twevals evals/rag_agent.py --serve
+# Start the web UI
+twevals serve evals/rag_agent.py
 
 # Run verbosely to see each result
-twevals evals/rag_agent.py --verbose
+twevals run evals/rag_agent.py --verbose
 ```
 
 ## Example Results

@@ -119,14 +119,17 @@ async def test_factorial(ctx: EvalContext):
 ## Running It
 
 ```bash
-# Run all agent_tasks evals
-twevals evals/agent_tasks.py --serve
+# Start the web UI
+twevals serve evals/agent_tasks.py
+
+# Run headlessly
+twevals run evals/agent_tasks.py
 
 # Run just one specific test
-twevals evals/agent_tasks.py::test_weather_lookup
+twevals run evals/agent_tasks.py::test_weather_lookup
 
 # Run with verbose output
-twevals evals/agent_tasks.py --verbose
+twevals run evals/agent_tasks.py --verbose
 ```
 
 ## When to Use This Pattern

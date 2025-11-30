@@ -8,14 +8,17 @@ Sessions let you group related evaluation runs together, enabling workflows like
 ## Quick Start
 
 ```bash
-# Named session and run
-twevals evals.py --serve --session model-upgrade --run-name gpt5-baseline
+# Start the web UI
+twevals serve evals.py
+
+# Run headlessly with session and run names
+twevals run evals.py --session model-upgrade --run-name gpt5-baseline
 
 # Continue the session with another run
-twevals evals.py --serve --session model-upgrade --run-name gpt5-tuned
+twevals run evals.py --session model-upgrade --run-name gpt5-tuned
 
 # Auto-generated friendly names
-twevals evals.py --serve
+twevals run evals.py
 ```
 
 ## Concepts
@@ -79,43 +82,43 @@ SESSION model-upgrade · RUN gpt5-baseline | TESTS 50 | ACCURACY 45/50 | ...
 <AccordionGroup>
   <Accordion title="Model Comparison">
     Compare performance across different models or configurations:
-    
+
     ```bash
-    twevals evals/ --serve --session model-comparison --run-name gpt4-baseline
-    twevals evals/ --serve --session model-comparison --run-name claude-3
-    twevals evals/ --serve --session model-comparison --run-name gemini-pro
+    twevals run evals/ --session model-comparison --run-name gpt4-baseline
+    twevals run evals/ --session model-comparison --run-name claude-3
+    twevals run evals/ --session model-comparison --run-name gemini-pro
     ```
-    
+
     Each run's JSON file contains the full results for that model, all grouped under the same session.
   </Accordion>
 
   <Accordion title="Iterative Development">
     Track progress while debugging or improving:
-    
+
     ```bash
-    twevals evals/ --serve --session bug-fix-123 --run-name initial
+    twevals run evals/ --session bug-fix-123 --run-name initial
     # Make changes...
-    twevals evals/ --serve --session bug-fix-123 --run-name attempt-2
+    twevals run evals/ --session bug-fix-123 --run-name attempt-2
     # More changes...
-    twevals evals/ --serve --session bug-fix-123 --run-name fixed
+    twevals run evals/ --session bug-fix-123 --run-name fixed
     ```
   </Accordion>
 
   <Accordion title="CI/CD Integration">
     Use session names to track runs across deployments:
-    
+
     ```bash
-    twevals evals/ --session "release-${VERSION}" --run-name "build-${BUILD_ID}" -o results.json
+    twevals run evals/ --session "release-${VERSION}" --run-name "build-${BUILD_ID}" -o results.json
     ```
   </Accordion>
 
   <Accordion title="A/B Testing">
     Compare different approaches:
-    
+
     ```bash
-    twevals evals/ --serve --session prompt-experiment --run-name prompt-v1
-    twevals evals/ --serve --session prompt-experiment --run-name prompt-v2-concise
-    twevals evals/ --serve --session prompt-experiment --run-name prompt-v3-detailed
+    twevals run evals/ --session prompt-experiment --run-name prompt-v1
+    twevals run evals/ --session prompt-experiment --run-name prompt-v2-concise
+    twevals run evals/ --session prompt-experiment --run-name prompt-v3-detailed
     ```
   </Accordion>
 </AccordionGroup>

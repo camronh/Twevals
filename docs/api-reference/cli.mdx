@@ -3,29 +3,36 @@ title: CLI Reference
 description: Command-line interface for running evaluations
 ---
 
-## Basic Usage
+## Commands
+
+Twevals has two main commands:
+
+- `twevals serve` - Start the web UI to browse and run evaluations interactively
+- `twevals run` - Run evaluations headlessly (for CI/CD pipelines)
+
+## twevals serve
+
+Start the web UI to discover and run evaluations interactively.
 
 ```bash
-twevals PATH [OPTIONS]
+twevals serve PATH [OPTIONS]
 ```
 
 Where `PATH` can be:
-- A directory: `twevals evals/`
-- A file: `twevals evals/customer_service.py`
-- A specific function: `twevals evals.py::test_refund`
-- A parametrized variant: `twevals evals.py::test_math[2-3-5]`
+- A directory: `twevals serve evals/`
+- A file: `twevals serve evals/customer_service.py`
+- A specific function: `twevals serve evals.py::test_refund`
 
-## Options
+The UI opens automatically in your browser. Evaluations are discovered and displayed but not run until you click the Run button.
 
-### Filtering
+### Options
 
 <ParamField path="-d, --dataset" type="string" default="all">
-  Filter evaluations by dataset. Can be specified multiple times.
+  Filter evaluations by dataset.
 </ParamField>
 
 ```bash
-twevals evals/ --dataset customer_service
-twevals evals/ -d customer_service -d technical_support
+twevals serve evals/ --dataset customer_service
 ```
 
 <ParamField path="-l, --label" type="string" default="all">
@@ -33,102 +40,15 @@ twevals evals/ -d customer_service -d technical_support
 </ParamField>
 
 ```bash
-twevals evals/ --label production
-twevals evals/ -l production -l critical
+twevals serve evals/ --label production -l critical
 ```
 
-<ParamField path="--limit" type="integer">
-  Limit the number of evaluations to run.
+<ParamField path="--results-dir" type="string" default=".twevals/runs">
+  Directory for JSON results storage.
 </ParamField>
 
 ```bash
-twevals evals/ --limit 10
-```
-
-### Execution
-
-<ParamField path="-c, --concurrency" type="integer" default="0">
-  Number of concurrent evaluations. `0` means sequential execution.
-</ParamField>
-
-```bash
-# Run 4 evaluations in parallel
-twevals evals/ --concurrency 4
-twevals evals/ -c 4
-```
-
-<ParamField path="--timeout" type="float">
-  Global timeout in seconds for all evaluations.
-</ParamField>
-
-```bash
-twevals evals/ --timeout 30.0
-```
-
-### Output
-
-<ParamField path="-v, --verbose" type="flag">
-  Enable verbose output. Shows stdout from evaluations.
-</ParamField>
-
-```bash
-twevals evals/ --verbose
-twevals evals/ -v
-```
-
-<ParamField path="-q, --quiet" type="flag">
-  Reduce output. Only shows summary.
-</ParamField>
-
-```bash
-twevals evals/ --quiet
-twevals evals/ -q
-```
-
-<ParamField path="--list" type="flag">
-  List evaluations without running them.
-</ParamField>
-
-```bash
-twevals evals/ --list
-```
-
-### Export
-
-<ParamField path="-o, --output" type="string">
-  Save JSON summary to file.
-</ParamField>
-
-```bash
-twevals evals/ --output results.json
-twevals evals/ -o results.json
-```
-
-<ParamField path="--csv" type="string">
-  Save results to CSV file.
-</ParamField>
-
-```bash
-twevals evals/ --csv results.csv
-```
-
-<ParamField path="--json" type="flag">
-  Output compact JSON to stdout.
-</ParamField>
-
-```bash
-twevals evals/ --json
-twevals evals/ --json | jq '.results[0]'
-```
-
-### Web UI
-
-<ParamField path="--serve" type="flag">
-  Launch web UI after running evaluations.
-</ParamField>
-
-```bash
-twevals evals/ --serve
+twevals serve evals/ --results-dir ./my-results
 ```
 
 <ParamField path="--port" type="integer" default="8000">
@@ -136,89 +56,183 @@ twevals evals/ --serve
 </ParamField>
 
 ```bash
-twevals evals/ --serve --port 3000
+twevals serve evals/ --port 3000
 ```
 
-### Sessions
-
-<ParamField path="--session" type="string">
-  Session name to group related runs together. Same name = same session.
+<ParamField path="-q, --quiet" type="flag">
+  Reduce logging. Hides access logs from the server.
 </ParamField>
 
 ```bash
-twevals evals/ --serve --session model-upgrade
+twevals serve evals/ --quiet
 ```
 
-<ParamField path="--run-name" type="string">
-  Name for this run. Used as filename prefix and displayed in UI.
+## twevals run
+
+Run evaluations headlessly and output results to the terminal.
+
+```bash
+twevals run PATH [OPTIONS]
+```
+
+Where `PATH` can be:
+- A directory: `twevals run evals/`
+- A file: `twevals run evals/customer_service.py`
+- A specific function: `twevals run evals.py::test_refund`
+- A parametrized variant: `twevals run evals.py::test_math[2-3-5]`
+
+### Filtering Options
+
+<ParamField path="-d, --dataset" type="string" default="all">
+  Filter evaluations by dataset. Can be specified multiple times.
 </ParamField>
 
 ```bash
-twevals evals/ --serve --session model-upgrade --run-name gpt5-baseline
+twevals run evals/ --dataset customer_service
+twevals run evals/ -d customer_service -d technical_support
 ```
 
-When not specified, friendly adjective-noun names are auto-generated (e.g., "swift-falcon").
+<ParamField path="-l, --label" type="string" default="all">
+  Filter evaluations by label. Can be specified multiple times.
+</ParamField>
+
+```bash
+twevals run evals/ --label production
+twevals run evals/ -l production -l critical
+```
+
+<ParamField path="--limit" type="integer">
+  Limit the number of evaluations to run.
+</ParamField>
+
+```bash
+twevals run evals/ --limit 10
+```
+
+### Execution Options
+
+<ParamField path="-c, --concurrency" type="integer" default="0">
+  Number of concurrent evaluations. `0` means sequential execution.
+</ParamField>
+
+```bash
+# Run 4 evaluations in parallel
+twevals run evals/ --concurrency 4
+twevals run evals/ -c 4
+```
+
+<ParamField path="--timeout" type="float">
+  Global timeout in seconds for all evaluations.
+</ParamField>
+
+```bash
+twevals run evals/ --timeout 30.0
+```
+
+### Output Options
+
+<ParamField path="-v, --verbose" type="flag">
+  Enable verbose output. Shows stdout from evaluations.
+</ParamField>
+
+```bash
+twevals run evals/ --verbose
+twevals run evals/ -v
+```
+
+<ParamField path="-o, --output" type="string">
+  Save JSON summary to file.
+</ParamField>
+
+```bash
+twevals run evals/ --output results.json
+twevals run evals/ -o results.json
+```
+
+<ParamField path="--csv" type="string">
+  Save results to CSV file.
+</ParamField>
+
+```bash
+twevals run evals/ --csv results.csv
+```
+
+<ParamField path="--json" type="flag">
+  Output compact JSON to stdout.
+</ParamField>
+
+```bash
+twevals run evals/ --json
+twevals run evals/ --json | jq '.results[0]'
+```
 
 ## Examples
+
+### Start the Web UI
+
+```bash
+# Discover evals in a directory and open the UI
+twevals serve evals/
+
+# Start UI on a custom port
+twevals serve evals/ --port 8080
+
+# Filter what's shown in the UI
+twevals serve evals/ --dataset qa --label production
+```
 
 ### Run All Evaluations
 
 ```bash
-twevals evals/
+twevals run evals/
 ```
 
 ### Run Specific File
 
 ```bash
-twevals evals/customer_service.py
+twevals run evals/customer_service.py
 ```
 
 ### Run Specific Function
 
 ```bash
-twevals evals/customer_service.py::test_refund
+twevals run evals/customer_service.py::test_refund
 ```
 
 ### Run Parametrized Variant
 
 ```bash
-twevals evals/math.py::test_addition[2-3-5]
+twevals run evals/math.py::test_addition[2-3-5]
 ```
 
 ### Filter by Dataset and Label
 
 ```bash
-twevals evals/ --dataset qa --label production
+twevals run evals/ --dataset qa --label production
 ```
 
 ### Run with Concurrency and Timeout
 
 ```bash
-twevals evals/ -c 8 --timeout 60.0
+twevals run evals/ -c 8 --timeout 60.0
 ```
 
 ### Export Results
 
 ```bash
-twevals evals/ -o results.json --csv results.csv
-```
-
-### Launch UI on Custom Port
-
-```bash
-twevals evals/ --serve --port 8080
+twevals run evals/ -o results.json --csv results.csv
 ```
 
 ### Verbose Debug Run
 
 ```bash
-twevals evals/ -v --limit 5
+twevals run evals/ -v --limit 5
 ```
 
-### Production Pipeline
+### Production CI Pipeline
 
 ```bash
-twevals evals/ -c 16 --timeout 120 -o results.json --json
+twevals run evals/ -c 16 --timeout 120 -o results.json --json
 ```
 
 ## Exit Codes
@@ -266,16 +280,4 @@ Summary: 1/2 passed (50.0%)
   "failed": 1,
   "results": [...]
 }
-```
-
-### List Output
-
-```
-Evaluations to run:
-  - customer_service::test_refund
-  - customer_service::test_complaint
-  - qa::test_greeting[hello]
-  - qa::test_greeting[hi]
-
-Total: 4 evaluations
 ```

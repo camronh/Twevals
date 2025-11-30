@@ -2,6 +2,14 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Changed: CLI restructured into explicit subcommands - `twevals serve <path>` starts the UI, `twevals run <path>` runs headless. The `--serve` flag is removed.
+- Changed: `twevals serve` no longer auto-runs evaluations. Discovered evals are displayed in the UI with "not_started" status; users click Run to start execution.
+- Changed: Removed `--limit`, `--dev`, `--host`, and `--list` flags from `twevals serve` to simplify the serve command.
+- Added: Support for running selected evaluations from the initial "not_started" state via checkbox selection in the UI.
+- Tests: Updated CLI tests to use new `run` subcommand syntax.
+
 ## 0.0.2a11 - 2025-11-29
 
 - Added: Full-page detail view for individual evaluation results with dedicated URL (`/runs/{run_id}/results/{index}`), enabling new tab support and multi-monitor workflows.
