@@ -67,6 +67,14 @@ twevals serve evals/ --port 3000
 twevals serve evals/ --quiet
 ```
 
+<ParamField path="--session" type="string">
+  Name for this evaluation session. Groups related runs together.
+</ParamField>
+
+```bash
+twevals serve evals/ --session model-comparison
+```
+
 ## twevals run
 
 Run evaluations headlessly and output results to the terminal.
@@ -166,6 +174,24 @@ twevals run evals/ --json
 twevals run evals/ --json | jq '.results[0]'
 ```
 
+### Session Options
+
+<ParamField path="--session" type="string">
+  Name for this evaluation session. Groups related runs together.
+</ParamField>
+
+```bash
+twevals run evals/ --session model-comparison
+```
+
+<ParamField path="--run-name" type="string">
+  Name for this specific run. Used as file prefix.
+</ParamField>
+
+```bash
+twevals run evals/ --session model-comparison --run-name gpt4-baseline
+```
+
 ## Examples
 
 ### Start the Web UI
@@ -233,6 +259,16 @@ twevals run evals/ -v --limit 5
 
 ```bash
 twevals run evals/ -c 16 --timeout 120 -o results.json --json
+```
+
+### Session Tracking
+
+```bash
+# Group runs under a session
+twevals run evals/ --session model-comparison --run-name baseline
+
+# Continue the session with another run
+twevals run evals/ --session model-comparison --run-name improved
 ```
 
 ## Configuration File

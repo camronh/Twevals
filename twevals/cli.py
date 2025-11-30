@@ -153,6 +153,7 @@ def cli():
 @click.option('--results-dir', default=None, help='Directory for JSON results storage')
 @click.option('--port', default=None, type=int, help='Port for the web server')
 @click.option('--quiet', '-q', is_flag=True, help='Reduce logging; hide access logs')
+@click.option('--session', default=None, help='Name for this evaluation session')
 def serve_cmd(
     path: str,
     dataset: Optional[str],
@@ -160,6 +161,7 @@ def serve_cmd(
     results_dir: Optional[str],
     port: Optional[int],
     quiet: bool,
+    session: Optional[str],
 ):
     """Start the web UI to browse and run evaluations."""
     from pathlib import Path as PathLib
@@ -192,6 +194,7 @@ def serve_cmd(
         results_dir=results_dir,
         port=port,
         quiet=quiet,
+        session_name=session,
     )
 
 
@@ -206,6 +209,8 @@ def serve_cmd(
 @click.option('--timeout', type=float, help='Global timeout in seconds')
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
 @click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
+@click.option('--session', default=None, help='Name for this evaluation session')
+@click.option('--run-name', default=None, help='Name for this specific run')
 def run_cmd(
     path: str,
     dataset: Optional[str],
@@ -217,6 +222,8 @@ def run_cmd(
     timeout: Optional[float],
     verbose: bool,
     json_mode: bool,
+    session: Optional[str],
+    run_name: Optional[str],
 ):
     """Run evaluations in headless mode (for CI/CD)."""
     from pathlib import Path as PathLib
@@ -273,6 +280,14 @@ def run_cmd(
             console.print(traceback.format_exc())
         sys.exit(1)
 
+    # Save to results store if session or run_name provided
+    if session or run_name:
+        from twevals.storage import ResultsStore
+        config = load_config()
+        results_dir = config.get("results_dir", ".twevals/runs")
+        store = ResultsStore(results_dir)
+        store.save_run(summary, session_name=session, run_name=run_name)
+
     # Handle JSON output
     if json_mode:
         summary_clean = _remove_none(summary)
@@ -317,6 +332,7 @@ def _serve(
     results_dir: str,
     port: int,
     quiet: bool,
+    session_name: Optional[str] = None,
 ):
     """Serve a web UI to browse and run evaluations."""
     try:
@@ -345,6 +361,7 @@ def _serve(
         labels=labels,
         function_name=function_name,
         discovered_functions=functions,
+        session_name=session_name,
     )
 
     if not functions:
