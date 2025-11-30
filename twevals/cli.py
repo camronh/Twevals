@@ -257,19 +257,16 @@ def run_cmd(
             console.print(traceback.format_exc())
         sys.exit(1)
 
-    # Always save results to file
-    # Priority: --output flag > config results_dir > default .twevals/runs
-    results_dir = config.get("results_dir", ".twevals/runs")
-    store = ResultsStore(results_dir)
-    run_id = store.save_run(summary, session_name=session, run_name=run_name)
-
-    # Determine the actual saved file path
+    # Save results to file
     if output:
-        # If --output provided, also save to that specific path
+        # --output overrides default results_dir
         runner._save_results(summary, output)
         saved_path = output
     else:
-        # Get the path from the store
+        # Save to config results_dir (default .twevals/runs)
+        results_dir = config.get("results_dir", ".twevals/runs")
+        store = ResultsStore(results_dir)
+        run_id = store.save_run(summary, session_name=session, run_name=run_name)
         saved_path = str(store._find_run_file(run_id))
 
     if visual:
