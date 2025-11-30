@@ -59,14 +59,6 @@ twevals serve evals/ --results-dir ./my-results
 twevals serve evals/ --port 3000
 ```
 
-<ParamField path="-q, --quiet" type="flag">
-  Reduce logging. Hides access logs from the server.
-</ParamField>
-
-```bash
-twevals serve evals/ --quiet
-```
-
 <ParamField path="--session" type="string">
   Name for this evaluation session. Groups related runs together.
 </ParamField>
@@ -77,7 +69,7 @@ twevals serve evals/ --session model-comparison
 
 ## twevals run
 
-Run evaluations headlessly and output results to the terminal.
+Run evaluations headlessly. Outputs minimal text by default (optimized for LLM agents). Use `--visual` for rich table output.
 
 ```bash
 twevals run PATH [OPTIONS]
@@ -119,8 +111,8 @@ twevals run evals/ --limit 10
 
 ### Execution Options
 
-<ParamField path="-c, --concurrency" type="integer" default="0">
-  Number of concurrent evaluations. `0` means sequential execution.
+<ParamField path="-c, --concurrency" type="integer" default="1">
+  Number of concurrent evaluations. `1` means sequential execution.
 </ParamField>
 
 ```bash
@@ -140,7 +132,7 @@ twevals run evals/ --timeout 30.0
 ### Output Options
 
 <ParamField path="-v, --verbose" type="flag">
-  Enable verbose output. Shows stdout from evaluations.
+  Show stdout from eval functions (print statements, logs).
 </ParamField>
 
 ```bash
@@ -148,30 +140,21 @@ twevals run evals/ --verbose
 twevals run evals/ -v
 ```
 
+<ParamField path="--visual" type="flag">
+  Show rich progress dots, results table, and summary. Without this flag, output is minimal.
+</ParamField>
+
+```bash
+twevals run evals/ --visual
+```
+
 <ParamField path="-o, --output" type="string">
-  Save JSON summary to file.
+  Override path for results JSON file. Results are always saved automatically.
 </ParamField>
 
 ```bash
 twevals run evals/ --output results.json
 twevals run evals/ -o results.json
-```
-
-<ParamField path="--csv" type="string">
-  Save results to CSV file.
-</ParamField>
-
-```bash
-twevals run evals/ --csv results.csv
-```
-
-<ParamField path="--json" type="flag">
-  Output compact JSON to stdout.
-</ParamField>
-
-```bash
-twevals run evals/ --json
-twevals run evals/ --json | jq '.results[0]'
 ```
 
 ### Session Options
@@ -246,19 +229,25 @@ twevals run evals/ -c 8 --timeout 60.0
 ### Export Results
 
 ```bash
-twevals run evals/ -o results.json --csv results.csv
+# Results auto-save to .twevals/runs/ by default
+twevals run evals/
+
+# Override output path
+twevals run evals/ -o results.json
 ```
 
 ### Verbose Debug Run
 
 ```bash
-twevals run evals/ -v --limit 5
+# Show eval stdout and rich output
+twevals run evals/ -v --visual --limit 5
 ```
 
 ### Production CI Pipeline
 
 ```bash
-twevals run evals/ -c 16 --timeout 120 -o results.json --json
+# Minimal output for LLM agents/CI
+twevals run evals/ -c 16 --timeout 120
 ```
 
 ### Session Tracking
@@ -290,10 +279,9 @@ Twevals supports a `twevals.json` config file for persisting default CLI options
 |--------|------|-------------|---------|
 | `concurrency` | integer | Number of concurrent evaluations | `run` |
 | `timeout` | float | Global timeout in seconds | `run` |
-| `verbose` | boolean | Show stdout from evaluations | `run` |
+| `verbose` | boolean | Show stdout from eval functions | `run` |
 | `results_dir` | string | Directory for results storage | `serve` |
 | `port` | integer | Web UI server port | `serve` |
-| `quiet` | boolean | Hide server access logs | `serve` |
 
 ### Precedence
 
@@ -328,9 +316,23 @@ The CLI does not currently set non-zero exit codes for failed evaluations—only
 
 ## Output Format
 
-### Table Output (Default)
+### Minimal Output (Default)
+
+By default, `twevals run` outputs minimal text optimized for LLM agents and CI pipelines:
 
 ```
+Running...
+Results saved to .twevals/runs/swift-falcon_2024-01-15T10-30-00Z.json
+```
+
+### Visual Output (--visual)
+
+Use `--visual` for rich progress dots, results table, and summary:
+
+```
+Running...
+customer_service.py ..F
+
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃                     customer_service                           ┃
 ┣━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┫
@@ -343,7 +345,9 @@ The CLI does not currently set non-zero exit codes for failed evaluations—only
 Summary: 1/2 passed (50.0%)
 ```
 
-### JSON Output
+### JSON File Output
+
+Results are always saved as JSON to `.twevals/runs/` (or custom path via `-o`):
 
 ```json
 {

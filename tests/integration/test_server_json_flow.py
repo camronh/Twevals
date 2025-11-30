@@ -224,7 +224,6 @@ def case3():
             {"function": "case2", "dataset": "selective_ds", "labels": [], "result": {"input": "input2", "output": "old2", "status": "completed"}},
             {"function": "case3", "dataset": "selective_ds", "labels": [], "result": {"input": "input3", "output": "old3", "status": "completed"}},
         ],
-        "rerun_config": {"path": str(f)},
     }
     run_id = store.save_run(initial_summary, "2024-01-01T00-00-00Z")
 
@@ -287,8 +286,11 @@ def test_rerun_with_no_functions_persists_empty_run(tmp_path: Path):
     assert data["total_evaluations"] == 0
 
 
-def test_stop_endpoint_stops_pending_tasks(tmp_path: Path):
+def test_stop_endpoint_stops_pending_tasks(tmp_path: Path, monkeypatch):
     """Stop should prevent runner from executing additional evals."""
+    # Change to tmp_path so load_config() reads from there (not project root)
+    monkeypatch.chdir(tmp_path)
+
     log_file = tmp_path / "log.json"
     log_file.write_text("[]")
 
@@ -310,7 +312,7 @@ def log(msg):
 @eval(dataset="stop_ds")
 def first():
     log("start1")
-    time.sleep(0.2)
+    time.sleep(1.0)
     log("end1")
     return EvalResult(input="a", output="one")
 
@@ -331,7 +333,7 @@ def third():
     )
 
     store = ResultsStore(tmp_path / "runs")
-    run_id = store.save_run({"total_evaluations": 0, "results": [], "rerun_config": {"path": str(f)}}, "2024-01-01T00-00-00Z")
+    run_id = store.save_run({"total_evaluations": 0, "results": []}, "2024-01-01T00-00-00Z")
 
     app = create_app(
         results_dir=str(tmp_path / "runs"),
@@ -346,9 +348,9 @@ def third():
     new_run_id = rr.json()["run_id"]
 
     # Stop shortly after start while first eval is still running
-    time.sleep(0.05)
+    time.sleep(0.2)
     client.post("/api/runs/stop")
-    time.sleep(0.35)
+    time.sleep(0.3)
 
     entries = json.loads(log_file.read_text())
     assert "start1" in entries
@@ -361,7 +363,7 @@ def third():
     # Outputs should remain cleared for cancelled rows
     assert all(r["result"].get("output") in (None, "") for r in data["results"])
     # Wait longer than all tasks would take and ensure we did not resume
-    time.sleep(0.4)
+    time.sleep(1.5)
     data2 = store.load_run(new_run_id)
     statuses2 = [r["result"].get("status") for r in data2["results"]]
     assert all(status == "cancelled" for status in statuses2)

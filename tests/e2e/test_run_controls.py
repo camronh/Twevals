@@ -295,7 +295,6 @@ class TestRerunFunctionality:
         # Seed completed run
         store = ResultsStore(tmp_path / "runs")
         summary = make_completed_summary()
-        summary["rerun_config"] = {"path": str(eval_file)}
         run_id = store.save_run(summary, "2024-01-01T00-00-00Z")
 
         app = create_app(
@@ -336,7 +335,6 @@ class TestRerunFunctionality:
 
         # Seed run with completed results matching the eval file
         store = ResultsStore(tmp_path / "runs")
-        runner = EvalRunner(concurrency=1, verbose=False)
 
         results = [{
             "function": f.func.__name__,
@@ -351,10 +349,8 @@ class TestRerunFunctionality:
             },
         } for f in functions]
 
-        rerun_config = {"path": str(eval_file)}
-        summary = runner._calculate_summary(results)
+        summary = EvalRunner._calculate_summary(results)
         summary["results"] = results
-        summary["rerun_config"] = rerun_config
         run_id = store.save_run(summary, "2024-01-01T00-00-00Z")
 
         app = create_app(

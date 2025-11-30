@@ -6,10 +6,17 @@ All notable changes to this project will be documented in this file.
 
 - Changed: CLI restructured into explicit subcommands - `twevals serve <path>` starts the UI, `twevals run <path>` runs headless. The `--serve` flag is removed.
 - Changed: `twevals serve` no longer auto-runs evaluations. Discovered evals are displayed in the UI with "not_started" status; users click Run to start execution.
-- Changed: Removed `--limit`, `--dev`, `--host`, and `--list` flags from `twevals serve` to simplify the serve command.
+- Changed: Removed `--limit`, `--dev`, `--host`, `--list`, and `--quiet` flags from `twevals serve` to simplify the serve command.
+- Changed: `twevals run` now outputs minimal text by default (optimized for LLM agents) - just "Running..." and "Results saved to...". Use `--visual` for rich output.
+- Added: `--visual` flag for `twevals run` to show progress dots, results table, and summary (the previous default behavior).
+- Added: `--verbose/-v` flag for `twevals run` now shows stdout from eval functions instead of controlling output verbosity.
+- Changed: Results are always auto-saved to file. Priority: `--output` flag > config `results_dir` > default `.twevals/runs/`.
+- Changed: Removed `--csv` and `--json` flags from `twevals run` - results always save as JSON.
+- Changed: Concurrency minimum is now 1 (sequential execution). Values < 1 throw an error.
 - Added: Support for running selected evaluations from the initial "not_started" state via checkbox selection in the UI.
-- Added: `twevals.json` config file for persisting CLI defaults. Auto-generated on first run with `concurrency` and `results_dir`. Supports `concurrency`, `timeout`, `verbose`, `results_dir`, `port`, and `quiet`.
+- Added: `twevals.json` config file for persisting CLI defaults. Auto-generated on first run with `concurrency` and `results_dir`.
 - Added: Settings UI in the web interface to edit runtime options (concurrency, results_dir, timeout). Changes take effect on next run without restarting the server.
+- Removed: `rerun_config` from run JSON files (YAGNI - feature for viewing historical runs didn't exist).
 - Tests: Updated CLI tests to use new `run` subcommand syntax.
 
 ## 0.0.2a11 - 2025-11-29
