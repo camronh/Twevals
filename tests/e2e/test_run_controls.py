@@ -228,36 +228,15 @@ class TestStopFunctionality:
         discovery = EvalDiscovery()
         functions = discovery.discover(path=str(eval_file))
 
-        # Create initial run with pending results
+        # Create store and app (no pre-saved run - test the full flow)
         store = ResultsStore(tmp_path / "runs")
         run_id = store.generate_run_id()
-        runner = EvalRunner(concurrency=0, verbose=False)
 
-        initial_results = [{
-            "function": f.func.__name__,
-            "dataset": f.dataset,
-            "labels": f.labels,
-            "result": {
-                "input": f.context_kwargs.get("input"),
-                "reference": f.context_kwargs.get("reference"),
-                "metadata": f.context_kwargs.get("metadata"),
-                "output": None, "error": None, "scores": None, "latency": None,
-                "run_data": None, "annotation": None, "annotations": None, "status": "pending",
-            },
-        } for f in functions]
-
-        rerun_config = {"path": str(eval_file)}
-        summary = runner._calculate_summary(initial_results)
-        summary["results"] = initial_results
-        summary["rerun_config"] = rerun_config
-        store.save_run(summary, run_id=run_id)
-
-        # Create app with initial functions (starts running)
         app = create_app(
             results_dir=str(tmp_path / "runs"),
             active_run_id=run_id,
             path=str(eval_file),
-            initial_functions=functions,
+            discovered_functions=functions,
         )
 
         with run_server(app) as url:
@@ -267,14 +246,20 @@ class TestStopFunctionality:
                 page.goto(url)
                 page.wait_for_selector("#results-table")
 
-                # Wait for at least one eval to start running
-                page.wait_for_selector('[data-status="running"]', timeout=10000)
+                # Initial state should show "not_started" evals
+                page.wait_for_selector('[data-status="not_started"]', timeout=5000)
 
-                # Verify stop button is visible (button should be red/stop mode)
+                # Click play to start the run
                 play_btn = page.locator("#play-btn")
                 expect(play_btn).to_be_visible()
+                play_btn.click()
+                page.wait_for_timeout(1000)  # Wait for API call and run to start
 
-                # Click stop
+                # Poll for running/pending status (htmx auto-refreshes)
+                page.wait_for_selector('[data-status="running"], [data-status="pending"]', timeout=15000)
+
+                # Click stop (button should now be in stop mode)
+                play_btn = page.locator("#play-btn")
                 play_btn.click()
                 page.wait_for_timeout(500)
 
@@ -422,32 +407,12 @@ class TestPlayStopToggle:
 
         store = ResultsStore(tmp_path / "runs")
         run_id = store.generate_run_id()
-        runner = EvalRunner(concurrency=0, verbose=False)
-
-        initial_results = [{
-            "function": f.func.__name__,
-            "dataset": f.dataset,
-            "labels": f.labels,
-            "result": {
-                "input": f.context_kwargs.get("input"),
-                "reference": f.context_kwargs.get("reference"),
-                "metadata": f.context_kwargs.get("metadata"),
-                "output": None, "error": None, "scores": None, "latency": None,
-                "run_data": None, "annotation": None, "annotations": None, "status": "pending",
-            },
-        } for f in functions]
-
-        rerun_config = {"path": str(eval_file)}
-        summary = runner._calculate_summary(initial_results)
-        summary["results"] = initial_results
-        summary["rerun_config"] = rerun_config
-        store.save_run(summary, run_id=run_id)
 
         app = create_app(
             results_dir=str(tmp_path / "runs"),
             active_run_id=run_id,
             path=str(eval_file),
-            initial_functions=functions,
+            discovered_functions=functions,
         )
 
         with run_server(app) as url:
@@ -457,8 +422,16 @@ class TestPlayStopToggle:
                 page.goto(url)
                 page.wait_for_selector("#results-table")
 
-                # Wait for running state
-                page.wait_for_selector('[data-status="running"], [data-status="pending"]', timeout=5000)
+                # Initial state shows not_started
+                page.wait_for_selector('[data-status="not_started"]', timeout=5000)
+
+                # Click play to start
+                play_btn = page.locator("#play-btn")
+                play_btn.click()
+                page.wait_for_timeout(1000)  # Wait for API call and run to start
+
+                # Wait for running state (htmx auto-refreshes)
+                page.wait_for_selector('[data-status="running"], [data-status="pending"]', timeout=15000)
 
                 # Button should show "Stop"
                 play_btn_text = page.locator("#play-btn-text")

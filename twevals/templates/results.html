@@ -1,7 +1,7 @@
-{% set ns = namespace(tests=summary.total_evaluations, passed=0, failed=0, pending=0, running=0) %}
+{% set ns = namespace(tests=summary.total_evaluations, passed=0, failed=0, pending=0, running=0, not_started=0) %}
 {% for r in summary.results %}
   {% set status = r.result.status if r.result and r.result.status is defined else None %}
-  {% if status == 'pending' %}{% set ns.pending = ns.pending + 1 %}{% elif status == 'running' %}{% set ns.running = ns.running + 1 %}{% endif %}
+  {% if status == 'not_started' %}{% set ns.not_started = ns.not_started + 1 %}{% elif status == 'pending' %}{% set ns.pending = ns.pending + 1 %}{% elif status == 'running' %}{% set ns.running = ns.running + 1 %}{% endif %}
   {% set p = namespace(pass=false, fail=false) %}
   {% if r.result and r.result.scores %}
     {% for s in r.result.scores %}
@@ -10,12 +10,13 @@
   {% endif %}
   {% if p.pass %}{% set ns.passed = ns.passed + 1 %}{% elif p.fail %}{% set ns.failed = ns.failed + 1 %}{% endif %}
 {% endfor %}
-{% set pending_total = ns.pending + ns.running %}
+{% set pending_total = ns.pending + ns.running + ns.not_started %}
 {% set total = summary.total_evaluations %}
 {% set completed = (total - pending_total) if total else 0 %}
 {% set pct_done = ((completed / total) * 100) | round(0) | int if total > 0 else 0 %}
 
 {% set pill_tones = {
+  'not_started': 'text-zinc-400 bg-zinc-500/10 border border-zinc-500/40',
   'pending': 'text-blue-300 bg-blue-500/10 border border-blue-500/40',
   'running': 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/40',
   'completed': 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/40',
@@ -54,7 +55,12 @@
   {% endif %}
 
   <!-- Run Progress / Total Tests -->
-  {% if pending_total > 0 %}
+  {% if ns.not_started == total %}
+    <div class="flex items-center gap-2">
+      <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Discovered</span>
+      <span class="font-mono text-xs text-zinc-600 dark:text-zinc-400">{{ total }} eval{{ 's' if total != 1 else '' }}</span>
+    </div>
+  {% elif pending_total > 0 %}
     <div class="flex items-center gap-2">
       <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Progress</span>
       <div class="h-1.5 w-6 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
@@ -140,14 +146,19 @@
     {% set row_id = loop.index0 %}
     {% set status = r.result.status or 'completed' %}
     {% set is_running = status == 'running' %}
-    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" data-scores='{{ r.result.scores | tojson }}' data-annotation="{{ r.result.annotation or '' }}" class="group cursor-pointer hover:bg-blue-50/50 transition-colors dark:hover:bg-zinc-800/30" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
+    {% set is_not_started = status == 'not_started' %}
+    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" data-scores='{{ r.result.scores | tojson if r.result.scores else "null" }}' data-annotation="{{ r.result.annotation or '' }}" class="group cursor-pointer hover:bg-blue-50/50 transition-colors dark:hover:bg-zinc-800/30{% if is_not_started %} opacity-70{% endif %}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
       <td class="px-2 py-2 align-middle" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-checkbox" data-row-id="{{ row_id }}" />
       </td>
       <td data-col="function" class="px-3 py-2 align-middle">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
-            <a href="/runs/{{ run_id }}/results/{{ row_id }}" class="font-mono text-[13px] font-medium text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-500 dark:hover:text-blue-400">{{ r.function }}</a>
+            {% if is_not_started %}
+              <span class="font-mono text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{{ r.function }}</span>
+            {% else %}
+              <a href="/runs/{{ run_id }}/results/{{ row_id }}" class="font-mono text-[13px] font-medium text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-500 dark:hover:text-blue-400">{{ r.function }}</a>
+            {% endif %}
             {% if status == 'running' %}
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status) }}">running</span>
             {% elif status == 'error' %}
@@ -176,7 +187,9 @@
         {% endif %}
       </td>
       <td data-col="output" title="{% if r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% endif %}" class="px-3 py-2 align-middle">
-        {% if is_running %}
+        {% if is_not_started %}
+          <span class="text-zinc-400 dark:text-zinc-600">—</span>
+        {% elif is_running %}
           <div class="space-y-1.5">
             <div class="h-3 w-3/4 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800"></div>
             <div class="h-3 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800"></div>
@@ -190,7 +203,9 @@
         {% endif %}
       </td>
       <td data-col="scores" class="px-3 py-2 align-middle max-w-[180px]">
-        {% if is_running %}
+        {% if is_not_started %}
+          <span class="text-zinc-400 dark:text-zinc-600">—</span>
+        {% elif is_running %}
           <div class="flex gap-1">
             <div class="h-5 w-16 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800"></div>
             <div class="h-5 w-12 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800"></div>

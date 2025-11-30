@@ -37,8 +37,8 @@ def create_app(
     limit: Optional[int] = None,
     session_name: Optional[str] = None,
     run_name: Optional[str] = None,
-    # For initial run on startup
-    initial_functions: Optional[List[EvalFunction]] = None,
+    # Discovered functions for display (NOT auto-run)
+    discovered_functions: Optional[List[EvalFunction]] = None,
 ) -> FastAPI:
     """Create a FastAPI application serving evaluation results from JSON files."""
 
@@ -52,7 +52,7 @@ def create_app(
     app.state.store = store
     app.state.session_name = session_name
     app.state.run_name = run_name
-    # Rerun configuration (optional but recommended)
+    # Rerun configuration
     app.state.path = path
     app.state.dataset = dataset
     app.state.labels = labels
@@ -60,6 +60,8 @@ def create_app(
     app.state.limit = limit
     app.state.concurrency = concurrency
     app.state.verbose = verbose
+    # Discovered functions for display (before any run)
+    app.state.discovered_functions = discovered_functions or []
     # Cancellation event for stopping running evals
     app.state.cancel_event = Event()
     app.state.cancel_lock = Lock()
@@ -200,10 +202,45 @@ def create_app(
 
     @app.get("/results")
     def results(request: Request):
-        # Always load fresh from disk so external edits are reflected
+        # Try to load from disk first (covers historical runs and active runs)
         try:
             summary = store.load_run(app.state.active_run_id)
         except FileNotFoundError:
+            # No run on disk yet - show discovered functions if available
+            if app.state.discovered_functions:
+                results_list = [{
+                    "function": f.func.__name__,
+                    "dataset": f.dataset,
+                    "labels": f.labels,
+                    "result": {
+                        "input": f.context_kwargs.get("input"),
+                        "reference": f.context_kwargs.get("reference"),
+                        "metadata": f.context_kwargs.get("metadata"),
+                        "output": None,
+                        "error": None,
+                        "scores": None,
+                        "latency": None,
+                        "status": "not_started",
+                    },
+                } for f in app.state.discovered_functions]
+                summary = {
+                    "total_evaluations": len(results_list),
+                    "total_functions": len(results_list),
+                    "total_errors": 0,
+                    "total_passed": 0,
+                    "total_with_scores": 0,
+                    "average_latency": 0,
+                    "results": results_list,
+                }
+                return templates.TemplateResponse(
+                    "results.html",
+                    {
+                        "request": request,
+                        "summary": summary,
+                        "run_id": app.state.active_run_id,
+                        "score_chips": [],
+                    },
+                )
             raise HTTPException(status_code=404, detail="Active run not found")
         # Build per-score-key chips: ratio for boolean passed, average for numeric value
         score_map: dict[str, dict] = {}
@@ -327,8 +364,25 @@ def create_app(
         # Selective rerun: update in place
         if request.indices is not None:
             run_id = app.state.active_run_id
-            current_run = store.load_run(run_id)
-            current_results = current_run["results"]
+
+            # Try to load existing run, or build from discovered functions if not_started state
+            try:
+                current_run = store.load_run(run_id)
+                current_results = current_run["results"]
+            except FileNotFoundError:
+                # Not_started state: build results from all_functions
+                current_results = [{
+                    "function": f.func.__name__,
+                    "dataset": f.dataset,
+                    "labels": f.labels,
+                    "result": {
+                        "input": f.context_kwargs.get("input"),
+                        "reference": f.context_kwargs.get("reference"),
+                        "metadata": f.context_kwargs.get("metadata"),
+                        "output": None, "error": None, "scores": None, "latency": None,
+                        "run_data": None, "annotation": None, "annotations": None, "status": "not_started",
+                    },
+                } for f in all_functions]
 
             # Build map of (function_name, dataset) -> index, and reset selected results
             selected_keys = {}
@@ -344,10 +398,12 @@ def create_app(
             indices_map = {id(f): selected_keys[(f.func.__name__, f.dataset)] for f in functions}
 
             # Save pending state and start run
-            from twevals.storage import _atomic_write_json
-            run_file = store._find_run_file(run_id)
-            current_run["rerun_config"] = rerun_config
-            _atomic_write_json(run_file, current_run)
+            from twevals.runner import EvalRunner
+            runner = EvalRunner(concurrency=0, verbose=False)
+            summary = runner._calculate_summary(current_results)
+            summary["results"] = current_results
+            summary["rerun_config"] = rerun_config
+            store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
 
             start_run(functions, run_id, rerun_config, existing_results=current_results, indices_map=indices_map)
             return {"ok": True, "run_id": run_id}
@@ -471,15 +527,6 @@ def create_app(
 
         return {"ok": True, "run": {"run_id": run_id, "run_name": data.get("run_name")}}
 
-    # Start initial run if functions provided
-    if initial_functions:
-        rerun_config = {
-            "path": path, "dataset": dataset, "labels": labels,
-            "function_name": function_name, "limit": limit,
-            "concurrency": concurrency, "verbose": verbose,
-        }
-        start_run(initial_functions, active_run_id, rerun_config)
-
     return app
 
 
@@ -496,14 +543,19 @@ def load_app_from_env() -> FastAPI:  # pragma: no cover (exercised in dev)
     dataset = os.environ.get("TWEVALS_DATASET") or None
     labels_env = os.environ.get("TWEVALS_LABELS")
     labels = _json.loads(labels_env) if labels_env else None
-    concurrency = int(os.environ.get("TWEVALS_CONCURRENCY", "0"))
-    verbose = os.environ.get("TWEVALS_VERBOSE", "0") == "1"
     function_name = os.environ.get("TWEVALS_FUNCTION_NAME") or None
     limit_env = os.environ.get("TWEVALS_LIMIT")
     limit = int(limit_env) if limit_env is not None else None
 
-    session_name = os.environ.get("TWEVALS_SESSION_NAME") or None
-    run_name_env = os.environ.get("TWEVALS_RUN_NAME") or None
+    # Discover functions for display
+    discovered_functions = []
+    if path:
+        discovery = EvalDiscovery()
+        discovered_functions = discovery.discover(
+            path=path, dataset=dataset, labels=labels, function_name=function_name
+        )
+        if limit is not None:
+            discovered_functions = discovered_functions[:limit]
 
     return create_app(
         results_dir=results_dir,
@@ -511,10 +563,7 @@ def load_app_from_env() -> FastAPI:  # pragma: no cover (exercised in dev)
         path=path,
         dataset=dataset,
         labels=labels,
-        concurrency=concurrency,
-        verbose=verbose,
         function_name=function_name,
         limit=limit,
-        session_name=session_name,
-        run_name=run_name_env,
+        discovered_functions=discovered_functions,
     )

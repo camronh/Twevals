@@ -133,56 +133,42 @@ class ProgressReporter:
                 console.print(f"   [dim]Output:[/dim] {result['output']}")
 
 
-@click.command()
+@click.group()
+def cli():
+    """Twevals - A lightweight evaluation framework for AI/LLM testing
+
+    Start the UI: twevals serve evals.py
+    Run headless: twevals run evals.py
+
+    Path can include function name filter: file.py::function_name
+    """
+    pass
+
+
+@cli.command('serve')
 @click.argument('path', type=str)
-# Run options
-@click.option('--dataset', '-d', help='Run evaluations for specific dataset(s), comma-separated')
-@click.option('--label', '-l', multiple=True, help='Run evaluations with specific label(s)')
-@click.option('--output', '-o', type=click.Path(dir_okay=False), help='Path to JSON file for results')
-@click.option('--csv', '-s', type=click.Path(dir_okay=False), help='Path to CSV file for results (include filename)')
-@click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
-@click.option('--timeout', type=float, help='Global timeout in seconds (overrides individual test timeouts)')
-@click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
-@click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
-@click.option('--list', 'list_mode', is_flag=True, help='List all evaluations without running them')
-@click.option('--limit', type=int, help='Limit the number of evaluations to run')
-# Session options
-@click.option('--session', help='Session name to group runs together')
-@click.option('--run-name', help='Name for this run (used as file prefix)')
-# Serve options
-@click.option('--serve', is_flag=True, help='Serve a web UI to browse results')
-@click.option('--dev', is_flag=True, help='Enable hot-reload for development (watches repo for changes)')
+@click.option('--dataset', '-d', help='Filter by dataset(s), comma-separated')
+@click.option('--label', '-l', multiple=True, help='Filter by label(s)')
+@click.option('--limit', type=int, help='Limit the number of evaluations')
+@click.option('--dev', is_flag=True, help='Enable hot-reload for development')
 @click.option('--results-dir', default='.twevals/runs', help='Directory for JSON results storage')
 @click.option('--host', default='127.0.0.1', help='Host interface for the web server')
 @click.option('--port', default=8000, type=int, help='Port for the web server')
 @click.option('--quiet', '-q', is_flag=True, help='Reduce logging; hide access logs')
-def cli(
+@click.option('--list', 'list_mode', is_flag=True, help='List all evaluations without running them')
+def serve_cmd(
     path: str,
     dataset: Optional[str],
     label: tuple,
-    output: Optional[str],
-    csv: Optional[str],
-    concurrency: int,
-    timeout: Optional[float],
-    verbose: bool,
-    json_mode: bool,
-    list_mode: bool,
     limit: Optional[int],
-    session: Optional[str],
-    run_name: Optional[str],
-    serve: bool,
     dev: bool,
     results_dir: str,
     host: str,
     port: int,
     quiet: bool,
+    list_mode: bool,
 ):
-    """Twevals - A lightweight evaluation framework for AI/LLM testing
-
-    Run evaluations: twevals evals.py
-
-    Path can include function name filter: file.py::function_name
-    """
+    """Start the web UI to browse and run evaluations."""
     from pathlib import Path as PathLib
 
     # Parse path to extract file path and optional function name
@@ -191,7 +177,67 @@ def cli(
         file_path, function_name = path.rsplit('::', 1)
         path = file_path
 
-    # Validate that the file path portion exists
+    # Validate path exists
+    path_obj = PathLib(path)
+    if not path_obj.exists():
+        console.print(f"[red]Error: Path {path} does not exist[/red]")
+        sys.exit(1)
+
+    labels = list(label) if label else None
+
+    # Handle list mode
+    if list_mode:
+        _list_evals(path, dataset, labels, function_name, limit)
+        return
+
+    # Default behavior: serve UI (don't auto-run)
+    _serve(
+        path=path,
+        dataset=dataset,
+        labels=labels,
+        function_name=function_name,
+        limit=limit,
+        dev=dev,
+        results_dir=results_dir,
+        host=host,
+        port=port,
+        quiet=quiet,
+    )
+
+
+@cli.command('run')
+@click.argument('path', type=str)
+@click.option('--dataset', '-d', help='Filter by dataset(s), comma-separated')
+@click.option('--label', '-l', multiple=True, help='Filter by label(s)')
+@click.option('--limit', type=int, help='Limit the number of evaluations')
+@click.option('--output', '-o', type=click.Path(dir_okay=False), help='Path to JSON file for results')
+@click.option('--csv', '-s', type=click.Path(dir_okay=False), help='Path to CSV file for results')
+@click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
+@click.option('--timeout', type=float, help='Global timeout in seconds')
+@click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
+@click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
+def run_cmd(
+    path: str,
+    dataset: Optional[str],
+    label: tuple,
+    limit: Optional[int],
+    output: Optional[str],
+    csv: Optional[str],
+    concurrency: int,
+    timeout: Optional[float],
+    verbose: bool,
+    json_mode: bool,
+):
+    """Run evaluations in headless mode (for CI/CD)."""
+    from pathlib import Path as PathLib
+
+    # Parse path to extract file path and optional function name
+    function_name = None
+    if '::' in path:
+        file_path, function_name = path.rsplit('::', 1)
+        path = file_path
+
+    # Validate path exists
     path_obj = PathLib(path)
     if not path_obj.exists():
         if json_mode:
@@ -200,103 +246,12 @@ def cli(
             console.print(f"[red]Error: Path {path} does not exist[/red]")
         sys.exit(1)
 
-    # Convert label tuple to list
     labels = list(label) if label else None
 
-    # Handle serve mode
-    if serve:
-        _serve(
-            path=path,
-            dataset=dataset,
-            labels=labels,
-            concurrency=concurrency,
-            dev=dev,
-            function_name=function_name,
-            limit=limit,
-            results_dir=results_dir,
-            host=host,
-            port=port,
-            verbose=verbose,
-            quiet=quiet,
-            session_name=session,
-            run_name=run_name,
-        )
-        return
-
-    # Handle list mode
-    if list_mode:
-        import csv as csv_module
-
-        eval_functions = EvalDiscovery().discover(
-            path=path,
-            dataset=dataset,
-            labels=labels,
-            function_name=function_name
-        )
-
-        if limit is not None:
-            eval_functions = eval_functions[:limit]
-
-        if not eval_functions:
-            if json_mode:
-                click.echo(json.dumps({"evaluations": [], "total": 0}))
-            else:
-                console.print("[yellow]No evaluations found matching the criteria[/yellow]")
-            return
-
-        eval_info_list = [{
-            "function": func.__name__,
-            "dataset": func.dataset,
-            "labels": func.labels,
-            "input": func.context_kwargs.get('input'),
-            "reference": func.context_kwargs.get('reference'),
-            "metadata": func.context_kwargs.get('metadata'),
-            "evaluators": [e.__name__ for e in func.evaluators],
-            "target": func.target.__name__ if func.target else None,
-            "has_context": func.context_param is not None,
-        } for func in eval_functions]
-
-        if json_mode:
-            click.echo(json.dumps({
-                "evaluations": _remove_none(eval_info_list),
-                "total": len(eval_info_list)
-            }, separators=(',', ':'), default=str))
-            return
-
-        if csv:
-            with open(csv, 'w', newline='') as csvfile:
-                writer = csv_module.DictWriter(csvfile, fieldnames=[
-                    'function', 'dataset', 'labels', 'input', 'reference',
-                    'metadata', 'evaluators', 'target', 'has_context'
-                ])
-                writer.writeheader()
-                for info in eval_info_list:
-                    writer.writerow({
-                        'function': info['function'],
-                        'dataset': info['dataset'],
-                        'labels': ','.join(info['labels']),
-                        'input': json.dumps(info['input']) if info['input'] is not None else '',
-                        'reference': json.dumps(info['reference']) if info['reference'] is not None else '',
-                        'metadata': json.dumps(info['metadata']) if info['metadata'] else '',
-                        'evaluators': ','.join(info['evaluators']),
-                        'target': info['target'] or '',
-                        'has_context': 'yes' if info['has_context'] else 'no',
-                    })
-            console.print(f"[green]Evaluations list saved to: {csv}[/green]")
-            return
-
-        console.print(format_eval_list_table(eval_info_list))
-        console.print(f"\\n[bold]Total evaluations:[/bold] {len(eval_info_list)}")
-        console.print(f"[bold]Unique datasets:[/bold] {len(set(i['dataset'] for i in eval_info_list))}")
-        return
-
-    # Run evaluations (default behavior)
+    # Run evaluations
     runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
-
-    # Create progress reporter
     reporter = ProgressReporter() if not json_mode else None
 
-    # Run evaluations with progress reporting
     if not json_mode:
         console.print("[bold green]Running evaluations...[/bold green]")
 
@@ -336,12 +291,11 @@ def cli(
         console.print("[yellow]No evaluations found matching the criteria[/yellow]")
         return
 
-    # Show results table (always, not just with verbose)
     if summary['results']:
         table = format_results_table(summary['results'])
         console.print(table)
 
-    # Print summary below table
+    # Print summary
     console.print("\n[bold]Evaluation Summary[/bold]")
     console.print(f"Total Functions: {summary['total_functions']}")
     console.print(f"Total Evaluations: {summary['total_evaluations']}")
@@ -353,30 +307,58 @@ def cli(
     if summary['average_latency'] > 0:
         console.print(f"Average Latency: {summary['average_latency']:.3f}s")
 
-    # Output file notification
     if output:
         console.print(f"\n[green]Results saved to: {output}[/green]")
     if csv:
         console.print(f"[green]Results saved to: {csv}[/green]")
 
 
+def _list_evals(path: str, dataset: Optional[str], labels: Optional[List[str]], function_name: Optional[str], limit: Optional[int]):
+    """List evaluations without running them."""
+    eval_functions = EvalDiscovery().discover(
+        path=path,
+        dataset=dataset,
+        labels=labels,
+        function_name=function_name
+    )
+
+    if limit is not None:
+        eval_functions = eval_functions[:limit]
+
+    if not eval_functions:
+        console.print("[yellow]No evaluations found matching the criteria[/yellow]")
+        return
+
+    eval_info_list = [{
+        "function": func.__name__,
+        "dataset": func.dataset,
+        "labels": func.labels,
+        "input": func.context_kwargs.get('input'),
+        "reference": func.context_kwargs.get('reference'),
+        "metadata": func.context_kwargs.get('metadata'),
+        "evaluators": [e.__name__ for e in func.evaluators],
+        "target": func.target.__name__ if func.target else None,
+        "has_context": func.context_param is not None,
+    } for func in eval_functions]
+
+    console.print(format_eval_list_table(eval_info_list))
+    console.print(f"\\n[bold]Total evaluations:[/bold] {len(eval_info_list)}")
+    console.print(f"[bold]Unique datasets:[/bold] {len(set(i['dataset'] for i in eval_info_list))}")
+
+
 def _serve(
     path: str,
     dataset: Optional[str],
     labels: Optional[List[str]],
-    concurrency: int,
-    dev: bool,
     function_name: Optional[str],
     limit: Optional[int],
+    dev: bool,
     results_dir: str,
     host: str,
     port: int,
-    verbose: bool,
     quiet: bool,
-    session_name: Optional[str] = None,
-    run_name: Optional[str] = None,
 ):
-    """Serve a web UI to browse results."""
+    """Serve a web UI to browse and run evaluations."""
     try:
         from twevals.server import create_app
         import uvicorn
@@ -385,70 +367,40 @@ def _serve(
         raise
 
     from twevals.storage import ResultsStore
-    from twevals.runner import EvalRunner
 
-    # Discover functions
+    # Discover functions (for display, not running)
     discovery = EvalDiscovery()
     functions = discovery.discover(path=path, dataset=dataset, labels=labels, function_name=function_name)
     if limit is not None:
         functions = functions[:limit]
 
-    # Create initial run with pending results
+    # Create store and generate run_id for when user triggers run
     store = ResultsStore(results_dir)
     run_id = store.generate_run_id()
-    runner = EvalRunner(concurrency=concurrency or 0, verbose=verbose)
 
-    initial_results = [{
-        "function": f.func.__name__,
-        "dataset": f.dataset,
-        "labels": f.labels,
-        "result": {
-            "input": f.context_kwargs.get("input"),
-            "reference": f.context_kwargs.get("reference"),
-            "metadata": f.context_kwargs.get("metadata"),
-            "output": None, "error": None, "scores": None, "latency": None,
-            "run_data": None, "annotation": None, "annotations": None, "status": "pending",
-        },
-    } for f in functions]
-
-    rerun_config = {
-        "path": path, "dataset": dataset, "labels": labels,
-        "function_name": function_name, "limit": limit,
-        "concurrency": concurrency, "verbose": verbose,
-    }
-    summary = runner._calculate_summary(initial_results)
-    summary["results"] = initial_results
-    summary["rerun_config"] = rerun_config
-    store.save_run(summary, run_id=run_id, session_name=session_name, run_name=run_name)
-
-    # Create app - it will start running evaluations if functions provided
+    # Create app - does NOT auto-run, just displays discovered evals
     app = create_app(
         results_dir=results_dir,
         active_run_id=run_id,
         path=path,
         dataset=dataset,
         labels=labels,
-        concurrency=concurrency,
-        verbose=verbose,
         function_name=function_name,
         limit=limit,
-        session_name=session_name,
-        run_name=run_name,
-        initial_functions=functions if functions else None,
+        discovered_functions=functions,  # For display only
     )
 
     if not functions:
-        console.print("[yellow]No evaluations found; serving UI with an empty run.[/yellow]")
+        console.print("[yellow]No evaluations found matching the criteria.[/yellow]")
 
     url = f"http://{host}:{port}"
     console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
-    if functions:
-        console.print("[cyan]Evaluations are running in the background; rows will update live as they finish.[/cyan]")
+    console.print(f"[cyan]Found {len(functions)} evaluation(s). Click Run to start.[/cyan]")
     console.print("Press Esc to stop (or Ctrl+C)\n")
 
     Thread(target=lambda: (time.sleep(0.5), webbrowser.open(url)), daemon=True).start()
 
-    log_level = "warning" if quiet and not verbose else ("info" if not verbose else "debug")
+    log_level = "warning" if quiet else "info"
     access_log = not quiet
 
     if dev:
@@ -463,16 +415,10 @@ def _serve(
             _os.environ["TWEVALS_DATASET"] = str(dataset)
         if labels is not None:
             _os.environ["TWEVALS_LABELS"] = _json.dumps(labels)
-        _os.environ["TWEVALS_CONCURRENCY"] = str(concurrency)
-        _os.environ["TWEVALS_VERBOSE"] = "1" if verbose else "0"
         if function_name:
             _os.environ["TWEVALS_FUNCTION_NAME"] = str(function_name)
         if limit is not None:
             _os.environ["TWEVALS_LIMIT"] = str(limit)
-        if session_name:
-            _os.environ["TWEVALS_SESSION_NAME"] = str(session_name)
-        if run_name:
-            _os.environ["TWEVALS_RUN_NAME"] = str(run_name)
 
         uvicorn.run(
             "twevals.server:load_app_from_env",
@@ -505,23 +451,19 @@ def _serve(
                 old_settings = termios.tcgetattr(fd)
                 try:
                     mode = termios.tcgetattr(fd)
-                    # Disable ICANON (line buffering) and ECHO, but keep OPOST (output processing)
-                    # This ensures that \n from background threads is still translated to \r\n
                     mode[3] = mode[3] & ~(termios.ICANON | termios.ECHO)
                     termios.tcsetattr(fd, termios.TCSADRAIN, mode)
-                    
+
                     while server_thread.is_alive():
-                        # Check for input with timeout
                         if select.select([sys.stdin], [], [], 0.5)[0]:
                             ch = sys.stdin.read(1)
-                            if not ch:  # EOF
+                            if not ch:
                                 return False
                             if ch == '\x1b' or ch == '\x03':
                                 return True
                 finally:
                     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
             except (ImportError, AttributeError, OSError):
-                # Fallback for Windows or non-POSIX
                 try:
                     while server_thread.is_alive():
                         ch = click.getchar()
