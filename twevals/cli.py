@@ -16,6 +16,7 @@ from twevals.formatters import format_results_table
 from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
 from twevals.runner import EvalRunner
+from twevals.config import load_config
 
 
 console = Console()
@@ -149,19 +150,25 @@ def cli():
 @click.argument('path', type=str)
 @click.option('--dataset', '-d', help='Filter by dataset(s), comma-separated')
 @click.option('--label', '-l', multiple=True, help='Filter by label(s)')
-@click.option('--results-dir', default='.twevals/runs', help='Directory for JSON results storage')
-@click.option('--port', default=8000, type=int, help='Port for the web server')
+@click.option('--results-dir', default=None, help='Directory for JSON results storage')
+@click.option('--port', default=None, type=int, help='Port for the web server')
 @click.option('--quiet', '-q', is_flag=True, help='Reduce logging; hide access logs')
 def serve_cmd(
     path: str,
     dataset: Optional[str],
     label: tuple,
-    results_dir: str,
-    port: int,
+    results_dir: Optional[str],
+    port: Optional[int],
     quiet: bool,
 ):
     """Start the web UI to browse and run evaluations."""
     from pathlib import Path as PathLib
+
+    # Load config and merge with CLI args
+    config = load_config()
+    results_dir = results_dir if results_dir is not None else config.get("results_dir", ".twevals/runs")
+    port = port if port is not None else config.get("port", 8000)
+    quiet = quiet or config.get("quiet", False)
 
     # Parse path to extract file path and optional function name
     function_name = None
@@ -195,7 +202,7 @@ def serve_cmd(
 @click.option('--limit', type=int, help='Limit the number of evaluations')
 @click.option('--output', '-o', type=click.Path(dir_okay=False), help='Path to JSON file for results')
 @click.option('--csv', '-s', type=click.Path(dir_okay=False), help='Path to CSV file for results')
-@click.option('--concurrency', '-c', default=0, type=int, help='Number of concurrent evaluations (0 for sequential)')
+@click.option('--concurrency', '-c', default=None, type=int, help='Number of concurrent evaluations (0 for sequential)')
 @click.option('--timeout', type=float, help='Global timeout in seconds')
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
 @click.option('--json', 'json_mode', is_flag=True, help='Output results as compact JSON to stdout')
@@ -206,13 +213,19 @@ def run_cmd(
     limit: Optional[int],
     output: Optional[str],
     csv: Optional[str],
-    concurrency: int,
+    concurrency: Optional[int],
     timeout: Optional[float],
     verbose: bool,
     json_mode: bool,
 ):
     """Run evaluations in headless mode (for CI/CD)."""
     from pathlib import Path as PathLib
+
+    # Load config and merge with CLI args
+    config = load_config()
+    concurrency = concurrency if concurrency is not None else config.get("concurrency", 0)
+    timeout = timeout if timeout is not None else config.get("timeout")
+    verbose = verbose or config.get("verbose", False)
 
     # Parse path to extract file path and optional function name
     function_name = None

@@ -13,6 +13,7 @@ from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
 from twevals.runner import EvalRunner
 from twevals.storage import ResultsStore
+from twevals.config import load_config, save_config
 
 
 class ResultUpdateBody(BaseModel):
@@ -523,5 +524,18 @@ def create_app(
             _atomic_write_json(run_file, data)
 
         return {"ok": True, "run": {"run_id": run_id, "run_name": data.get("run_name")}}
+
+    @app.get("/api/config")
+    def get_config():
+        """Get the current twevals config."""
+        return load_config()
+
+    @app.put("/api/config")
+    def update_config(body: dict):
+        """Update the twevals config."""
+        config = load_config()
+        config.update(body)
+        save_config(config)
+        return {"ok": True, "config": config}
 
     return app
