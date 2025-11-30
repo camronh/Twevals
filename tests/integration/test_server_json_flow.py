@@ -147,7 +147,10 @@ def test_export_endpoints(tmp_path: Path):
     assert "function,dataset,labels,input,output,reference,scores,error,latency,metadata,run_data,annotations" in text.splitlines()[0]
 
 
-def test_rerun_endpoint(tmp_path: Path):
+def test_rerun_endpoint(tmp_path: Path, monkeypatch):
+    # Change to tmp_path so load_config() reads from there (not project root)
+    monkeypatch.chdir(tmp_path)
+
     # Create a small eval file
     eval_dir = tmp_path / "evals"
     eval_dir.mkdir()
@@ -162,14 +165,15 @@ def case():
 """
     )
 
-    # Seed with an arbitrary run
-    store = ResultsStore(tmp_path / "runs")
+    # Seed with an arbitrary run - use default config path (.twevals/runs)
+    results_dir = tmp_path / ".twevals" / "runs"
+    store = ResultsStore(results_dir)
     run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
 
     # App configured with path for rerun
     from twevals.server import create_app
     app = create_app(
-        results_dir=str(tmp_path / "runs"),
+        results_dir=str(results_dir),
         active_run_id=run_id,
         path=str(f),
         dataset=None,
@@ -251,19 +255,24 @@ def case3():
     assert updated_run["results"][1]["result"]["output"] == "old2"
 
 
-def test_rerun_with_no_functions_persists_empty_run(tmp_path: Path):
+def test_rerun_with_no_functions_persists_empty_run(tmp_path: Path, monkeypatch):
     """When rerun discovers zero functions, an empty run should still be persisted."""
+    # Change to tmp_path so load_config() reads from there (not project root)
+    monkeypatch.chdir(tmp_path)
+
     # Create an empty eval file (no @eval decorated functions)
     eval_dir = tmp_path / "evals"
     eval_dir.mkdir()
     f = eval_dir / "test_empty.py"
     f.write_text("# No eval functions here\n")
 
-    store = ResultsStore(tmp_path / "runs")
+    # Use default config path (.twevals/runs)
+    results_dir = tmp_path / ".twevals" / "runs"
+    store = ResultsStore(results_dir)
     run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
 
     app = create_app(
-        results_dir=str(tmp_path / "runs"),
+        results_dir=str(results_dir),
         active_run_id=run_id,
         path=str(f),
     )
@@ -332,11 +341,13 @@ def third():
 """
     )
 
-    store = ResultsStore(tmp_path / "runs")
+    # Use default config path (.twevals/runs)
+    results_dir = tmp_path / ".twevals" / "runs"
+    store = ResultsStore(results_dir)
     run_id = store.save_run({"total_evaluations": 0, "results": []}, "2024-01-01T00-00-00Z")
 
     app = create_app(
-        results_dir=str(tmp_path / "runs"),
+        results_dir=str(results_dir),
         active_run_id=run_id,
         path=str(f),
         concurrency=1,

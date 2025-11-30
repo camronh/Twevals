@@ -1,0 +1,300 @@
+{
+  "total_evaluations": 6,
+  "total_functions": 6,
+  "total_errors": 2,
+  "total_passed": 4,
+  "total_with_scores": 4,
+  "average_latency": 1.440001867612203,
+  "results": [
+    {
+      "function": "test_code_review_feedback",
+      "dataset": "code_review",
+      "labels": [
+        "verbose"
+      ],
+      "result": {
+        "input": "\nimport asyncio\nfrom dataclasses import dataclass\nfrom typing import List, Optional, Dict, Any\nfrom datetime import datetime\n\n@dataclass\nclass Message:\n    role: str\n    content: str\n    timestamp: datetime\n    metadata: Optional[Dict[str, Any]] = None\n\n@dataclass\nclass ConversationContext:\n    messages: List[Message]\n    system_prompt: str\n    user_id: str\n    session_id: str\n\n    def add_message(self, role: str, content: str, metadata: Optional[Dict] = None):\n        self.messages.append(Message(\n            role=role,\n            content=content,\n            timestamp=datetime.now(),\n            metadata=metadata or {}\n        ))\n\n    def get_history(self, max_messages: int = 10) -> List[Dict]:\n        return [\n            {\"role\": m.role, \"content\": m.content}\n            for m in self.messages[-max_messages:]\n        ]\n\nasync def process_user_request(ctx: ConversationContext, user_input: str) -> str:\n    \"\"\"Process a user request within conversation context.\"\"\"\n    ctx.add_message(\"user\", user_input)\n\n    # Simulate LLM processing\n    await asyncio.sleep(0.1)\n\n    response = f\"Based on the conversation history of {len(ctx.messages)} messages, here is my response to: {user_input[:50]}...\"\n    ctx.add_message(\"assistant\", response)\n\n    return response\n",
+        "output": "## Code Review Summary\n\n**Overall Assessment**: Good implementation with room for improvement\n\n### Strengths\n- Clean dataclass usage for Message and ConversationContext\n- Good separation of concerns with dedicated methods\n- Async support for non-blocking operations\n\n### Issues Found\n\n1. **Missing Error Handling** (Severity: Medium)\n   - `process_user_request` doesn't handle potential exceptions\n   - No validation of user_input parameter\n\n2. **Type Safety** (Severity: Low)\n   - Consider using `TypedDict` for the history return type\n   - Optional metadata could benefit from a dedicated type\n\n3. **Performance Consideration** (Severity: Info)\n   - `get_history` creates new list on each call\n   - Consider caching for frequent access patterns\n\n### Suggested Refactoring\n\n```python\ndef get_history(self, max_messages: int = 10) -> List[Dict[str, str]]:\n    if not self.messages:\n        return []\n    start_idx = max(0, len(self.messages) - max_messages)\n    return [\n        {\"role\": m.role, \"content\": m.content}\n        for m in self.messages[start_idx:]\n    ]\n```\n\n**Recommendation**: Approve with minor revisions",
+        "reference": null,
+        "scores": [
+          {
+            "key": "issue_detection",
+            "value": 0.88,
+            "passed": null,
+            "notes": null
+          },
+          {
+            "key": "actionable_feedback",
+            "value": null,
+            "passed": true,
+            "notes": null
+          },
+          {
+            "key": "false_positive_rate",
+            "value": 0.05,
+            "passed": null,
+            "notes": null
+          }
+        ],
+        "error": null,
+        "latency": 1.07,
+        "metadata": {
+          "reviewer_model": "code-review-v3",
+          "language": "python"
+        },
+        "run_data": {
+          "analysis": {
+            "lines_analyzed": 45,
+            "complexity_score": 12,
+            "issues_by_severity": {
+              "high": 0,
+              "medium": 1,
+              "low": 1,
+              "info": 1
+            }
+          },
+          "timing": {
+            "parse_time_ms": 23,
+            "analysis_time_ms": 156,
+            "generation_time_ms": 892
+          }
+        }
+      }
+    },
+    {
+      "function": "test_article_summarization",
+      "dataset": "long_text_analysis",
+      "labels": [
+        "verbose"
+      ],
+      "result": {
+        "input": "The rapid advancement of artificial intelligence has fundamentally transformed how we approach software development, data analysis, and decision-making processes across industries. Machine learning models, particularly large language models (LLMs), have demonstrated remarkable capabilities in understanding and generating human-like text, leading to applications ranging from automated customer service to sophisticated code generation tools.\n\nHowever, with these advancements come significant challenges. Evaluating the performance of AI systems requires careful consideration of multiple factors: accuracy, bias, safety, and alignment with human values. Traditional software testing methodologies often fall short when applied to probabilistic systems that can produce varied outputs for identical inputs.\n\nThe field of AI evaluation has emerged as a critical discipline, combining techniques from machine learning, statistics, and software engineering. Practitioners must develop robust frameworks that can assess not only whether an AI system produces correct outputs, but also whether it does so consistently, safely, and in alignment with intended use cases.\n\nKey considerations in AI evaluation include:\n1. Benchmark selection and dataset curation\n2. Metric design that captures relevant quality dimensions\n3. Human evaluation protocols for subjective assessments\n4. Red-teaming and adversarial testing approaches\n5. Continuous monitoring and regression detection in production",
+        "output": "AI advancement transforms software development. Challenges include evaluating accuracy, bias, and safety. AI evaluation combines ML, statistics, and software engineering techniques.",
+        "reference": "AI evaluation requires robust frameworks assessing correctness, consistency, safety and alignment.",
+        "scores": [
+          {
+            "key": "coherence",
+            "value": 0.92,
+            "passed": null,
+            "notes": null
+          },
+          {
+            "key": "coverage",
+            "value": 0.85,
+            "passed": null,
+            "notes": null
+          },
+          {
+            "key": "conciseness",
+            "value": null,
+            "passed": true,
+            "notes": null
+          }
+        ],
+        "error": null,
+        "latency": 1.23,
+        "metadata": null,
+        "run_data": {
+          "model": "summarizer-v2",
+          "input_tokens": 412,
+          "output_tokens": 28,
+          "compression_ratio": 14.7
+        }
+      }
+    },
+    {
+      "function": "test_technical_question_answer",
+      "dataset": "technical_qa",
+      "labels": [
+        "verbose"
+      ],
+      "result": {
+        "input": "I'm building a distributed microservices architecture and need advice on error handling.\n\nWe have about 15 services communicating via REST and message queues. Currently when one service fails, it tends to cascade and bring down other services.\n\nWhat patterns and practices would you recommend for making our system more resilient? Please include code examples if possible.",
+        "output": "Thank you for your question about implementing a robust error handling strategy for distributed systems. This is a critical architectural concern that requires careful consideration of several factors.\n\n## Overview\n\nIn distributed systems, failures are inevitable. Network partitions, service unavailability, and transient errors can occur at any time. A well-designed error handling strategy should address these challenges while maintaining system reliability and user experience.\n\n## Recommended Approach\n\n### 1. Circuit Breaker Pattern\nImplement circuit breakers to prevent cascading failures. When a service repeatedly fails, the circuit breaker \"opens\" to stop sending requests, allowing the failing service time to recover.\n\n```python\nclass CircuitBreaker:\n    def __init__(self, failure_threshold=5, recovery_timeout=30):\n        self.failure_count = 0\n        self.failure_threshold = failure_threshold\n        self.recovery_timeout = recovery_timeout\n        self.state = \"closed\"\n        self.last_failure_time = None\n```\n\n### 2. Retry with Exponential Backoff\nFor transient failures, implement retry logic with exponential backoff to avoid overwhelming recovering services.\n\n### 3. Graceful Degradation\nDesign fallback behaviors that provide reduced functionality rather than complete failure. Cache stale data, use default values, or queue requests for later processing.\n\n### 4. Comprehensive Logging and Monitoring\nImplement structured logging with correlation IDs to trace requests across services. Set up alerts for error rate thresholds.\n\n## Implementation Considerations\n\n- **Idempotency**: Ensure operations can be safely retried without side effects\n- **Timeout budgets**: Allocate time budgets across the request chain\n- **Bulkheading**: Isolate critical resources to prevent resource exhaustion\n- **Health checks**: Implement both liveness and readiness probes\n\nWould you like me to elaborate on any of these patterns or provide more detailed implementation examples?",
+        "reference": null,
+        "scores": [
+          {
+            "key": "technical_accuracy",
+            "value": 0.94,
+            "passed": null,
+            "notes": null
+          },
+          {
+            "key": "completeness",
+            "value": 0.91,
+            "passed": null,
+            "notes": null
+          },
+          {
+            "key": "code_quality",
+            "value": 0.87,
+            "passed": null,
+            "notes": null
+          },
+          {
+            "key": "actionable",
+            "value": null,
+            "passed": true,
+            "notes": null
+          }
+        ],
+        "error": null,
+        "latency": 3.45,
+        "metadata": {
+          "domain": "distributed_systems",
+          "complexity": "advanced"
+        },
+        "run_data": {
+          "retrieval": {
+            "documents_searched": 142,
+            "relevant_docs": 8,
+            "top_sources": [
+              "microservices-patterns.pdf",
+              "distributed-systems-guide.md",
+              "circuit-breaker-impl.py"
+            ]
+          },
+          "generation": {
+            "model": "gpt-4-turbo",
+            "temperature": 0.3,
+            "max_tokens": 2048,
+            "actual_tokens": 487
+          }
+        }
+      }
+    },
+    {
+      "function": "test_multi_turn_conversation",
+      "dataset": "conversation_eval",
+      "labels": [
+        "verbose"
+      ],
+      "result": {
+        "input": {
+          "system_prompt": "You are a helpful coding assistant specializing in Python and web development.",
+          "messages": [
+            {
+              "role": "user",
+              "content": "I need help setting up a FastAPI project with authentication"
+            },
+            {
+              "role": "assistant",
+              "content": "I'd be happy to help you set up FastAPI with authentication. Let me ask a few questions first:\n\n1. What type of authentication do you need? (JWT, OAuth2, API keys, session-based)\n2. Do you need user registration or just login?\n3. Are you using a database? If so, which one?"
+            },
+            {
+              "role": "user",
+              "content": "JWT auth, yes registration, and PostgreSQL with SQLAlchemy"
+            },
+            {
+              "role": "assistant",
+              "content": "Here's a complete setup for FastAPI with JWT authentication, user registration, and PostgreSQL:\n\n```python\n# requirements.txt\nfastapi>=0.100.0\nuvicorn[standard]\nsqlalchemy>=2.0\npsycopg2-binary\npython-jose[cryptography]\npasslib[bcrypt]\npython-multipart\n```\n\nLet me walk you through the implementation step by step..."
+            },
+            {
+              "role": "user",
+              "content": "Can you show me the user model and registration endpoint?"
+            }
+          ]
+        },
+        "output": "Here's the complete user model and registration endpoint:\n\n```python\n# models/user.py\nfrom sqlalchemy import Column, Integer, String, DateTime, Boolean\nfrom sqlalchemy.sql import func\nfrom database import Base\n\nclass User(Base):\n    __tablename__ = \"users\"\n\n    id = Column(Integer, primary_key=True, index=True)\n    email = Column(String(255), unique=True, index=True, nullable=False)\n    hashed_password = Column(String(255), nullable=False)\n    full_name = Column(String(100))\n    is_active = Column(Boolean, default=True)\n    is_superuser = Column(Boolean, default=False)\n    created_at = Column(DateTime(timezone=True), server_default=func.now())\n    updated_at = Column(DateTime(timezone=True), onupdate=func.now())\n\n\n# schemas/user.py\nfrom pydantic import BaseModel, EmailStr\nfrom datetime import datetime\nfrom typing import Optional\n\nclass UserCreate(BaseModel):\n    email: EmailStr\n    password: str\n    full_name: Optional[str] = None\n\nclass UserResponse(BaseModel):\n    id: int\n    email: str\n    full_name: Optional[str]\n    is_active: bool\n    created_at: datetime\n\n    class Config:\n        from_attributes = True\n\n\n# routers/auth.py\nfrom fastapi import APIRouter, Depends, HTTPException, status\nfrom sqlalchemy.orm import Session\nfrom passlib.context import CryptContext\n\nrouter = APIRouter(prefix=\"/auth\", tags=[\"authentication\"])\npwd_context = CryptContext(schemes=[\"bcrypt\"], deprecated=\"auto\")\n\n@router.post(\"/register\", response_model=UserResponse, status_code=status.HTTP_201_CREATED)\ndef register_user(user_data: UserCreate, db: Session = Depends(get_db)):\n    # Check if user exists\n    existing_user = db.query(User).filter(User.email == user_data.email).first()\n    if existing_user:\n        raise HTTPException(\n            status_code=status.HTTP_400_BAD_REQUEST,\n            detail=\"Email already registered\"\n        )\n\n    # Create new user\n    hashed_password = pwd_context.hash(user_data.password)\n    new_user = User(\n        email=user_data.email,\n        hashed_password=hashed_password,\n        full_name=user_data.full_name\n    )\n\n    db.add(new_user)\n    db.commit()\n    db.refresh(new_user)\n\n    return new_user\n```\n\nThis implementation includes:\n- SQLAlchemy model with proper indexing and timestamps\n- Pydantic schemas for validation\n- Secure password hashing with bcrypt\n- Duplicate email check\n- Proper HTTP status codes\n\nWould you like me to show you the JWT token generation and the login endpoint next?",
+        "reference": null,
+        "scores": [
+          {
+            "key": "context_retention",
+            "value": 0.95,
+            "passed": null,
+            "notes": "Correctly referenced all user requirements from conversation"
+          },
+          {
+            "key": "code_correctness",
+            "value": 0.92,
+            "passed": null,
+            "notes": null
+          },
+          {
+            "key": "completeness",
+            "value": 0.88,
+            "passed": null,
+            "notes": "Could include more error handling examples"
+          },
+          {
+            "key": "follows_best_practices",
+            "value": null,
+            "passed": true,
+            "notes": null
+          }
+        ],
+        "error": null,
+        "latency": 2.89,
+        "metadata": {
+          "conversation_turns": 5,
+          "total_tokens": 1847,
+          "model": "claude-3-sonnet"
+        },
+        "run_data": {
+          "trace": [
+            {
+              "role": "user",
+              "content": "I need help setting up a FastAPI project with authentication"
+            },
+            {
+              "role": "assistant",
+              "content": "I'd be happy to help you set up FastAPI with authentication. Let me ask a few questions first:\n\n1. What type of authentication do you need? (JWT, OAuth2, API keys, session-based)\n2. Do you need user registration or just login?\n3. Are you using a database? If so, which one?"
+            },
+            {
+              "role": "user",
+              "content": "JWT auth, yes registration, and PostgreSQL with SQLAlchemy"
+            },
+            {
+              "role": "assistant",
+              "content": "Here's a complete setup for FastAPI with JWT authentication, user registration, and PostgreSQL:\n\n```python\n# requirements.txt\nfastapi>=0.100.0\nuvicorn[standard]\nsqlalchemy>=2.0\npsycopg2-binary\npython-jose[cryptography]\npasslib[bcrypt]\npython-multipart\n```\n\nLet me walk you through the implementation step by step..."
+            },
+            {
+              "role": "user",
+              "content": "Can you show me the user model and registration endpoint?"
+            },
+            {
+              "role": "assistant",
+              "content": "Here's the complete user model and registration endpoint:\n\n```python\n# models/user.py\nfrom sqlalchem..."
+            }
+          ],
+          "context_window_usage": 0.23,
+          "cached_tokens": 412
+        }
+      }
+    },
+    {
+      "function": "test_structured_data_processing[1]",
+      "dataset": "structured_data",
+      "labels": [
+        "verbose"
+      ],
+      "result": {
+        "input": null,
+        "output": null,
+        "reference": null,
+        "scores": null,
+        "error": "test_structured_data_processing() got an unexpected keyword argument 'name'",
+        "latency": 3.0994415283203125e-06,
+        "metadata": null,
+        "run_data": null
+      }
+    },
+    {
+      "function": "test_structured_data_processing[0]",
+      "dataset": "structured_data",
+      "labels": [
+        "verbose"
+      ],
+      "result": {
+        "input": null,
+        "output": null,
+        "reference": null,
+        "scores": null,
+        "error": "test_structured_data_processing() got an unexpected keyword argument 'name'",
+        "latency": 8.106231689453125e-06,
+        "metadata": null,
+        "run_data": null
+      }
+    }
+  ]
+}

@@ -218,8 +218,11 @@ class TestSelectionUI:
 class TestStopFunctionality:
     """Tests for stop button functionality."""
 
-    def test_stop_marks_pending_as_cancelled(self, tmp_path):
+    def test_stop_marks_pending_as_cancelled(self, tmp_path, monkeypatch):
         """Test that clicking stop marks pending evals as cancelled."""
+        # Change to tmp_path so load_config() reads from there (not project root)
+        monkeypatch.chdir(tmp_path)
+
         # Create eval file with slow evals
         eval_file = tmp_path / "slow_evals.py"
         create_slow_eval_file(eval_file)
@@ -228,12 +231,13 @@ class TestStopFunctionality:
         discovery = EvalDiscovery()
         functions = discovery.discover(path=str(eval_file))
 
-        # Create store and app (no pre-saved run - test the full flow)
-        store = ResultsStore(tmp_path / "runs")
+        # Create store and app - use default config path (.twevals/runs)
+        results_dir = tmp_path / ".twevals" / "runs"
+        store = ResultsStore(results_dir)
         run_id = store.generate_run_id()
 
         app = create_app(
-            results_dir=str(tmp_path / "runs"),
+            results_dir=str(results_dir),
             active_run_id=run_id,
             path=str(eval_file),
             discovered_functions=functions,
@@ -286,19 +290,23 @@ class TestStopFunctionality:
 class TestRerunFunctionality:
     """Tests for rerun functionality."""
 
-    def test_rerun_all_creates_new_run(self, tmp_path):
+    def test_rerun_all_creates_new_run(self, tmp_path, monkeypatch):
         """Test that clicking play with no selection reruns all evals."""
+        # Change to tmp_path so load_config() reads from there (not project root)
+        monkeypatch.chdir(tmp_path)
+
         # Create fast eval file
         eval_file = tmp_path / "fast_evals.py"
         create_fast_eval_file(eval_file)
 
-        # Seed completed run
-        store = ResultsStore(tmp_path / "runs")
+        # Seed completed run - use default config path (.twevals/runs)
+        results_dir = tmp_path / ".twevals" / "runs"
+        store = ResultsStore(results_dir)
         summary = make_completed_summary()
         run_id = store.save_run(summary, "2024-01-01T00-00-00Z")
 
         app = create_app(
-            results_dir=str(tmp_path / "runs"),
+            results_dir=str(results_dir),
             active_run_id=run_id,
             path=str(eval_file),
         )
@@ -323,8 +331,11 @@ class TestRerunFunctionality:
 
                 browser.close()
 
-    def test_selective_rerun_updates_in_place(self, tmp_path):
+    def test_selective_rerun_updates_in_place(self, tmp_path, monkeypatch):
         """Test that selective rerun updates selected results in place."""
+        # Change to tmp_path so load_config() reads from there (not project root)
+        monkeypatch.chdir(tmp_path)
+
         # Create fast eval file
         eval_file = tmp_path / "fast_evals.py"
         create_fast_eval_file(eval_file)
@@ -333,8 +344,9 @@ class TestRerunFunctionality:
         discovery = EvalDiscovery()
         functions = discovery.discover(path=str(eval_file))
 
-        # Seed run with completed results matching the eval file
-        store = ResultsStore(tmp_path / "runs")
+        # Seed run with completed results - use default config path (.twevals/runs)
+        results_dir = tmp_path / ".twevals" / "runs"
+        store = ResultsStore(results_dir)
 
         results = [{
             "function": f.func.__name__,
@@ -354,7 +366,7 @@ class TestRerunFunctionality:
         run_id = store.save_run(summary, "2024-01-01T00-00-00Z")
 
         app = create_app(
-            results_dir=str(tmp_path / "runs"),
+            results_dir=str(results_dir),
             active_run_id=run_id,
             path=str(eval_file),
         )
@@ -392,8 +404,11 @@ class TestRerunFunctionality:
 class TestPlayStopToggle:
     """Tests for play/stop button toggle behavior."""
 
-    def test_button_shows_stop_when_running(self, tmp_path):
+    def test_button_shows_stop_when_running(self, tmp_path, monkeypatch):
         """Test that play button changes to stop when evals are running."""
+        # Change to tmp_path so load_config() reads from there (not project root)
+        monkeypatch.chdir(tmp_path)
+
         # Create slow eval file
         eval_file = tmp_path / "slow_evals.py"
         create_slow_eval_file(eval_file)
@@ -401,11 +416,13 @@ class TestPlayStopToggle:
         discovery = EvalDiscovery()
         functions = discovery.discover(path=str(eval_file))
 
-        store = ResultsStore(tmp_path / "runs")
+        # Use default config path (.twevals/runs)
+        results_dir = tmp_path / ".twevals" / "runs"
+        store = ResultsStore(results_dir)
         run_id = store.generate_run_id()
 
         app = create_app(
-            results_dir=str(tmp_path / "runs"),
+            results_dir=str(results_dir),
             active_run_id=run_id,
             path=str(eval_file),
             discovered_functions=functions,

@@ -80,6 +80,10 @@ def create_app(
             existing_results: For selective rerun - the full results list to update in place
             indices_map: For selective rerun - maps function id -> index in existing_results
         """
+        config = load_config()
+        # Create store from current config so results_dir changes take effect
+        run_store = ResultsStore(config.get("results_dir", ".twevals/runs"))
+
         if not functions:
             summary = {
                 "total_evaluations": 0,
@@ -90,13 +94,13 @@ def create_app(
                 "average_latency": 0,
                 "results": [],
             }
-            store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
+            run_store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
             return
 
-        config = load_config()
         runner = EvalRunner(
             concurrency=config.get("concurrency", 1),
             verbose=config.get("verbose", False),
+            timeout=config.get("timeout"),
         )
         cancel_event = app.state.cancel_event
         results_lock = Lock()
@@ -125,14 +129,14 @@ def create_app(
         # Save initial pending state (for both full and selective runs)
         summary = EvalRunner._calculate_summary(current_results)
         summary["results"] = current_results
-        store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
+        run_store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
 
         def _persist():
             if cancel_event.is_set():
                 return
             s = EvalRunner._calculate_summary(current_results)
             s["results"] = current_results
-            store.save_run(s, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
+            run_store.save_run(s, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
 
         def _on_start(func: EvalFunction):
             if cancel_event.is_set():
