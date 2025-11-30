@@ -44,8 +44,10 @@ def _run_async_with_loop_handling(coro_fn):
 
 
 class EvalRunner:
-    def __init__(self, concurrency: int = 0, verbose: bool = False, timeout: Optional[float] = None):
-        self.concurrency = concurrency  # 0 means sequential
+    def __init__(self, concurrency: int = 1, verbose: bool = False, timeout: Optional[float] = None):
+        if concurrency < 1:
+            raise ValueError(f"concurrency must be at least 1, got {concurrency}")
+        self.concurrency = concurrency  # 1 means sequential, >1 means parallel
         self.verbose = verbose
         self.timeout = timeout
         self.results: List[Dict] = []
@@ -73,9 +75,9 @@ class EvalRunner:
         )]
 
     async def run_async_eval(self, func: EvalFunction) -> List[EvalResult]:
-        # Only capture stdout when running sequentially and not in verbose mode
-        # (redirect_stdout doesn't work reliably with concurrent async code)
-        should_capture = not self.verbose and self.concurrency == 0
+        # Capture stdout when not in verbose mode and running sequentially (concurrency == 1)
+        # Note: redirect_stdout doesn't work reliably with concurrent execution (>1)
+        should_capture = not self.verbose and self.concurrency == 1
         stdout_capture = io.StringIO() if should_capture else None
         try:
             with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
@@ -85,8 +87,8 @@ class EvalRunner:
             return self._make_error_result(func, e)
 
     def run_sync_eval(self, func: EvalFunction) -> List[EvalResult]:
-        # Only capture stdout when running sequentially and not in verbose mode
-        should_capture = not self.verbose and self.concurrency == 0
+        # Capture stdout when not in verbose mode and running sequentially (concurrency == 1)
+        should_capture = not self.verbose and self.concurrency == 1
         stdout_capture = io.StringIO() if should_capture else None
         try:
             with redirect_stdout(stdout_capture) if stdout_capture else nullcontext():
@@ -105,7 +107,7 @@ class EvalRunner:
         all_results = []
         is_cancelled = cancel_event.is_set if cancel_event else (lambda: False)
         
-        if self.concurrency == 0:
+        if self.concurrency == 1:
             # Sequential execution
             for func in functions:
                 if is_cancelled():
@@ -350,7 +352,7 @@ class EvalRunner:
 
 def run_evals(
     evals: List[Union[EvalFunction, str]],
-    concurrency: int = 0,
+    concurrency: int = 1,
     verbose: bool = False,
     timeout: Optional[float] = None,
     dataset: Optional[str] = None,

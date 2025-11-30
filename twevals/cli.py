@@ -215,7 +215,7 @@ def run_cmd(
 
     # Load config and merge with CLI args
     config = load_config()
-    concurrency = concurrency if concurrency is not None else config.get("concurrency", 0)
+    concurrency = concurrency if concurrency is not None else config.get("concurrency", 1)
     timeout = timeout if timeout is not None else config.get("timeout")
 
     # Parse path to extract file path and optional function name
