@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - Changed: `twevals serve` no longer auto-runs evaluations. Discovered evals are displayed in the UI with "not_started" status; users click Run to start execution.
 - Changed: Removed `--limit`, `--dev`, `--host`, and `--list` flags from `twevals serve` to simplify the serve command.
 - Added: Support for running selected evaluations from the initial "not_started" state via checkbox selection in the UI.
+- Added: `twevals.json` config file for persisting CLI defaults. Auto-generated on first run with `concurrency` and `results_dir`. Supports `concurrency`, `timeout`, `verbose`, `results_dir`, `port`, and `quiet`.
+- Added: Settings UI in the web interface to view and edit config values.
 - Tests: Updated CLI tests to use new `run` subcommand syntax.
 
 ## 0.0.2a11 - 2025-11-29

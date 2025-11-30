@@ -235,6 +235,43 @@ twevals run evals/ -v --limit 5
 twevals run evals/ -c 16 --timeout 120 -o results.json --json
 ```
 
+## Configuration File
+
+Twevals supports a `twevals.json` config file for persisting default CLI options. The file is auto-generated in your project root on first run.
+
+### Default Config
+
+```json
+{
+  "concurrency": 1,
+  "results_dir": ".twevals/runs"
+}
+```
+
+### Supported Options
+
+| Option | Type | Description | Used by |
+|--------|------|-------------|---------|
+| `concurrency` | integer | Number of concurrent evaluations | `run` |
+| `timeout` | float | Global timeout in seconds | `run` |
+| `verbose` | boolean | Show stdout from evaluations | `run` |
+| `results_dir` | string | Directory for results storage | `serve` |
+| `port` | integer | Web UI server port | `serve` |
+| `quiet` | boolean | Hide server access logs | `serve` |
+
+### Precedence
+
+CLI flags always override config values:
+
+```bash
+# Config has concurrency: 1, but this uses 4
+twevals run evals/ -c 4
+```
+
+### Editing via UI
+
+Click the settings icon in the web UI header to view and edit config values. Changes are saved to `twevals.json`.
+
 ## Exit Codes
 
 | Code | Meaning |
