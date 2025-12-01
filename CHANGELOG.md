@@ -2,7 +2,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.2a13 - 2025-11-30
 
 - Added: `--no-save` flag for `twevals run` to skip saving results to file (outputs JSON to stdout instead).
 - Added: Dataset and label pill filters in the web UI sidebar for quick filtering.
