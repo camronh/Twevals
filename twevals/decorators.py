@@ -4,6 +4,7 @@ import time
 import asyncio
 import inspect
 import concurrent.futures
+import traceback
 import types
 
 from twevals.schemas import EvalResult, Score
@@ -154,7 +155,6 @@ class EvalFunction:
             if context.latency is None:
                 context.latency = time.time() - start
         except Exception as e:
-            import traceback
             if context.latency is None:
                 context.latency = time.time() - start
             return context.build_with_error(f"{e}\n{traceback.format_exc()}")
@@ -190,7 +190,6 @@ class EvalFunction:
             if context.latency is None:
                 context.latency = time.time() - start
         except Exception as e:
-            import traceback
             if context.latency is None:
                 context.latency = time.time() - start
             return context.build_with_error(f"{e}\n{traceback.format_exc()}")
@@ -208,7 +207,6 @@ class EvalFunction:
 
     def _handle_exception(self, e: Exception, context: Optional[EvalContext], args, kwargs) -> EvalResult:
         """Handle exceptions uniformly for both sync and async execution."""
-        import traceback
         error_with_trace = f"{e}\n{traceback.format_exc()}"
 
         if context is not None:

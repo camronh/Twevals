@@ -102,10 +102,6 @@ class ProgressReporter:
             if failure_type == "error":
                 error_msg = result.get("error", "Unknown error")
                 console.print(f"   [red]ERROR:[/red] {error_msg}")
-                # Show traceback if available
-                if result.get("run_data") and result["run_data"].get("traceback"):
-                    console.print(f"   [dim]Traceback:[/dim]")
-                    console.print(f"   [dim]{result['run_data']['traceback']}[/dim]")
             elif failure_type == "failure":
                 # Show failing scores
                 if result.get("scores"):
@@ -214,7 +210,7 @@ def run_cmd(
 ):
     """Run evaluations headless. Optimized for LLM agents by default."""
     from pathlib import Path as PathLib
-    from twevals.storage import ResultsStore, _generate_friendly_name
+    from twevals.storage import ResultsStore
 
     # Load config and merge with CLI args
     config = load_config()
@@ -239,20 +235,13 @@ def run_cmd(
     runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
     reporter = ProgressReporter() if visual else None
 
-    # Create callback that prints errors immediately when verbose mode is enabled
-    def make_on_complete(verbose_mode, reporter_obj):
-        def on_complete(func, result_dict):
-            # Print error immediately if verbose mode
-            if verbose_mode:
-                result = result_dict["result"]
-                if result.get("error"):
-                    console.print(f"\n[red]ERROR in {func.func.__name__}:[/red]\n{result['error']}")
-            # Still call reporter if visual mode
-            if reporter_obj:
-                reporter_obj.on_complete(func, result_dict)
-        return on_complete
-
-    on_complete_callback = make_on_complete(verbose, reporter) if verbose or reporter else None
+    def on_complete_callback(func, result_dict):
+        if verbose:
+            result = result_dict["result"]
+            if result.get("error"):
+                console.print(f"\n[red]ERROR in {func.func.__name__}:[/red]\n{result['error']}")
+        if reporter:
+            reporter.on_complete(func, result_dict)
 
     if visual:
         console.print("[bold green]Running evaluations...[/bold green]")
@@ -266,7 +255,7 @@ def run_cmd(
             labels=labels,
             function_name=function_name,
             on_start=reporter.on_start if reporter else None,
-            on_complete=on_complete_callback,
+            on_complete=on_complete_callback if verbose or reporter else None,
             limit=limit
         )
         summary["path"] = path
@@ -278,7 +267,6 @@ def run_cmd(
 
     # Save results to file (unless --no-save)
     saved_path = None
-    run_metadata = None
     if not no_save:
         if output:
             # --output overrides default results_dir
@@ -290,15 +278,6 @@ def run_cmd(
             store = ResultsStore(results_dir)
             run_id = store.save_run(summary, session_name=session, run_name=run_name)
             saved_path = str(store._find_run_file(run_id))
-    else:
-        # Generate metadata so the printed JSON mirrors what would have been written
-        results_dir = config.get("results_dir", ".twevals/runs")
-        store = ResultsStore(results_dir)
-        run_metadata = {
-            "session_name": session or _generate_friendly_name(),
-            "run_name": run_name or _generate_friendly_name(),
-            "run_id": store.generate_run_id(),
-        }
 
     if visual:
         # Rich output mode: progress dots, failures, table, summary
@@ -324,8 +303,7 @@ def run_cmd(
             console.print(f"Average Latency: {summary['average_latency']:.3f}s")
 
     if no_save:
-        printable = {**(run_metadata or {}), **summary}
-        print(json.dumps(printable, default=str))
+        print(json.dumps(summary, default=str))
 
     # Print where results were saved (if saved)
     if saved_path:
