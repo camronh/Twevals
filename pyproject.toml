@@ -53,3 +53,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["twevals"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "twevals/**/*.md",
+]
+
+[tool.hatch.build.targets.wheel.force-include]
+"twevals/skill/SKILL.md" = "twevals/skill/SKILL.md"

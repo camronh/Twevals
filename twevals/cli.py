@@ -133,6 +133,53 @@ def cli():
     pass
 
 
+@cli.command('skill')
+@click.option('--global', '-g', 'global_install', is_flag=True, help='Install globally (~/.claude/skills/) instead of locally')
+@click.option('--uninstall', '-u', is_flag=True, help='Remove the installed skill')
+def skill_cmd(global_install: bool, uninstall: bool):
+    """Install/update the twevals Claude Code skill.
+
+    By default, installs to .claude/skills/twevals/ in the current directory.
+    Use --global to install to ~/.claude/skills/twevals/ for all projects.
+    """
+    from twevals.skill import get_skill_content
+
+    # Determine target directory
+    if global_install:
+        target_dir = Path.home() / ".claude" / "skills" / "twevals"
+        location = "global"
+    else:
+        target_dir = Path.cwd() / ".claude" / "skills" / "twevals"
+        location = "local"
+
+    skill_file = target_dir / "SKILL.md"
+
+    if uninstall:
+        if skill_file.exists():
+            skill_file.unlink()
+            # Remove directory if empty
+            if target_dir.exists() and not any(target_dir.iterdir()):
+                target_dir.rmdir()
+            console.print(f"[green]✓[/green] Removed twevals skill from {location} location")
+        else:
+            console.print(f"[yellow]Skill not found at {location} location[/yellow]")
+        return
+
+    # Create directory if needed
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check if updating or fresh install
+    action = "Updated" if skill_file.exists() else "Installed"
+
+    # Write skill content
+    skill_content = get_skill_content()
+    skill_file.write_text(skill_content)
+
+    console.print(f"[green]✓[/green] {action} twevals skill at: {skill_file}")
+    if not global_install:
+        console.print("[dim]Tip: Add .claude/ to .gitignore or commit to share with your team[/dim]")
+
+
 @cli.command('serve')
 @click.argument('path', type=str)
 @click.option('--dataset', '-d', help='Filter by dataset(s), comma-separated')
