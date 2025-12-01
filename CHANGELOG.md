@@ -2,7 +2,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.2a14 - 2025-12-01
 
 - Changed: Documentation rewritten for clarity—simplified examples, removed redundant code patterns, consistent use of direct `ctx.output` assignment.
 - Changed: README simplified to match new documentation patterns—assertions as primary scoring, direct property assignment, removed `set_params()` references.
