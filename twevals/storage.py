@@ -18,6 +18,10 @@ _ADJECTIVES = [
     "sharp", "gentle", "fierce", "quiet", "loud", "soft", "strong",
     "light", "dark", "fresh", "wild", "tame", "brave", "wise", "kind",
     "proud", "humble", "eager", "patient", "lively", "mellow", "vivid",
+    "clever", "steady", "nimble", "silent", "golden", "silver", "ancient",
+    "cosmic", "mystic", "lucid", "subtle", "radiant", "serene", "noble",
+    "polar", "azure", "coral", "jade", "amber", "scarlet", "violet",
+    "rustic", "sleek", "brisk", "dusky", "frosty", "hazy", "misty",
 ]
 
 _NOUNS = [
@@ -25,6 +29,10 @@ _NOUNS = [
     "phoenix", "dragon", "tiger", "eagle", "wolf", "bear", "hawk", "raven",
     "storm", "frost", "flame", "wave", "stone", "cloud", "star", "moon",
     "forest", "meadow", "canyon", "glacier", "comet", "spark", "breeze",
+    "panda", "otter", "heron", "viper", "lynx", "fox", "owl", "crane",
+    "orchid", "lotus", "cedar", "maple", "birch", "oak", "pine", "willow",
+    "nebula", "quasar", "nova", "aurora", "zenith", "horizon", "prism",
+    "summit", "ridge", "valley", "delta", "reef", "grove", "shore",
 ]
 
 

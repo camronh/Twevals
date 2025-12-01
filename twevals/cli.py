@@ -5,6 +5,7 @@ import os
 import traceback
 import time
 import webbrowser
+import json
 from pathlib import Path
 from typing import Optional, List, Dict
 from threading import Thread
@@ -196,6 +197,7 @@ def serve_cmd(
 @click.option('--visual', is_flag=True, help='Show rich progress dots, table, and summary')
 @click.option('--session', default=None, help='Name for this evaluation session')
 @click.option('--run-name', default=None, help='Name for this specific run')
+@click.option('--no-save', is_flag=True, help='Skip saving results to file')
 def run_cmd(
     path: str,
     dataset: Optional[str],
@@ -208,10 +210,11 @@ def run_cmd(
     visual: bool,
     session: Optional[str],
     run_name: Optional[str],
+    no_save: bool,
 ):
     """Run evaluations headless. Optimized for LLM agents by default."""
     from pathlib import Path as PathLib
-    from twevals.storage import ResultsStore
+    from twevals.storage import ResultsStore, _generate_friendly_name
 
     # Load config and merge with CLI args
     config = load_config()
@@ -236,6 +239,21 @@ def run_cmd(
     runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
     reporter = ProgressReporter() if visual else None
 
+    # Create callback that prints errors immediately when verbose mode is enabled
+    def make_on_complete(verbose_mode, reporter_obj):
+        def on_complete(func, result_dict):
+            # Print error immediately if verbose mode
+            if verbose_mode:
+                result = result_dict["result"]
+                if result.get("error"):
+                    console.print(f"\n[red]ERROR in {func.func.__name__}:[/red]\n{result['error']}")
+            # Still call reporter if visual mode
+            if reporter_obj:
+                reporter_obj.on_complete(func, result_dict)
+        return on_complete
+
+    on_complete_callback = make_on_complete(verbose, reporter) if verbose or reporter else None
+
     if visual:
         console.print("[bold green]Running evaluations...[/bold green]")
     else:
@@ -248,26 +266,39 @@ def run_cmd(
             labels=labels,
             function_name=function_name,
             on_start=reporter.on_start if reporter else None,
-            on_complete=reporter.on_complete if reporter else None,
+            on_complete=on_complete_callback,
             limit=limit
         )
+        summary["path"] = path
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         if visual:
             console.print(traceback.format_exc())
         sys.exit(1)
 
-    # Save results to file
-    if output:
-        # --output overrides default results_dir
-        runner._save_results(summary, output)
-        saved_path = output
+    # Save results to file (unless --no-save)
+    saved_path = None
+    run_metadata = None
+    if not no_save:
+        if output:
+            # --output overrides default results_dir
+            runner._save_results(summary, output)
+            saved_path = output
+        else:
+            # Save to config results_dir (default .twevals/runs)
+            results_dir = config.get("results_dir", ".twevals/runs")
+            store = ResultsStore(results_dir)
+            run_id = store.save_run(summary, session_name=session, run_name=run_name)
+            saved_path = str(store._find_run_file(run_id))
     else:
-        # Save to config results_dir (default .twevals/runs)
+        # Generate metadata so the printed JSON mirrors what would have been written
         results_dir = config.get("results_dir", ".twevals/runs")
         store = ResultsStore(results_dir)
-        run_id = store.save_run(summary, session_name=session, run_name=run_name)
-        saved_path = str(store._find_run_file(run_id))
+        run_metadata = {
+            "session_name": session or _generate_friendly_name(),
+            "run_name": run_name or _generate_friendly_name(),
+            "run_id": store.generate_run_id(),
+        }
 
     if visual:
         # Rich output mode: progress dots, failures, table, summary
@@ -292,8 +323,13 @@ def run_cmd(
         if summary['average_latency'] > 0:
             console.print(f"Average Latency: {summary['average_latency']:.3f}s")
 
-    # Always print where results were saved
-    console.print(f"Results saved to {saved_path}")
+    if no_save:
+        printable = {**(run_metadata or {}), **summary}
+        print(json.dumps(printable, default=str))
+
+    # Print where results were saved (if saved)
+    if saved_path:
+        console.print(f"Results saved to {saved_path}")
 
 
 def _serve(
@@ -345,7 +381,7 @@ def _serve(
 
     Thread(target=lambda: (time.sleep(0.5), webbrowser.open(url)), daemon=True).start()
 
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="info", access_log=True)
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", access_log=False)
     server = uvicorn.Server(config)
 
     server_thread = Thread(target=server.run)

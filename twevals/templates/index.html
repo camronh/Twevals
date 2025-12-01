@@ -33,6 +33,10 @@
       .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: #2563eb; border-radius: 9999px; animation: spin 0.8s linear infinite; opacity: 0.3; }
       .spinner { border-top-color: #2563eb; }
       @keyframes spin { to { transform: rotate(360deg); } }
+      /* Smooth HTMX swaps to prevent flicker */
+      #results { min-height: 200px; }
+      .htmx-swapping { opacity: 1; }
+      .htmx-settling { opacity: 1; }
       #results-table thead th[aria-sort="ascending"]::after { content: " ↑"; color: #2563eb; }
       #results-table thead th[aria-sort="descending"]::after { content: " ↓"; color: #2563eb; }
       .col-resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; }
@@ -148,7 +152,7 @@
   </head>
   <body class="min-h-screen bg-blue-50/40 font-sans text-zinc-800 dark:bg-neutral-950 dark:text-zinc-100">
     <div class="mx-auto w-full px-4 md:px-6">
-      <header class="flex flex-wrap items-center justify-between gap-4 border-b border-blue-200/60 py-6 dark:border-zinc-900">
+      <header class="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-4 border-b border-blue-200/60 bg-blue-50/95 py-4 backdrop-blur-sm dark:border-zinc-900 dark:bg-neutral-950/95">
         <div class="flex items-center gap-3">
           <img src="/static/logo.png" alt="twevals" class="h-10 w-10" />
           <div class="font-mono text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">twevals</div>
@@ -275,6 +279,16 @@
                 </select>
               </div>
 
+              <div class="filter-section mb-4">
+                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700/70 dark:text-zinc-400">Dataset</div>
+                <div id="dataset-pills" class="flex flex-wrap gap-2"></div>
+              </div>
+
+              <div class="filter-section mb-4">
+                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700/70 dark:text-zinc-400">Labels</div>
+                <div id="label-pills" class="flex flex-wrap gap-2"></div>
+              </div>
+
               <div class="filter-section">
                 <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Active Filters</div>
                 <div id="active-filters" class="active-filters flex min-h-[28px] flex-wrap gap-2"></div>
@@ -340,6 +354,20 @@
       <div id="results" hx-get="/results" hx-trigger="load" hx-swap="innerHTML" class="py-6"></div>
     </div>
 
+    <!-- Footer -->
+    <footer class="border-t border-blue-200/60 bg-blue-50/30 py-4 dark:border-zinc-800/60 dark:bg-transparent">
+      <div class="mx-auto flex max-w-screen-2xl items-center justify-center gap-6 px-6 text-sm text-zinc-500 dark:text-zinc-400">
+        <a href="https://github.com/camronh/Twevals" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 transition hover:text-blue-600 dark:hover:text-blue-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          <span>GitHub</span>
+        </a>
+        <a href="https://twevals.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 transition hover:text-blue-600 dark:hover:text-blue-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Docs</span>
+        </a>
+      </div>
+    </footer>
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/50" id="settings-backdrop"></div>
@@ -397,7 +425,7 @@
 
       // In-memory state (not persisted)
       let _sortState = [];
-      let _filters = { valueRules: [], passedRules: [], annotation: 'any' };
+      let _filters = defaultFilters();
       const selectedIndices = new Set();
 
       // Helpers
@@ -414,10 +442,10 @@
         try { return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}"); } catch { return {}; }
       }
       function setColWidths(map) { localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map)); }
-      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any' }; }
+      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: [], selectedLabels: [] }; }
       function getFilters() { return _filters; }
       function setFilters(f) {
-        _filters = f;
+        _filters = f || defaultFilters();
         renderActiveFilters();
         applyAllFilters();
       }
@@ -501,7 +529,7 @@
       }
 
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown')) {
+        if (!e.target.closest('.dropdown') && !e.target.closest('.filters-panel') && !e.target.closest('.columns-panel')) {
           document.querySelectorAll('.dropdown-menu.active, .filters-panel.active, .columns-panel.active').forEach(m => m.classList.remove('active'));
         }
       });
@@ -543,6 +571,22 @@
           ct.appendChild(el);
         }
 
+        (f.selectedDatasets || []).forEach((ds, idx) => {
+          count++;
+          const el = document.createElement('span');
+          el.className = 'inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200';
+          el.innerHTML = `dataset: ${ds}<button class="ml-1 text-emerald-200/80" onclick="removeDatasetFilter(${idx})">×</button>`;
+          ct.appendChild(el);
+        });
+
+        (f.selectedLabels || []).forEach((la, idx) => {
+          count++;
+          const el = document.createElement('span');
+          el.className = 'inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200';
+          el.innerHTML = `label: ${la}<button class="ml-1 text-amber-200/80" onclick="removeLabelFilter(${idx})">×</button>`;
+          ct.appendChild(el);
+        });
+
         if (badge) {
           badge.textContent = count;
           badge.classList.toggle('active', count > 0);
@@ -552,6 +596,8 @@
       window.removeValueRule = (idx) => { const f = getFilters(); f.valueRules.splice(idx, 1); setFilters(f); };
       window.removePassedRule = (idx) => { const f = getFilters(); f.passedRules.splice(idx, 1); setFilters(f); };
       window.removeAnnotationFilter = () => { const f = getFilters(); f.annotation = 'any'; setFilters(f); };
+      window.removeDatasetFilter = (idx) => { const f = getFilters(); f.selectedDatasets.splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
+      window.removeLabelFilter = (idx) => { const f = getFilters(); f.selectedLabels.splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
 
       // Column visibility
       function applyColumnVisibility() {
@@ -603,7 +649,10 @@
       });
 
       // Clear filters
-      document.getElementById('clear-filters')?.addEventListener('click', () => setFilters(defaultFilters()));
+      document.getElementById('clear-filters')?.addEventListener('click', () => {
+        setFilters(defaultFilters());
+        populateDatasetLabelPills();
+      });
 
       // Filter wiring
       (function wireFilters() {
@@ -683,6 +732,78 @@
       }
 
       document.getElementById('key-select')?.addEventListener('change', updateFilterSectionsVisibility);
+
+      // Dataset/Label filters
+      function computeDatasetLabels() {
+        const tbody = document.querySelector('#results-table tbody');
+        if (!tbody) return { datasets: [], labels: [] };
+        const datasets = new Set();
+        const labels = new Set();
+        tbody.querySelectorAll("tr[data-row='main']").forEach(tr => {
+          const ds = (tr.getAttribute('data-dataset') || '').trim();
+          if (ds) datasets.add(ds);
+          try {
+            const lbls = JSON.parse(tr.getAttribute('data-labels') || '[]') || [];
+            lbls.forEach(l => labels.add(l));
+          } catch {}
+        });
+        return { datasets: Array.from(datasets).sort(), labels: Array.from(labels).sort() };
+      }
+
+      function populateDatasetLabelPills() {
+        const { datasets, labels } = computeDatasetLabels();
+        const f = getFilters();
+        const dsCt = document.getElementById('dataset-pills');
+        const laCt = document.getElementById('label-pills');
+        if (dsCt) {
+          dsCt.innerHTML = '';
+          if (datasets.length === 0) {
+            dsCt.innerHTML = '<span class="text-xs text-zinc-400 italic">No datasets</span>';
+          } else {
+            datasets.forEach(ds => {
+              const isSelected = f.selectedDatasets?.includes(ds);
+              const pill = document.createElement('button');
+              pill.className = `rounded-full px-3 py-1 text-xs font-medium transition ${isSelected ? 'bg-blue-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'}`;
+              pill.textContent = ds;
+              pill.onclick = (e) => { e.stopPropagation(); toggleDatasetFilter(ds); };
+              dsCt.appendChild(pill);
+            });
+          }
+        }
+        if (laCt) {
+          laCt.innerHTML = '';
+          if (labels.length === 0) {
+            laCt.innerHTML = '<span class="text-xs text-zinc-400 italic">No labels</span>';
+          } else {
+            labels.forEach(la => {
+              const isSelected = f.selectedLabels?.includes(la);
+              const pill = document.createElement('button');
+              pill.className = `rounded-full px-3 py-1 text-xs font-medium transition ${isSelected ? 'bg-blue-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'}`;
+              pill.textContent = la;
+              pill.onclick = (e) => { e.stopPropagation(); toggleLabelFilter(la); };
+              laCt.appendChild(pill);
+            });
+          }
+        }
+      }
+
+      function toggleDatasetFilter(ds) {
+        const f = getFilters();
+        const idx = f.selectedDatasets.indexOf(ds);
+        if (idx >= 0) f.selectedDatasets.splice(idx, 1);
+        else f.selectedDatasets.push(ds);
+        setFilters(f);
+        populateDatasetLabelPills();
+      }
+
+      function toggleLabelFilter(la) {
+        const f = getFilters();
+        const idx = f.selectedLabels.indexOf(la);
+        if (idx >= 0) f.selectedLabels.splice(idx, 1);
+        else f.selectedLabels.push(la);
+        setFilters(f);
+        populateDatasetLabelPills();
+      }
 
       // Sorting
       const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -868,6 +989,18 @@
           if (f.annotation === 'yes' && !has) return false;
           if (f.annotation === 'no' && has) return false;
         }
+        // Dataset filter
+        if (f.selectedDatasets && f.selectedDatasets.length > 0) {
+          const ds = (mainTr?.getAttribute('data-dataset') || '').trim();
+          if (!f.selectedDatasets.includes(ds)) return false;
+        }
+        // Labels filter (row must have at least one of the selected labels)
+        if (f.selectedLabels && f.selectedLabels.length > 0) {
+          let rowLabels = [];
+          try { rowLabels = JSON.parse(mainTr?.getAttribute('data-labels') || '[]') || []; } catch {}
+          const hasMatch = f.selectedLabels.some(l => rowLabels.includes(l));
+          if (!hasMatch) return false;
+        }
         let scores = [];
         try { scores = JSON.parse(mainTr?.getAttribute('data-scores') || '[]') || []; } catch {}
         for (const vr of (f.valueRules || [])) {
@@ -911,7 +1044,7 @@
         const visible = mains.filter(tr => !tr.classList.contains('hidden'));
         const hasActive = (() => {
           const f = getFilters();
-          return (f.valueRules.length + f.passedRules.length + (f.annotation !== 'any' ? 1 : 0)) > 0 ||
+          return (f.valueRules.length + f.passedRules.length + (f.selectedDatasets?.length || 0) + (f.selectedLabels?.length || 0) + (f.annotation !== 'any' ? 1 : 0)) > 0 ||
             (document.getElementById('search-input')?.value || '').trim().length > 0;
         })();
         container.classList.toggle('hidden', !hasActive);
@@ -1078,6 +1211,16 @@
       });
 
       // Select-all checkbox
+      let lastCheckedIdx = null;
+      let pendingShiftClick = null; // Track shift-click for the change handler
+
+      // Capture shift state on click (before change event)
+      document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('row-checkbox') && e.shiftKey && lastCheckedIdx !== null) {
+          pendingShiftClick = { idx: parseInt(e.target.dataset.rowId), checked: !e.target.checked };
+        }
+      }, true); // Use capture phase to run before change
+
       document.addEventListener('change', (e) => {
         if (e.target.id === 'select-all-checkbox') {
           const visibleRows = getVisibleMainRows();
@@ -1097,11 +1240,39 @@
         // Individual row checkbox
         if (e.target.classList.contains('row-checkbox')) {
           const idx = parseInt(e.target.dataset.rowId);
-          if (e.target.checked) {
-            selectedIndices.add(idx);
+          const shouldCheck = e.target.checked;
+
+          // Handle shift-click range selection
+          if (pendingShiftClick && pendingShiftClick.idx === idx) {
+            const visibleRows = getVisibleMainRows();
+            const visibleIndices = visibleRows.map(r => parseInt(r.dataset.rowId));
+            const lastPos = visibleIndices.indexOf(lastCheckedIdx);
+            const currentPos = visibleIndices.indexOf(idx);
+            if (lastPos !== -1 && currentPos !== -1) {
+              const start = Math.min(lastPos, currentPos);
+              const end = Math.max(lastPos, currentPos);
+              for (let i = start; i <= end; i++) {
+                const rowIdx = visibleIndices[i];
+                const row = visibleRows[i];
+                const cb = row.querySelector('.row-checkbox');
+                if (shouldCheck) {
+                  selectedIndices.add(rowIdx);
+                  if (cb) cb.checked = true;
+                } else {
+                  selectedIndices.delete(rowIdx);
+                  if (cb) cb.checked = false;
+                }
+              }
+            }
+            pendingShiftClick = null;
           } else {
-            selectedIndices.delete(idx);
+            if (shouldCheck) {
+              selectedIndices.add(idx);
+            } else {
+              selectedIndices.delete(idx);
+            }
           }
+          lastCheckedIdx = idx;
           updateSelectionUI();
         }
       });
@@ -1195,7 +1366,7 @@
           applyColumnVisibility();
           initScrollRestoration();
           wireActionsMenu();
-          try { populateScoreKeySelects(); applyAllFilters(); } catch {}
+          try { populateScoreKeySelects(); populateDatasetLabelPills(); applyAllFilters(); } catch {}
           syncCheckboxesToSelection();
           checkRunningState();
           scheduleLiveRefresh();

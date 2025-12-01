@@ -182,6 +182,7 @@ async def test_model_temperatures(model, temperature):
         run_data={
             "sampling": {"top_p": 0.95, "temperature": temperature},
             "env": {"model": model},
+            "trace_url": "https://twevals.com",
         }
     )
 

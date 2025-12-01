@@ -105,6 +105,11 @@
           </div>
         </div>
         <div class="flex items-center gap-1">
+          {% if has_run_data and result.result.run_data.trace_url %}
+          <a href="{{ result.result.run_data.trace_url }}" target="_blank" rel="noopener noreferrer" class="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 shadow-sm transition hover:border-blue-300 hover:text-blue-600 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-500 dark:hover:text-blue-400" title="View trace">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          {% endif %}
           <button id="prev-btn" class="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 shadow-sm transition hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-zinc-200 disabled:hover:text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-500 dark:hover:text-blue-400" title="Previous (↑)" {% if index <= 0 %}disabled{% endif %}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
           </button>
@@ -118,8 +123,12 @@
       <div class="mb-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div class="mb-2 flex items-center gap-3">
+            <div class="mb-2 flex items-center gap-2">
               <h1 class="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ result.function }}</h1>
+              <button id="copy-cmd-btn" class="copy-btn flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-zinc-400 transition hover:border-blue-200 hover:text-blue-600 dark:text-zinc-500 dark:hover:border-blue-500/50" title="Copy run command" aria-label="Copy run command">
+                <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
               <span class="rounded-full px-2.5 py-0.5 text-xs font-medium {{ pill_tones.get(status, pill_tones.get('completed')) }}">{{ status }}</span>
             </div>
             <div class="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
@@ -132,22 +141,31 @@
               {% endif %}
             </div>
           </div>
-          {% if result.result.latency is not none %}
-          <div class="text-right">
-            <div class="text-xs text-zinc-400 uppercase tracking-wide">Latency</div>
-            <div class="font-mono text-lg font-medium {% if result.result.latency <= 1 %}text-emerald-600 dark:text-emerald-400{% elif result.result.latency <= 5 %}text-blue-600 dark:text-blue-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">{{ result.result.latency | round(2) }}s</div>
+          <div class="flex items-center gap-4">
+            {% if result.result.latency is not none %}
+            <div class="text-right">
+              <div class="text-xs text-zinc-400 uppercase tracking-wide">Latency</div>
+              <div class="font-mono text-lg font-medium {% if result.result.latency <= 1 %}text-emerald-600 dark:text-emerald-400{% elif result.result.latency <= 5 %}text-blue-600 dark:text-blue-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">{{ result.result.latency | round(2) }}s</div>
+            </div>
+            {% endif %}
           </div>
-          {% endif %}
         </div>
         {% if result.result.error %}
-        <div class="mt-4 rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400">
-          <span class="font-medium">Error:</span> {{ result.result.error }}
+        <div class="group relative mt-4 rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400">
+          <div class="flex items-start justify-between gap-2">
+            <div><span class="font-medium">Error:</span> {{ result.result.error }}</div>
+            <button class="copy-btn shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-rose-400 opacity-0 transition group-hover:opacity-100 hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-300" data-copy="data-error" title="Copy error">
+              <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+            </button>
+          </div>
+          <pre id="data-error" class="hidden">{{ result.result.error }}</pre>
         </div>
         {% endif %}
       </div>
 
-      <!-- Input / Output Section -->
-      <div class="mb-6 grid gap-4 lg:grid-cols-2">
+      <!-- Input / Reference Row -->
+      <div class="mb-6 grid gap-4 {% if has_reference %}lg:grid-cols-2{% endif %}">
         <!-- Input -->
         <div class="data-card flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
@@ -166,7 +184,29 @@
           </div>
         </div>
 
-        <!-- Output -->
+        {% if has_reference %}
+        <!-- Reference -->
+        <div class="data-card flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+            <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Reference</span>
+            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="data-ref" title="Copy">
+              <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+            </button>
+          </div>
+          <div class="flex-1 overflow-auto p-4">
+            <div id="data-ref" class="data-viewer">
+              <div class="data-surface">
+                <pre class="data-pre text-zinc-700 dark:text-zinc-300">{{ result.result.reference }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Output (full width) -->
+      <div class="mb-6">
         <div class="data-card flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
             <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Output</span>
@@ -176,38 +216,18 @@
             </button>
           </div>
           <div class="flex-1 overflow-auto p-4">
-            <div id="data-output" class="data-viewer {% if result.result.error %}error{% endif %}">
+            <div id="data-output" class="data-viewer">
               <div class="data-surface">
-                <pre class="data-pre {% if result.result.error %}text-rose-600 dark:text-rose-400{% else %}text-zinc-700 dark:text-zinc-300{% endif %}">{% if result.result.output %}{{ result.result.output }}{% elif result.result.error %}{{ result.result.error }}{% else %}—{% endif %}</pre>
+                <pre class="data-pre text-zinc-700 dark:text-zinc-300">{% if result.result.output %}{{ result.result.output }}{% else %}—{% endif %}</pre>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Reference / Metadata Row (only if content exists) -->
-      {% if has_reference or has_metadata %}
-      <div class="mb-6 grid gap-4 {% if has_reference and has_metadata %}lg:grid-cols-2{% endif %}">
-        {% if has_reference %}
-        <div class="flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
-            <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Reference</span>
-            <button class="copy-btn flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" data-copy="data-ref" title="Copy">
-              <svg class="copy-icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-              <svg class="check-icon hidden h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-            </button>
-          </div>
-          <div class="flex-1 overflow-auto p-4" style="max-height: 200px;">
-            <div id="data-ref" class="data-viewer">
-              <div class="data-surface">
-                <pre class="data-pre text-zinc-700 dark:text-zinc-300">{{ result.result.reference }}</pre>
-              </div>
-            </div>
-          </div>
-        </div>
-        {% endif %}
-
-        {% if has_metadata %}
+      <!-- Metadata (only if content exists) -->
+      {% if has_metadata %}
+      <div class="mb-6">
         <div class="flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
             <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Metadata</span>
@@ -224,7 +244,6 @@
             </div>
           </div>
         </div>
-        {% endif %}
       </div>
       {% endif %}
 
@@ -235,17 +254,22 @@
           <span class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Scores</span>
         </div>
         <div class="p-4">
-          <div class="flex flex-wrap gap-3">
+          <div class="flex flex-col gap-3">
             {% for s in result.result.scores %}
-            <div class="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 dark:border-zinc-700 dark:bg-zinc-800/50">
-              <span class="font-mono text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ s.key }}</span>
-              {% if s.value is not none %}
-                <span class="font-mono text-sm text-zinc-500 dark:text-zinc-400">{{ s.value }}</span>
-              {% endif %}
-              {% if s.passed is not none %}
-                <span class="flex h-5 w-5 items-center justify-center rounded-full {% if s.passed %}bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400{% else %}bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400{% endif %}">
-                  {% if s.passed %}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>{% else %}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>{% endif %}
-                </span>
+            <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ s.key }}</span>
+                {% if s.value is not none %}
+                  <span class="font-mono text-sm text-zinc-500 dark:text-zinc-400">{{ s.value }}</span>
+                {% endif %}
+                {% if s.passed is not none %}
+                  <span class="flex h-5 w-5 items-center justify-center rounded-full {% if s.passed %}bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400{% else %}bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400{% endif %}">
+                    {% if s.passed %}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>{% else %}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>{% endif %}
+                  </span>
+                {% endif %}
+              </div>
+              {% if s.notes %}
+              <div class="mt-2 text-sm text-zinc-500 dark:text-zinc-400 border-t border-zinc-200 dark:border-zinc-700 pt-2">{{ s.notes }}</div>
               {% endif %}
             </div>
             {% endfor %}
@@ -304,20 +328,37 @@
       </div>
     </div>
 
+    <!-- Footer -->
+    <footer class="border-t border-blue-200/60 bg-blue-50/30 py-4 dark:border-zinc-800/60 dark:bg-transparent">
+      <div class="mx-auto flex max-w-screen-2xl items-center justify-center gap-6 px-6 text-sm text-zinc-500 dark:text-zinc-400">
+        <a href="https://github.com/camronh/Twevals" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 transition hover:text-blue-600 dark:hover:text-blue-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          <span>GitHub</span>
+        </a>
+        <a href="https://twevals.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 transition hover:text-blue-600 dark:hover:text-blue-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Docs</span>
+        </a>
+      </div>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/lib/marked.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
     <script>
       const dataPayloads = {
         input: {{ result.result.input | default(None) | tojson }},
-        output: {% if result.result.output is not none %}{{ result.result.output | tojson }}{% elif result.result.error is not none %}{{ result.result.error | tojson }}{% else %}null{% endif %},
+        output: {% if result.result.output is not none %}{{ result.result.output | tojson }}{% else %}null{% endif %},
         reference: {% if has_reference %}{{ result.result.reference | tojson }}{% else %}null{% endif %},
         metadata: {% if has_metadata %}{{ result.result.metadata | tojson }}{% else %}null{% endif %},
         run: {% if has_run_data %}{{ result.result.run_data | tojson }}{% else %}null{% endif %}
       };
       const currentIndex = {{ index }};
       const total = {{ total }};
-      const runId = '{{ run_id }}';
+      const runId = {{ run_id | tojson }};
+      const evalPath = {{ eval_path | default('') | tojson }};
+      const functionName = {{ result.function | tojson }};
+      const dataset = {{ (result.dataset or "") | tojson }};
 
       function escapeHtml(str) {
         return str
@@ -473,6 +514,26 @@
               console.error('Copy failed:', err);
             }
           });
+        });
+
+        // Copy run command button
+        const copyCmd = document.getElementById('copy-cmd-btn');
+        copyCmd?.addEventListener('click', async () => {
+          const basePath = (evalPath || '').toString().trim();
+          const fnPart = functionName ? `::${functionName}` : '';
+          const cmd = basePath ? `twevals run ${basePath}${fnPart}` : `twevals run ${functionName || ''}`.trim();
+          try {
+            await navigator.clipboard.writeText(cmd);
+            const copyIcon = copyCmd.querySelector('.copy-icon');
+            const checkIcon = copyCmd.querySelector('.check-icon');
+            if (copyIcon && checkIcon) {
+              copyIcon.classList.add('hidden');
+              checkIcon.classList.remove('hidden');
+              setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 1500);
+            }
+          } catch (err) {
+            console.error('Copy failed:', err);
+          }
         });
       });
     </script>

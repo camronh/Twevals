@@ -154,9 +154,10 @@ class EvalFunction:
             if context.latency is None:
                 context.latency = time.time() - start
         except Exception as e:
+            import traceback
             if context.latency is None:
                 context.latency = time.time() - start
-            return context.build_with_error(str(e))
+            return context.build_with_error(f"{e}\n{traceback.format_exc()}")
         return None
 
     async def _run_target_async(self, context: EvalContext) -> Optional[EvalResult]:
@@ -189,9 +190,10 @@ class EvalFunction:
             if context.latency is None:
                 context.latency = time.time() - start
         except Exception as e:
+            import traceback
             if context.latency is None:
                 context.latency = time.time() - start
-            return context.build_with_error(str(e))
+            return context.build_with_error(f"{e}\n{traceback.format_exc()}")
         return None
 
     def _process_result(self, result: Any, context: Optional[EvalContext] = None) -> Union[EvalResult, List[EvalResult]]:
@@ -206,15 +208,18 @@ class EvalFunction:
 
     def _handle_exception(self, e: Exception, context: Optional[EvalContext], args, kwargs) -> EvalResult:
         """Handle exceptions uniformly for both sync and async execution."""
+        import traceback
+        error_with_trace = f"{e}\n{traceback.format_exc()}"
+
         if context is not None:
             if isinstance(e, AssertionError):
                 context.add_score(False, notes=str(e) or "Assertion failed")
                 return context.build()
-            return context.build_with_error(str(e))
+            return context.build_with_error(error_with_trace)
         return EvalResult(
             input=kwargs.get('input', args[0] if args else None),
             output=None,
-            error=str(e)
+            error=error_with_trace
         )
 
     def _set_latency(self, result: Union[EvalResult, List[EvalResult]], latency: float) -> None:

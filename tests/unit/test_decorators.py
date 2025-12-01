@@ -69,21 +69,43 @@ class TestEvalDecorator:
         @eval()
         def test_func():
             raise ValueError("Test error")
-        
+
         result = test_func()
         assert isinstance(result, EvalResult)
-        assert result.error == "Test error"
+        assert "Test error" in result.error
         assert result.output is None
 
     def test_async_function_with_exception(self):
         @eval()
         async def test_func():
             raise RuntimeError("Async error")
-        
+
         result = test_func()
         assert isinstance(result, EvalResult)
-        assert result.error == "Async error"
+        assert "Async error" in result.error
         assert result.output is None
+
+    def test_exception_includes_traceback(self):
+        @eval()
+        def test_func():
+            raise ValueError("Test error with trace")
+
+        result = test_func()
+        assert isinstance(result, EvalResult)
+        assert "Test error with trace" in result.error
+        assert "Traceback (most recent call last):" in result.error
+        assert "ValueError" in result.error
+
+    def test_async_exception_includes_traceback(self):
+        @eval()
+        async def test_func():
+            raise RuntimeError("Async error with trace")
+
+        result = test_func()
+        assert isinstance(result, EvalResult)
+        assert "Async error with trace" in result.error
+        assert "Traceback (most recent call last):" in result.error
+        assert "RuntimeError" in result.error
 
     def test_invalid_return_type(self):
         @eval()

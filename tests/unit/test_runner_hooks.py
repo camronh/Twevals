@@ -1,8 +1,8 @@
 import pytest
 import asyncio
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 from twevals.runner import EvalRunner
-from twevals.decorators import EvalFunction
+from twevals.decorators import EvalFunction, eval
 from twevals.schemas import EvalResult
 
 class TestRunnerHooks:
@@ -58,7 +58,26 @@ class TestRunnerHooks:
         ]
         
         await runner.run_all_async(funcs, on_start=on_start, on_complete=on_complete)
-        
+
         assert on_start.call_count == 2
         assert on_complete.call_count == 2
+
+
+class TestRunnerErrorTraceback:
+    @pytest.mark.asyncio
+    async def test_runner_error_includes_traceback(self):
+        """Test that runner errors include full traceback in error field"""
+        runner = EvalRunner(concurrency=1)
+
+        @eval()
+        async def failing_func():
+            raise ValueError("runner error test")
+
+        results = await runner.run_all_async([failing_func])
+        assert len(results) == 1
+
+        result = results[0]["result"]
+        assert "runner error test" in result["error"]
+        assert "Traceback (most recent call last):" in result["error"]
+        assert "ValueError" in result["error"]
 

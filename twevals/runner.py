@@ -70,8 +70,7 @@ class EvalRunner:
         """Create error result from exception."""
         return [EvalResult(
             input=None, output=None,
-            error=f"Error running {func.func.__name__}: {str(e)}",
-            run_data={"traceback": traceback.format_exc()}
+            error=f"Error running {func.func.__name__}: {e}\n{traceback.format_exc()}"
         )]
 
     async def run_async_eval(self, func: EvalFunction) -> List[EvalResult]:

@@ -317,6 +317,7 @@ async def test_auto_return(ctx: EvalContext):
     ctx.input = "test"
     ctx.add_output(await run_agent(ctx.input))
     ctx.add_score(True, "Passed")
+    ctx.run_data["trace_url"] = "https://twevals.com"
     # No return! Decorator handles it
 
 

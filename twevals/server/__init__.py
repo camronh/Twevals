@@ -9,11 +9,15 @@ from fastapi.responses import FileResponse, Response
 from starlette.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from rich.console import Console
+
 from twevals.decorators import EvalFunction
 from twevals.discovery import EvalDiscovery
 from twevals.runner import EvalRunner
 from twevals.storage import ResultsStore
 from twevals.config import load_config, save_config
+
+console = Console()
 
 
 class ResultUpdateBody(BaseModel):
@@ -129,6 +133,7 @@ def create_app(
         # Save initial pending state (for both full and selective runs)
         summary = EvalRunner._calculate_summary(current_results)
         summary["results"] = current_results
+        summary["path"] = app.state.path
         run_store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
 
         def _persist():
@@ -136,6 +141,7 @@ def create_app(
                 return
             s = EvalRunner._calculate_summary(current_results)
             s["results"] = current_results
+            s["path"] = app.state.path
             run_store.save_run(s, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
 
         def _on_start(func: EvalFunction):
@@ -151,8 +157,14 @@ def create_app(
             with app.state.cancel_lock:
                 if cancel_event.is_set():
                     return
-                status = "error" if result_dict.get("result", {}).get("error") else "completed"
+                result = result_dict.get("result", {})
+                status = "error" if result.get("error") else "completed"
                 result_dict.setdefault("result", {})["status"] = status
+
+                # Print error to console
+                if result.get("error"):
+                    console.print(f"\n[red]ERROR in {func.func.__name__}:[/red]\n{result['error']}")
+
                 with results_lock:
                     if cancel_event.is_set():
                         return
@@ -199,6 +211,7 @@ def create_app(
                 "run_id": rid,
                 "session_name": summary.get("session_name"),
                 "run_name": summary.get("run_name"),
+                "eval_path": summary.get("path") or app.state.path,
             },
         )
 
@@ -241,6 +254,7 @@ def create_app(
                         "summary": summary,
                         "run_id": app.state.active_run_id,
                         "score_chips": [],
+                        "eval_path": app.state.path,
                     },
                 )
             raise HTTPException(status_code=404, detail="Active run not found")
@@ -284,6 +298,7 @@ def create_app(
                 "summary": summary,
                 "run_id": app.state.active_run_id,
                 "score_chips": score_chips,
+                "eval_path": summary.get("path") or app.state.path,
             },
         )
 
@@ -509,6 +524,9 @@ def create_app(
         """Update the twevals config."""
         config = load_config()
         config.update(body)
+        # Remove timeout if not in body (user cleared it)
+        if "timeout" not in body and "timeout" in config:
+            del config["timeout"]
         save_config(config)
         return {"ok": True, "config": config}
 

@@ -126,19 +126,19 @@
 </div>
 
 <!-- Results Table -->
-<table id="results-table" data-run-id="{{ run_id }}" class="w-full table-fixed overflow-hidden rounded-lg border border-blue-200/60 bg-white text-sm text-zinc-700 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200 dark:shadow-none">
+<table id="results-table" data-run-id="{{ run_id }}" class="w-full table-fixed rounded-lg border border-blue-200/60 bg-white text-sm text-zinc-700 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/30 dark:text-zinc-200 dark:shadow-none">
   <thead>
-    <tr class="border-b border-blue-200/60 bg-blue-50/50 dark:border-zinc-800/60 dark:bg-transparent">
-      <th style="width:32px;" class="px-2 py-2.5 align-middle">
+    <tr class="border-b border-blue-200/60 dark:border-zinc-800/60">
+      <th style="width:32px;" class="sticky top-[73px] z-20 bg-blue-50 px-2 py-2.5 align-middle dark:bg-zinc-900">
         <input type="checkbox" id="select-all-checkbox" />
       </th>
-      <th data-col="function" style="width:15%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
-      <th data-col="input" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
-      <th data-col="reference" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Reference</th>
-      <th data-col="output" style="width:18%;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Output</th>
-      <th data-col="scores" style="width:140px;" class="px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500">Scores</th>
-      <th data-col="latency" data-type="number" style="width:70px;" class="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-zinc-500">Time</th>
-      <th style="width:28px;" class="px-1 py-2.5"></th>
+      <th data-col="function" style="width:15%;" class="sticky top-[73px] z-20 bg-blue-50 px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:bg-zinc-900">Function</th>
+      <th data-col="input" style="width:18%;" class="sticky top-[73px] z-20 bg-blue-50 px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:bg-zinc-900">Input</th>
+      <th data-col="reference" style="width:18%;" class="sticky top-[73px] z-20 bg-blue-50 px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:bg-zinc-900">Reference</th>
+      <th data-col="output" style="width:18%;" class="sticky top-[73px] z-20 bg-blue-50 px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:bg-zinc-900">Output</th>
+      <th data-col="scores" style="width:140px;" class="sticky top-[73px] z-20 bg-blue-50 px-3 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:bg-zinc-900">Scores</th>
+      <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[73px] z-20 bg-blue-50 px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:bg-zinc-900">Time</th>
+      <th style="width:28px;" class="sticky top-[73px] z-20 bg-blue-50 px-1 py-2.5 dark:bg-zinc-900"></th>
     </tr>
   </thead>
   <tbody class="divide-y divide-blue-100 dark:divide-zinc-800/40">
@@ -147,7 +147,7 @@
     {% set status = r.result.status or 'completed' %}
     {% set is_running = status == 'running' %}
     {% set is_not_started = status == 'not_started' %}
-    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" data-scores='{{ r.result.scores | tojson if r.result.scores else "null" }}' data-annotation="{{ r.result.annotation or '' }}" class="group cursor-pointer hover:bg-blue-50/50 transition-colors dark:hover:bg-zinc-800/30{% if is_not_started %} opacity-70{% endif %}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
+    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" data-scores='{{ r.result.scores | tojson if r.result.scores else "null" }}' data-annotation="{{ r.result.annotation or '' }}" data-dataset="{{ r.dataset or '' }}" data-labels='{{ r.labels | tojson if r.labels else "[]" }}' class="group cursor-pointer hover:bg-blue-50/50 transition-colors dark:hover:bg-zinc-800/30{% if is_not_started %} opacity-70{% endif %}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
       <td class="px-2 py-2 align-middle" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-checkbox" data-row-id="{{ row_id }}" />
       </td>
@@ -217,7 +217,7 @@
               {% set badge_class = 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400' %}
               {% if s.passed is true %}{% set badge_class = 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' %}
               {% elif s.passed is false %}{% set badge_class = 'bg-rose-500/15 text-rose-600 dark:text-rose-400' %}{% endif %}
-              <span class="score-badge shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium {{ badge_class }}{% if loop.index0 >= max_scores %} score-extra hidden{% endif %}" title="{{ s.key }}{% if s.value is not none %}: {{ s.value }}{% endif %}">
+              <span class="score-badge shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium {{ badge_class }}{% if loop.index0 >= max_scores %} score-extra hidden{% endif %}" title="{{ s.key }}{% if s.value is not none %}: {{ (s.value is number) and (s.value | round(3)) or s.value }}{% endif %}{% if s.notes %} — {{ s.notes }}{% endif %}">
                 {% if s.value is not none %}{{ s.key }}:{{ (s.value is number) and (s.value | round(1)) or s.value }}{% else %}{{ s.key }}{% endif %}
               </span>
             {% endfor %}

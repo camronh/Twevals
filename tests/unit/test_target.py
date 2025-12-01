@@ -69,8 +69,23 @@ def test_target_error_short_circuits_eval():
 
     result = sample_eval()
     assert isinstance(result, EvalResult)
-    assert result.error == "boom"
+    assert "boom" in result.error
     assert executed["eval_ran"] is False
+
+
+def test_target_error_includes_traceback():
+    def target(ctx: EvalContext):
+        raise RuntimeError("target failed")
+
+    @eval(target=target, input="test")
+    def sample_eval(ctx: EvalContext):
+        return ctx.build()
+
+    result = sample_eval()
+    assert isinstance(result, EvalResult)
+    assert "target failed" in result.error
+    assert "Traceback (most recent call last):" in result.error
+    assert "RuntimeError" in result.error
 
 
 def test_async_target_is_supported():
