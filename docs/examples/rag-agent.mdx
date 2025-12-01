@@ -36,18 +36,12 @@ flowchart LR
 from twevals import eval, parametrize, EvalContext
 
 async def run_agent(ctx: EvalContext):
-    results = await run_rag_agent(ctx.input)  # Run the agent
-
-    # Store the source docs in the context to be used in evaluation
-    # Can use arbitrary property names
-    ctx.my_source_docs = results.metadata["source_docs"]
-
-    # Store the agent's response in ctx.output automatically
-    return results.response
+    results = await run_rag_agent(ctx.input)
+    ctx.output = results.response
+    ctx.metadata["source_docs"] = results.metadata["source_docs"]
 
 
-
-@eval(dataset="rag_qa", target=run_agent)
+@eval(target=run_agent, dataset="rag_qa")
 @parametrize("input,reference", [
     ("What is our refund policy?", "30-day money-back guarantee"),
     ("How do I reset my password?", "Click 'Forgot Password' on the login page"),
@@ -58,28 +52,18 @@ async def run_agent(ctx: EvalContext):
 ])
 async def test_rag_agent(ctx: EvalContext):
     """Evaluate a RAG Agent for correctness and hallucinations"""
-    # Check for hallucination using an LLM judge
-
-    # Use an LLM-as-a-Judge to score the output for hallucination and provide it's reasoning
-    score, reasoning = await hallucination_judge( 
+    # LLM-as-a-Judge for hallucination
+    score, reasoning = await hallucination_judge(
         answer=ctx.output,
-        sources=ctx.my_source_docs
+        sources=ctx.metadata["source_docs"]
     )
+    ctx.add_score(score, reasoning, key="hallucination")
 
-    # Store hallucination score separately from default "correctness" score
-    ctx.add_score(
-        "hallucination",
-        passed=score,  # Assumes bool pass/fail here but could be replaced with `score=0.5` for example
-        note=reasoning
-    )
-
-    # Check correctness against the reference with another judge
+    # Check correctness against reference
     correctness_result = await correctness_judge(
         answer=ctx.output,
         reference=ctx.reference
     )
-
-    # Assert to use default key
     assert correctness_result.is_correct, correctness_result.explanation
 ```
 
@@ -87,7 +71,7 @@ async def test_rag_agent(ctx: EvalContext):
 
 **Parametrized dataset** — The `@parametrize` decorator creates one eval run per row. Each row sets `ctx.input` and `ctx.reference` automatically.
 
-**Target function inline** — We call `run_rag_agent()` directly in the eval function. No separate `@target` decorator needed (though you could use one if you prefer).
+**Target function** — The `run_agent` target runs before the eval body, populating `ctx.output` and storing source docs in metadata.
 
 **Storing context for analysis** — We save the retrieved documents to `ctx.metadata`. This shows up in the results JSON and Web UI, so you can debug retrieval issues.
 

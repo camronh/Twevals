@@ -19,8 +19,7 @@ from twevals import eval, parametrize, EvalContext
 def test_addition(ctx: EvalContext, a, b, expected):
     result = a + b
     ctx.input = f"{a} + {b}"
-    ctx.add_output(result)
-
+    ctx.output = result
     assert result == expected, f"Expected {expected}, got {result}"
 ```
 
@@ -106,12 +105,10 @@ Only parameters with these special names automatically populate the context:
     ("What is 2+2?", "4"),
     ("What is the capital of France?", "Paris"),
 ])
-def test_qa(ctx: EvalContext):
+async def test_qa(ctx: EvalContext):
     # ctx.input and ctx.reference are auto-populated
-    ctx.add_output(await my_agent(ctx.input))
-
-    assert ctx.output == ctx.reference, \
-        f"Expected {ctx.reference}, got {ctx.output}"
+    ctx.output = await my_agent(ctx.input)
+    assert ctx.output == ctx.reference
 ```
 
 ## Accessing Non-Special Parameters
@@ -123,9 +120,8 @@ For parameters that aren't special context fields, you **must** include them in 
 def test_example(ctx: EvalContext, prompt, expected):
     # Parameters are passed as function arguments
     ctx.input = prompt
-    ctx.add_output(process(prompt))
-
-    assert ctx.output == expected, f"Expected {expected}, got {ctx.output}"
+    ctx.output = process(prompt)
+    assert ctx.output == expected
 ```
 
 <Warning>
@@ -159,10 +155,10 @@ twevals run evals.py::test_math[2-3-5]
     ("This is terrible", "negative"),
 ])
 async def test_sentiment(ctx: EvalContext, model, text, expected):
+    ctx.input = text
     ctx.metadata["text_length"] = len(text)
-    ctx.add_output(await analyze_sentiment(text, model=model))
-
-    assert ctx.output == expected, f"Expected {expected}, got {ctx.output}"
+    ctx.output = await analyze_sentiment(text, model=model)
+    assert ctx.output == expected
 ```
 
 ## Data-Driven Testing
@@ -181,9 +177,8 @@ with open("test_cases.json") as f:
 async def test_qa(ctx: EvalContext, question, answer):
     ctx.input = question
     ctx.reference = answer
-    ctx.add_output(await my_agent(question))
-
-    assert ctx.output == answer, f"Expected {answer}, got {ctx.output}"
+    ctx.output = await my_agent(question)
+    assert ctx.output == answer
 ```
 
 ## Example: Comprehensive Test Suite
@@ -201,12 +196,9 @@ PROMPTS = [
 @parametrize("input,expected_intent,expected_sentiment", PROMPTS)
 async def test_intent(ctx: EvalContext, expected_intent, expected_sentiment):
     # ctx.input is auto-populated (special name)
-    # expected_intent and expected_sentiment come from function args
     result = await detect_intent(ctx.input)
-    ctx.add_output(result)
+    ctx.output = result
 
-    assert result["intent"] == expected_intent, \
-        f"Expected intent {expected_intent}, got {result['intent']}"
-    assert result["sentiment"] == expected_sentiment, \
-        f"Expected sentiment {expected_sentiment}, got {result['sentiment']}"
+    assert result["intent"] == expected_intent
+    assert result["sentiment"] == expected_sentiment
 ```

@@ -1,135 +1,31 @@
 ---
 title: Web UI
-description: View, filter, edit, and export results in your browser
+description: Run evals and review results in your browser
 ---
 
-Twevals includes a built-in web interface for exploring evaluation results.
-
-## Launching the UI
-
-Use the `serve` command to open the web interface:
+Start the web UI with `twevals serve`:
 
 ```bash
 twevals serve evals.py
 ```
 
-The browser opens automatically at `http://127.0.0.1:8000`. Evaluations are discovered and displayed in the UI, but not run until you click the Run button. Results appear and update in real-time as each evaluation completes.
+<img src="/assets/ui-screenshot.png" alt="Twevals Web UI" />
 
-## Features
+## How It Works
 
-### Results Table
+The UI discovers all `@eval` decorated functions in your file but doesn't run them until you click **Run**. Results stream in real-time as each evaluation completes.
 
-The main view shows all evaluation results in a sortable, filterable table:
-
-| Column | Description |
-|--------|-------------|
-| Function | Function name with dataset shown below |
-| Input | The test input |
-| Reference | Expected output (if set) |
-| Output | The system output |
-| Scores | Score chips showing pass/fail status |
-| Latency | Execution time |
-
-### Row Interactions
-
-**Expand Row**: Click anywhere on a row to expand it inline. Truncated content (input, output, reference) shows in full, and all scores are displayed (not just the first two).
-
-**Detail Page**: Click the function name to open a full-page detail view. This dedicated page shows:
-
-- **Input/Output**: Side-by-side cards with full content
-- **Reference**: Expected output (if set)
-- **Metadata**: Custom metadata fields
-- **Scores**: All scores with keys, values, and pass/fail status
-- **Run Data**: Collapsible section with debug/trace information
-- **Annotations**: Manual notes added via UI
-
-The detail page has its own URL (`/runs/{run_id}/results/{index}`), so you can:
-- Open results in new tabs for comparison
-- Use multiple monitors for analysis workflows
-- Navigate between results with arrow keys (↑/↓)
-- Press Escape to return to the table
-
-### Inline Editing
-
-Edit fields directly in the detail page:
-
-- **Dataset**: Reassign to different dataset
-- **Labels**: Add or remove labels
-- **Scores**: Adjust scores or add new ones
-- **Metadata**: Add custom fields
-- **Annotations**: Add notes for review
-
-Changes are saved to the results file.
-
-### Filtering
-
-Filter results by:
-
-- **Status**: Pass, Fail, Error
-- **Dataset**: Select specific datasets
-- **Labels**: Filter by tags
-- **Search**: Text search across all fields
-
-### Sorting
-
-Click column headers to sort:
-
-- Name (alphabetical)
-- Status (pass/fail)
-- Score (numeric)
-- Latency (fastest/slowest)
-
-### Actions
-
-<CardGroup cols={2}>
-  <Card title="Refresh" icon="rotate">
-    Reload results from disk
-  </Card>
-  <Card title="Run/Stop" icon="play">
-    Start selected evals or stop running ones
-  </Card>
-  <Card title="Export" icon="download">
-    Download as JSON or CSV
-  </Card>
-  <Card title="Theme" icon="moon">
-    Toggle dark/light mode
-  </Card>
-</CardGroup>
-
-### Run Controls
-
-Control evaluation execution directly from the UI:
-
-**Selection**
-- Use checkboxes to select individual results
-- Click the header checkbox to select/deselect all visible rows
-- Selection persists through filtering
-
-**Start/Stop**
-- **Run Selected**: With results selected, click the play button to rerun only those evaluations
-- **Run All**: With nothing selected, click play to rerun the entire suite
-- **Stop**: While evals are running, click stop to cancel pending and running evaluations
-
-Cancelled evaluations are marked with a "cancelled" status and can be rerun later.
-
-## Custom Port
-
-Specify a different port:
-
-```bash
-twevals serve evals.py --port 3000
-```
+Results are saved to `.twevals/runs/` as JSON files. The UI loads from `latest.json` by default, which is a copy of the most recent run.
 
 ## Results Storage
 
-Results are saved to `.twevals/runs/` with run names and timestamps:
-
 ```
 .twevals/
-└── runs/
-    ├── gpt5-baseline_2024-01-15T10-30-00Z.json  # Named run
-    ├── swift-falcon_2024-01-15T14-45-00Z.json   # Auto-generated name
-    └── latest.json  # Copy of most recent run
+├── runs/
+│   ├── gpt5-baseline_2024-01-15T10-30-00Z.json
+│   ├── swift-falcon_2024-01-15T14-45-00Z.json
+│   └── latest.json
+└── twevals.json  # Configuration
 ```
 
 Each run file includes session metadata:
@@ -140,78 +36,43 @@ Each run file includes session metadata:
   "run_name": "gpt5-baseline",
   "run_id": "2024-01-15T10-30-00Z",
   "total_evaluations": 50,
+  "total_passed": 45,
   "results": [...]
 }
 ```
 
-The UI loads from `latest.json` by default.
+## Run Controls
 
-## Workflow Tips
+- **Run Selected**: Check rows, then click play to rerun only those evaluations
+- **Run All**: With nothing selected, click play to rerun everything
+- **Stop**: Cancel pending and running evaluations mid-run
 
-<AccordionGroup>
-  <Accordion title="Iterative Development">
-    Keep the UI open while developing. After code changes:
-    1. Run `twevals run evals.py` in terminal
-    2. Click "Refresh" in UI to see new results
-  </Accordion>
+## Detail Page
 
-  <Accordion title="Review Failed Tests">
-    Filter by "Fail" status to focus on failures. Expand rows to see inputs/outputs and understand why.
-  </Accordion>
+Click a function name to open the full-page detail view with its own URL (`/runs/{run_id}/results/{index}`). Navigate between results with arrow keys (↑/↓) or press Escape to return to the table.
 
-  <Accordion title="Annotate for Team">
-    Add annotations to flag results for team review. Export annotated results for sharing.
-  </Accordion>
+## Inline Editing
 
-  <Accordion title="Compare Runs">
-    Open multiple results files by navigating to different run timestamps in `.twevals/runs/`.
-  </Accordion>
-</AccordionGroup>
+In the detail page, you can edit:
+- **Dataset**: Reassign to different dataset
+- **Labels**: Add or remove labels
+- **Scores**: Adjust scores or add new ones
+- **Annotations**: Add notes for review
 
-## Export Formats
-
-### JSON Export
-
-Full structured data:
-
-```json
-{
-  "run_id": "2024-01-15T10-30-00Z",
-  "results": [
-    {
-      "name": "test_greeting",
-      "input": "Hello",
-      "output": "Hi there!",
-      "scores": [{"key": "quality", "passed": true}],
-      ...
-    }
-  ]
-}
-```
-
-### CSV Export
-
-Flattened for spreadsheets:
-
-```csv
-name,input,output,status,score,latency,dataset
-test_greeting,Hello,Hi there!,passed,1.0,0.23,greetings
-```
+Changes are saved to the results file.
 
 ## Keyboard Shortcuts
-
-### Table View
 
 | Key | Action |
 |-----|--------|
 | `r` | Refresh results |
 | `e` | Export menu |
 | `f` | Focus filter |
-
-### Detail Page
-
-| Key | Action |
-|-----|--------|
-| `↑` | Previous result |
-| `↓` | Next result |
+| `↑/↓` | Navigate results (detail page) |
 | `Esc` | Back to table |
+
+## Custom Port
+
+```bash
+twevals serve evals.py --port 3000
+```

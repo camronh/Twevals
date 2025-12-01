@@ -5,16 +5,14 @@ description: Score evaluations using assertions, just like pytest
 
 Twevals uses assertions as the primary way to score evaluations. If you've written pytest tests, you already know how to score in Twevals.
 
-## Assertions (The Default Way)
+## Assertions
 
 Use Python's `assert` statement to validate your outputs:
 
 ```python
-@eval(dataset="qa")
+@eval(input="What is the capital of France?", dataset="qa")
 async def test_answer_quality(ctx: EvalContext):
-    ctx.input = "What is the capital of France?"
-    ctx.add_output(await my_agent(ctx.input))
-
+    ctx.output = await my_agent(ctx.input)
     assert "paris" in ctx.output.lower(), "Should mention Paris"
 ```
 
@@ -25,10 +23,9 @@ When assertions pass, your eval passes. When they fail, the assertion message be
 Chain assertions to check multiple conditions:
 
 ```python
-@eval(dataset="customer_service")
+@eval(input="I want a refund", dataset="customer_service")
 async def test_refund_response(ctx: EvalContext):
-    ctx.input = "I want a refund"
-    ctx.add_output(await support_agent(ctx.input))
+    ctx.output = await support_agent(ctx.input)
 
     assert len(ctx.output) > 20, "Response too short"
     assert "refund" in ctx.output.lower(), "Should acknowledge refund request"
@@ -43,10 +40,8 @@ Use `ctx.reference` for expected output comparisons:
 ```python
 @eval(input="2 + 2", reference="4", dataset="math")
 async def test_arithmetic(ctx: EvalContext):
-    ctx.add_output(await calculator(ctx.input))
-
-    assert ctx.output == ctx.reference, \
-        f"Expected {ctx.reference}, got {ctx.output}"
+    ctx.output = await calculator(ctx.input)
+    assert ctx.output == ctx.reference
 ```
 
 ### With Parametrize
@@ -61,10 +56,8 @@ Assertions work naturally with parametrized tests:
     ("It's okay", "neutral"),
 ])
 async def test_sentiment(ctx: EvalContext):
-    ctx.add_output(await classify_sentiment(ctx.input))
-
-    assert ctx.output == ctx.reference, \
-        f"Expected {ctx.reference}, got {ctx.output}"
+    ctx.output = await classify_sentiment(ctx.input)
+    assert ctx.output == ctx.reference
 ```
 
 ## How Assertions Become Scores
@@ -101,39 +94,23 @@ Use `add_score()` when you need more control than assertions provide:
 ### Numeric Scores
 
 ```python
-@eval(dataset="classification")
+@eval(input="Classify this text", dataset="classification")
 async def test_with_confidence(ctx: EvalContext):
-    ctx.input = "Classify this text"
     result = await classifier(ctx.input)
-
-    ctx.add_output(result["label"])
+    ctx.output = result["label"]
     ctx.add_score(result["confidence"], "Model confidence")
 ```
 
 ### Multiple Named Metrics
 
 ```python
-@eval(dataset="qa")
+@eval(input="Explain quantum computing", dataset="qa")
 async def test_comprehensive(ctx: EvalContext):
-    ctx.input = "Explain quantum computing"
-    ctx.add_output(await my_agent(ctx.input))
+    ctx.output = await my_agent(ctx.input)
 
-    # Different metrics with different keys
-    ctx.add_score(
-        "quantum" in ctx.output.lower(),
-        "Mentions quantum",
-        key="relevance"
-    )
-    ctx.add_score(
-        len(ctx.output) < 500,
-        f"Length: {len(ctx.output)}",
-        key="brevity"
-    )
-    ctx.add_score(
-        calculate_similarity(ctx.output, reference),
-        "Semantic similarity",
-        key="similarity"
-    )
+    ctx.add_score("quantum" in ctx.output.lower(), "Mentions quantum", key="relevance")
+    ctx.add_score(len(ctx.output) < 500, f"Length: {len(ctx.output)}", key="brevity")
+    ctx.add_score(calculate_similarity(ctx.output, reference), "Semantic similarity", key="similarity")
 ```
 
 ### Combining Assertions and add_score
@@ -141,10 +118,9 @@ async def test_comprehensive(ctx: EvalContext):
 You can use both in the same eval:
 
 ```python
-@eval(dataset="demo")
+@eval(input="Generate a summary", dataset="demo")
 async def test_mixed(ctx: EvalContext):
-    ctx.input = "Generate a summary"
-    ctx.add_output(await summarizer(ctx.input))
+    ctx.output = await summarizer(ctx.input)
 
     # Must-pass requirements as assertions
     assert ctx.output is not None, "Got no output"
@@ -169,11 +145,9 @@ def check_format(result):
     except:
         return {"key": "format", "passed": False, "notes": "Invalid JSON"}
 
-@eval(dataset="api", evaluators=[check_format])
+@eval(input="Get user data", dataset="api", evaluators=[check_format])
 async def test_json_response(ctx: EvalContext):
-    ctx.input = "Get user data"
-    ctx.add_output(await api_call(ctx.input))
-
+    ctx.output = await api_call(ctx.input)
     assert "user" in ctx.output, "Should contain user data"
 ```
 

@@ -260,7 +260,7 @@ async def test_metadata_extraction(ctx: EvalContext, model, temperature):
 
 
 # ============================================================================
-# Pattern 10: set_params Helper
+# Pattern 10: Metadata from Parameters
 # ============================================================================
 
 @eval(dataset="model_config")
@@ -268,12 +268,13 @@ async def test_metadata_extraction(ctx: EvalContext, model, temperature):
     ("gpt-3.5", 0.0),
     ("gpt-4", 1.0),
 ])
-async def test_set_params_helper(ctx: EvalContext, model, temperature):
-    """Use set_params to set both input and metadata at once"""
-    # Sets both ctx.input and ctx.metadata with same values
-    ctx.set_params(model=model, temperature=temperature)
+async def test_metadata_from_params(ctx: EvalContext, model, temperature):
+    """Store parameters in metadata for tracking"""
+    ctx.input = f"Test with {model}"
+    ctx.metadata["model"] = model
+    ctx.metadata["temperature"] = temperature
 
-    ctx.add_output(await run_agent(f"Test with {model}"))
+    ctx.output = await run_agent(ctx.input)
     ctx.add_score(True, "Model executed successfully", key="execution")
 
 

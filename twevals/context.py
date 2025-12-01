@@ -86,12 +86,6 @@ class EvalContext:
         self.scores.append(score_dict)
         return self
 
-    def set_params(self, **kwargs) -> "EvalContext":
-        """Set both input and metadata from kwargs."""
-        self.input = kwargs.copy()
-        self.metadata.update(kwargs)
-        return self
-
     def build(self) -> EvalResult:
         """Convert to immutable EvalResult."""
         scores = self.scores or ([{"key": self.default_score_key or "correctness", "passed": True}] if not self.error else None)

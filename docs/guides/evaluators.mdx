@@ -19,10 +19,9 @@ def check_length(result):
         "notes": f"Length: {length} characters"
     }
 
-@eval(dataset="demo", evaluators=[check_length])
+@eval(input="Explain recursion", dataset="demo", evaluators=[check_length])
 async def test_response(ctx: EvalContext):
-    ctx.input = "Explain recursion"
-    ctx.add_output(await my_agent(ctx.input))
+    ctx.output = await my_agent(ctx.input)
 ```
 
 ## Multiple Evaluators
@@ -48,13 +47,9 @@ def check_no_hallucination(result):
     has_citation = "[source]" in result.output
     return {"key": "grounded", "passed": has_citation}
 
-@eval(
-    dataset="qa",
-    evaluators=[check_format, check_keywords, check_no_hallucination]
-)
+@eval(input="Why is the sky blue?", dataset="qa", evaluators=[check_format, check_keywords, check_no_hallucination])
 async def test_answer(ctx: EvalContext):
-    ctx.input = "Why is the sky blue?"
-    ctx.add_output(await my_agent(ctx.input))
+    ctx.output = await my_agent(ctx.input)
 ```
 
 ## Evaluator Patterns

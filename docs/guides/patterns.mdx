@@ -10,11 +10,9 @@ This guide covers proven patterns for structuring your evaluations.
 The most straightforward pattern—use assertions like pytest:
 
 ```python
-@eval(dataset="demo")
+@eval(input="What is 2 + 2?", dataset="demo")
 async def test_simple(ctx: EvalContext):
-    ctx.input = "What is 2 + 2?"
-    ctx.add_output(await my_agent(ctx.input))
-
+    ctx.output = await my_agent(ctx.input)
     assert ctx.output == "4", f"Expected 4, got {ctx.output}"
 ```
 
@@ -25,16 +23,10 @@ async def test_simple(ctx: EvalContext):
 Configure inputs in the decorator for cleaner code:
 
 ```python
-@eval(
-    input="What is the capital of France?",
-    reference="Paris",
-    dataset="geography"
-)
+@eval(input="What is the capital of France?", reference="Paris", dataset="geography")
 async def test_capital(ctx: EvalContext):
-    ctx.add_output(await my_agent(ctx.input))
-
-    assert ctx.output.lower() == ctx.reference.lower(), \
-        f"Expected {ctx.reference}, got {ctx.output}"
+    ctx.output = await my_agent(ctx.input)
+    assert ctx.output.lower() == ctx.reference.lower()
 ```
 
 **Use when:** Clean separation of test data from logic.
@@ -46,26 +38,17 @@ Separate agent invocation from scoring:
 ```python
 async def call_agent(ctx: EvalContext):
     """Reusable agent caller."""
-    ctx.add_output(await my_agent(ctx.input))
+    ctx.output = await my_agent(ctx.input)
 
-@eval(
-    input="What's the weather like?",
-    target=call_agent,
-    dataset="qa"
-)
+@eval(input="What's the weather like?", target=call_agent, dataset="qa")
 async def test_weather(ctx: EvalContext):
     # ctx.output already populated by target
     assert "weather" in ctx.output.lower(), "Should mention weather"
 
-@eval(
-    input="Tell me a joke",
-    target=call_agent,
-    dataset="creative"
-)
+@eval(input="Tell me a joke", target=call_agent, dataset="creative")
 async def test_humor(ctx: EvalContext):
     # Same agent, different assertions
     assert len(ctx.output) > 20, "Response too short"
-    assert "?" not in ctx.output or "!" in ctx.output, "Should be a statement"
 ```
 
 **Use when:** Multiple tests with same agent, different assertions.
@@ -119,9 +102,8 @@ Combine parametrize with context for clean data-driven tests:
 ])
 async def test_sentiment(ctx: EvalContext):
     # ctx.input and ctx.reference are auto-populated (special names)
-    ctx.add_output(await analyze_sentiment(ctx.input))
-
-    assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
+    ctx.output = await analyze_sentiment(ctx.input)
+    assert ctx.output == ctx.reference
 ```
 
 Or with custom parameter names (must be in function signature):
@@ -134,9 +116,8 @@ Or with custom parameter names (must be in function signature):
 ])
 async def test_sentiment(ctx: EvalContext, text, expected):
     ctx.input = text
-    ctx.add_output(await analyze_sentiment(text))
-
-    assert ctx.output == expected, f"Expected {expected}, got {ctx.output}"
+    ctx.output = await analyze_sentiment(text)
+    assert ctx.output == expected
 ```
 
 **Use when:** Testing many input/output pairs.
@@ -153,22 +134,18 @@ twevals_defaults = {
     "metadata": {"department": "support"}
 }
 
-@eval  # Inherits defaults, dataset inferred from filename
+@eval(input="I want a refund")
 async def test_refund(ctx: EvalContext):
-    ctx.input = "I want a refund"
-    ctx.add_output(await support_agent(ctx.input))
-
+    ctx.output = await support_agent(ctx.input)
     assert "refund" in ctx.output.lower(), "Should acknowledge refund"
 
-@eval  # Inherits defaults
+@eval(input="Your product broke")
 async def test_complaint(ctx: EvalContext):
-    ctx.input = "Your product broke"
-    ctx.add_output(await support_agent(ctx.input))
-
+    ctx.output = await support_agent(ctx.input)
     assert "sorry" in ctx.output.lower() or "apologize" in ctx.output.lower(), \
         "Should express empathy"
 
-@eval(labels=["experimental"])  # Override labels only
+@eval(input="Edge case query", labels=["experimental"])  # Override labels
 async def test_edge_case(ctx: EvalContext):
     ...
 ```
@@ -180,10 +157,9 @@ async def test_edge_case(ctx: EvalContext):
 Use `add_score()` when you need multiple named metrics or numeric scores:
 
 ```python
-@eval(dataset="qa")
+@eval(input="Explain quantum computing", dataset="qa")
 async def test_comprehensive(ctx: EvalContext):
-    ctx.input = "Explain quantum computing"
-    ctx.add_output(await my_agent(ctx.input))
+    ctx.output = await my_agent(ctx.input)
 
     # Must-pass requirements as assertions
     assert ctx.output is not None, "Got no output"
@@ -193,7 +169,6 @@ async def test_comprehensive(ctx: EvalContext):
     keywords = ["quantum", "superposition", "qubit"]
     matches = sum(1 for kw in keywords if kw in ctx.output.lower())
     ctx.add_score(matches / len(keywords), f"{matches}/{len(keywords)} keywords", key="coverage")
-
     ctx.add_score(len(ctx.output) < 500, f"Length: {len(ctx.output)}", key="brevity")
 ```
 
@@ -204,17 +179,13 @@ async def test_comprehensive(ctx: EvalContext):
 Compare multiple approaches:
 
 ```python
-@eval(dataset="model_comparison", metadata_from_params=["model"])
+@eval(input="Explain recursion simply", dataset="model_comparison", metadata_from_params=["model"])
 @parametrize("model", ["gpt-4", "gpt-3.5", "claude-3"])
 async def test_model_comparison(ctx: EvalContext, model):
-    ctx.input = "Explain recursion simply"
-    ctx.add_output(await call_model(model, ctx.input))
+    ctx.output = await call_model(model, ctx.input)
 
-    # Same assertions for all models
     assert len(ctx.output) > 50, "Response too short"
     assert "recursion" in ctx.output.lower(), "Should mention recursion"
-    assert "function" in ctx.output.lower() or "call" in ctx.output.lower(), \
-        "Should explain the concept"
 ```
 
 **Use when:** Benchmarking models, comparing approaches.
@@ -224,17 +195,15 @@ async def test_model_comparison(ctx: EvalContext, model):
 For robustness testing, you may want to catch specific errors:
 
 ```python
-@eval(dataset="robustness", timeout=10.0)
+@eval(input="Complex query", dataset="robustness", timeout=10.0)
 async def test_with_error_handling(ctx: EvalContext):
-    ctx.input = "Complex query"
-
     try:
-        ctx.add_output(await my_agent(ctx.input))
+        ctx.output = await my_agent(ctx.input)
     except TimeoutError:
-        ctx.add_output("TIMEOUT")
+        ctx.output = "TIMEOUT"
         assert False, "Agent timed out"
     except Exception as e:
-        ctx.add_output(f"ERROR: {e}")
+        ctx.output = f"ERROR: {e}"
         assert False, f"Agent raised exception: {e}"
 
     # If we get here, agent succeeded
@@ -243,31 +212,11 @@ async def test_with_error_handling(ctx: EvalContext):
 
 **Use when:** Testing reliability, edge cases.
 
-## Pattern 10: Context Manager
-
-For explicit control over the context lifecycle:
-
-```python
-@eval(dataset="explicit")
-async def test_explicit_context():
-    with EvalContext(input="test input") as ctx:
-        ctx.add_output(await my_agent(ctx.input))
-
-        assert ctx.output, "Empty response"
-        assert len(ctx.output) > 10, "Response too short"
-
-        return ctx
-```
-
-**Use when:** Need explicit lifecycle control.
-
-## Anti-Patterns to Avoid
+## Anti-Pattern: Forgetting to Set Output
 
 <Warning>
-**Don't do these:**
+Always set `ctx.output` before assertions so results are recorded for debugging.
 </Warning>
-
-### Forgetting to set output
 
 ```python
 # BAD: No output recorded
@@ -277,33 +226,10 @@ async def test_bad(ctx: EvalContext):
     result = await my_agent(ctx.input)
     assert result  # Output not recorded for debugging!
 
-# GOOD: Always add_output before assertions
+# GOOD: Always set output before assertions
 @eval(dataset="demo")
 async def test_good(ctx: EvalContext):
     ctx.input = "test"
-    ctx.add_output(await my_agent(ctx.input))
+    ctx.output = await my_agent(ctx.input)
     assert ctx.output  # Now output is preserved
-```
-
-### Hardcoding in parametrize
-
-```python
-# BAD: Defeats the purpose
-@eval(dataset="demo")
-@parametrize("x", [1])
-def test_single(ctx: EvalContext, x):
-    ...  # Just use a regular eval
-```
-
-### Overly complex evaluators
-
-```python
-# BAD: Logic should be in the eval function
-def complex_evaluator(result):
-    # 50 lines of logic...
-    pass
-
-# GOOD: Keep evaluators simple
-def check_format(result):
-    return {"key": "format", "passed": result.output.startswith("{")}
 ```

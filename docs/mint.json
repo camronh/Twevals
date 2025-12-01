@@ -40,13 +40,13 @@
   "navigation": [
     {
       "group": "Getting Started",
-      "pages": ["introduction", "setup", "quickstart"]
+      "pages": ["introduction", "quickstart"]
     },
     {
       "group": "Examples",
       "pages": [
-        "examples/rag-agent",
-        "examples/granular-evals"
+        "examples/granular-evals",
+        "examples/rag-agent"
       ]
     },
     {
@@ -61,12 +61,11 @@
     {
       "group": "Guides",
       "pages": [
-        "guides/examples",
+        "guides/file-defaults",
         "guides/patterns",
         "guides/web-ui",
         "guides/sessions",
-        "guides/evaluators",
-        "guides/file-defaults"
+        "guides/evaluators"
       ]
     },
     {

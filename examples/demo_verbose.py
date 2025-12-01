@@ -355,8 +355,7 @@ Would you like me to show you the JWT token generation and the login endpoint ne
     )
 
 
-@eval(dataset="structured_data", labels=["verbose"])
-@parametrize("scenario", [
+STRUCTURED_SCENARIOS = [
     {
         "name": "complex_nested_input",
         "input_data": {
@@ -395,9 +394,13 @@ Would you like me to show you the JWT token generation and the login endpoint ne
             "options": {"atomic": True, "dry_run": False, "notify_on_complete": True},
         },
     },
-])
-def test_structured_data_processing(scenario):
+]
+
+@eval(dataset="structured_data", labels=["verbose"])
+@parametrize("scenario_idx", [0, 1])
+def test_structured_data_processing(ctx: EvalContext, scenario_idx):
     """Test handling of complex structured inputs"""
+    scenario = STRUCTURED_SCENARIOS[scenario_idx]
     output = {
         "status": "processed",
         "scenario": scenario["name"],
@@ -406,18 +409,13 @@ def test_structured_data_processing(scenario):
         "transformed_data": {"...": "transformed version of input"},
     }
 
-
-    return EvalResult(
-        input=scenario["input_data"],
-        output=output,
-        scores=[
-            {"key": "schema_validation", "passed": True},
-            {"key": "processing_accuracy", "value": 0.99},
-        ],
-        run_data={
-            "input_depth": 4,
-            "total_fields": 25,
-            "processing_steps": ["validate", "transform", "enrich", "output"],
-        },
-        latency=0.34,
-    )
+    ctx.input = scenario["input_data"]
+    ctx.output = output
+    ctx.add_score(True, key="schema_validation")
+    ctx.add_score(0.99, key="processing_accuracy")
+    ctx.run_data = {
+        "input_depth": 4,
+        "total_fields": 25,
+        "processing_steps": ["validate", "transform", "enrich", "output"],
+    }
+    ctx.latency = 0.34
