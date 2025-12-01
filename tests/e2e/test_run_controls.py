@@ -327,7 +327,7 @@ class TestRerunFunctionality:
                 page.wait_for_selector("#results-table")
 
                 # Should have results from fast_ds (the new eval file)
-                page.wait_for_selector("text=fast_ds", timeout=5000)
+                page.wait_for_selector("#results-table:has-text('fast_ds')", timeout=5000)
 
                 browser.close()
 

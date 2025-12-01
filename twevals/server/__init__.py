@@ -85,8 +85,8 @@ def create_app(
             indices_map: For selective rerun - maps function id -> index in existing_results
         """
         config = load_config()
-        # Create store from current config so results_dir changes take effect
-        run_store = ResultsStore(config.get("results_dir", ".twevals/runs"))
+        # Use CLI-resolved results_dir (CLI override → config → default, resolved at startup)
+        run_store = ResultsStore(results_dir)
 
         if not functions:
             summary = {
