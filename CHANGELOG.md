@@ -2,6 +2,18 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Added: `--no-save` flag for `twevals run` to skip saving results to file (outputs JSON to stdout instead).
+- Added: Dataset and label pill filters in the web UI sidebar for quick filtering.
+- Added: Shift-click range selection for result checkboxes in the web UI.
+- Added: Trace URL link button in result detail page when `run_data.trace_url` is present.
+- Added: Footer with GitHub and documentation links in the web UI.
+- Changed: Error messages now include full stack traces for better debugging.
+- Changed: Errors print immediately to console (in red) during evaluation runs in both serve and run commands.
+- Changed: Server logging reduced to warnings only (no access logs) for cleaner output.
+- Changed: Web UI header is now sticky for better navigation.
+
 ## 0.0.2a12 - 2025-11-30
 
 - Changed: CLI restructured into explicit subcommands - `twevals serve <path>` starts the UI, `twevals run <path>` runs headless. The `--serve` flag is removed.

@@ -157,6 +157,15 @@ twevals run evals/ --output results.json
 twevals run evals/ -o results.json
 ```
 
+<ParamField path="--no-save" type="flag">
+  Skip saving results to file. Outputs JSON to stdout instead.
+</ParamField>
+
+```bash
+# Get results as JSON without writing to disk
+twevals run evals/ --no-save | jq '.passed'
+```
+
 ### Session Options
 
 <ParamField path="--session" type="string">
