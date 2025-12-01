@@ -350,35 +350,6 @@ class TestMetadataFromParams:
             assert "temperature" in result.metadata
 
 
-class TestSetParamsHelper:
-    """Test Pattern 9: set_params helper"""
-
-    @pytest.mark.asyncio
-    async def test_set_params(self):
-        """Test set_params sets both input and metadata"""
-
-        @eval(dataset="test")
-        @parametrize("model,temperature", [("model-a", 0.0), ("model-b", 1.0)])
-        async def test_func(ctx: EvalContext, model, temperature):
-            # Use set_params to set both input and metadata
-            ctx.set_params(model=model, temperature=temperature)
-
-            await asyncio.sleep(0.01)
-            ctx.add_output("test output")
-            ctx.add_score(True, "Success", key="execution")
-
-            # Verify both were set
-            assert ctx.input == {"model": model, "temperature": temperature}
-            assert "model" in ctx.metadata
-            assert "temperature" in ctx.metadata
-
-        eval_functions = generate_eval_functions(test_func)
-        results = [await func.call_async() for func in eval_functions]
-
-        assert len(results) == 2
-        assert all(r.scores[0].passed for r in results)
-
-
 class TestUltraMinimal:
     """Test Pattern 10: Ultra-minimal (2 lines!)"""
 

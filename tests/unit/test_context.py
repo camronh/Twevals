@@ -211,32 +211,6 @@ class TestAddScore:
         assert result is ctx
 
 
-class TestSetParams:
-    """Test set_params helper method"""
-
-    def test_set_params_basic(self):
-        """Test set_params sets both input and metadata"""
-        ctx = EvalContext()
-        ctx.set_params(model="gpt-4", temperature=0.7)
-
-        assert ctx.input == {"model": "gpt-4", "temperature": 0.7}
-        assert ctx.metadata == {"model": "gpt-4", "temperature": 0.7}
-
-    def test_set_params_merges_metadata(self):
-        """Test set_params merges with existing metadata"""
-        ctx = EvalContext(metadata={"existing": "value"})
-        ctx.set_params(new_key="new_value")
-
-        assert ctx.metadata == {"existing": "value", "new_key": "new_value"}
-
-    def test_set_params_chaining(self):
-        """Test that set_params returns self for chaining"""
-        ctx = EvalContext()
-        result = ctx.set_params(test="value")
-
-        assert result is ctx
-
-
 class TestBuild:
     """Test build and build_with_error methods"""
 

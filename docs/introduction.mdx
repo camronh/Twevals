@@ -67,7 +67,7 @@ async def test_sentiment_analysis(ctx: EvalContext):
     ctx.add_output(await analyze_sentiment(ctx.input))
 
     # Evaluate!
-    assert ctx.output == cxt.reference, f"Expected {ctx.reference}, got {ctx.output}"
+    assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
 ```
 
 Or use `@parametrize` to apply eval to a dataset:
@@ -83,7 +83,7 @@ async def test_sentiment_batch(ctx: EvalContext):
     # Parametrized data is injected into the ctx
     ctx.add_output(await analyze_sentiment(ctx.input))
 
-    assert ctx.output == cxt.reference, f"Expected {ctx.reference}, got {ctx.output}"
+    assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
 ```
 
 Start the web UI to run evals and review results:
