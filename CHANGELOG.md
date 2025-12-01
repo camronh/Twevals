@@ -2,6 +2,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Changed: Documentation rewritten for clarity—simplified examples, removed redundant code patterns, consistent use of direct `ctx.output` assignment.
+- Changed: README simplified to match new documentation patterns—assertions as primary scoring, direct property assignment, removed `set_params()` references.
+- Changed: Removed `set_params()` method from EvalContext (use direct property assignment instead).
+- Added: UI screenshot in documentation assets.
+
 ## 0.0.2a13 - 2025-11-30
 
 - Added: `--no-save` flag for `twevals run` to skip saving results to file (outputs JSON to stdout instead).
