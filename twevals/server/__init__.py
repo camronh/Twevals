@@ -524,9 +524,6 @@ def create_app(
         """Update the twevals config."""
         config = load_config()
         config.update(body)
-        # Remove timeout if not in body (user cleared it)
-        if "timeout" not in body and "timeout" in config:
-            del config["timeout"]
         save_config(config)
         return {"ok": True, "config": config}
 
