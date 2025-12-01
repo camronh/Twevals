@@ -57,7 +57,12 @@ packages = ["twevals"]
 [tool.hatch.build.targets.sdist]
 include = [
   "twevals/**/*.md",
+  "twevals/**/*.json",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]
-"twevals/skill/SKILL.md" = "twevals/skill/SKILL.md"
+"twevals/plugin/.claude-plugin/plugin.json" = "twevals/plugin/.claude-plugin/plugin.json"
+"twevals/plugin/skills/twevals/SKILL.md" = "twevals/plugin/skills/twevals/SKILL.md"
+"twevals/plugin/commands/run-evals.md" = "twevals/plugin/commands/run-evals.md"
+"twevals/plugin/commands/analyze-results.md" = "twevals/plugin/commands/analyze-results.md"
+"twevals/plugin/commands/new-eval.md" = "twevals/plugin/commands/new-eval.md"

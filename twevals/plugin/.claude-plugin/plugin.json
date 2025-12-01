@@ -1,0 +1,13 @@
+{
+  "name": "twevals",
+  "version": "1.0.0",
+  "description": "AI evaluation framework for testing agents and LLM applications. Run evals, analyze results, and write evaluation functions.",
+  "author": {
+    "name": "Twevals Team"
+  },
+  "homepage": "https://github.com/camronh/Twevals",
+  "repository": "https://github.com/camronh/Twevals",
+  "license": "MIT",
+  "keywords": ["evaluation", "llm", "agents", "testing", "evals", "benchmark"],
+  "category": "development"
+}

@@ -133,49 +133,44 @@ def cli():
     pass
 
 
-@cli.command('skill')
-@click.option('--global', '-g', 'global_install', is_flag=True, help='Install globally (~/.claude/skills/) instead of locally')
-@click.option('--uninstall', '-u', is_flag=True, help='Remove the installed skill')
-def skill_cmd(global_install: bool, uninstall: bool):
-    """Install/update the twevals Claude Code skill.
+@cli.command('plugin')
+@click.option('--global', '-g', 'global_install', is_flag=True, help='Install globally (~/.claude/plugins/) instead of locally')
+@click.option('--uninstall', '-u', is_flag=True, help='Remove the installed plugin')
+def plugin_cmd(global_install: bool, uninstall: bool):
+    """Install/update the twevals Claude Code plugin.
 
-    By default, installs to .claude/skills/twevals/ in the current directory.
-    Use --global to install to ~/.claude/skills/twevals/ for all projects.
+    Includes skills and slash commands (/run-evals, /analyze-results, /new-eval).
+
+    By default, installs to .claude/plugins/twevals/ in the current directory.
+    Use --global to install to ~/.claude/plugins/twevals/ for all projects.
     """
-    from twevals.skill import get_skill_content
+    import shutil
+    from twevals.plugin import get_plugin_dir, install_plugin
 
     # Determine target directory
     if global_install:
-        target_dir = Path.home() / ".claude" / "skills" / "twevals"
+        target_dir = Path.home() / ".claude" / "plugins" / "twevals"
         location = "global"
     else:
-        target_dir = Path.cwd() / ".claude" / "skills" / "twevals"
+        target_dir = Path.cwd() / ".claude" / "plugins" / "twevals"
         location = "local"
 
-    skill_file = target_dir / "SKILL.md"
-
     if uninstall:
-        if skill_file.exists():
-            skill_file.unlink()
-            # Remove directory if empty
-            if target_dir.exists() and not any(target_dir.iterdir()):
-                target_dir.rmdir()
-            console.print(f"[green]✓[/green] Removed twevals skill from {location} location")
+        if target_dir.exists():
+            shutil.rmtree(target_dir)
+            console.print(f"[green]✓[/green] Removed twevals plugin from {location} location")
         else:
-            console.print(f"[yellow]Skill not found at {location} location[/yellow]")
+            console.print(f"[yellow]Plugin not found at {location} location[/yellow]")
         return
 
-    # Create directory if needed
-    target_dir.mkdir(parents=True, exist_ok=True)
-
     # Check if updating or fresh install
-    action = "Updated" if skill_file.exists() else "Installed"
+    action = "Updated" if target_dir.exists() else "Installed"
 
-    # Write skill content
-    skill_content = get_skill_content()
-    skill_file.write_text(skill_content)
+    # Install the plugin
+    install_plugin(target_dir)
 
-    console.print(f"[green]✓[/green] {action} twevals skill at: {skill_file}")
+    console.print(f"[green]✓[/green] {action} twevals plugin at: {target_dir}")
+    console.print("[dim]Includes: skill + /run-evals, /analyze-results, /new-eval commands[/dim]")
     if not global_install:
         console.print("[dim]Tip: Add .claude/ to .gitignore or commit to share with your team[/dim]")
 
