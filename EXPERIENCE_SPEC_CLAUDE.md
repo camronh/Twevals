@@ -40,6 +40,46 @@ Twevals is a **pytest-inspired, code-first evaluation framework** for LLM applic
 
 ---
 
+## Capability Tiers
+
+Capabilities are organized by criticality. **Tier 1** features are core to the product promise and must never break. **Tier 2** features are important but have workarounds. **Tier 3** features are conveniences.
+
+### Tier 1: Core (Must Never Break)
+
+| Capability | What It Enables |
+|------------|-----------------|
+| `@eval` decorator | Marking functions as evaluations |
+| `EvalContext` injection | Building results declaratively |
+| Assertion-based scoring | Pytest-like pass/fail |
+| `twevals run` command | Headless execution |
+| Results saved to JSON | Persistence and analysis |
+| `twevals serve` command | Web UI for review |
+
+### Tier 2: Important (Has Workarounds)
+
+| Capability | What It Enables |
+|------------|-----------------|
+| `@parametrize` | Multiple test cases from one function |
+| `add_score()` | Numeric and named metrics |
+| File-level defaults | Shared config across evals |
+| Evaluators | Reusable post-processing |
+| Target hooks | Separated agent invocation |
+| Filtering (`--dataset`, `--label`) | Selective runs |
+| Sessions/runs | Grouping for comparison |
+
+### Tier 3: Conveniences
+
+| Capability | What It Enables |
+|------------|-----------------|
+| `--visual` output | Rich terminal display |
+| `--verbose` | Debug output |
+| `twevals.json` config | Persistent defaults |
+| UI inline editing | Result annotation |
+| CSV export | Spreadsheet analysis |
+| `metadata_from_params` | Auto-extract metadata |
+
+---
+
 ## Capabilities
 
 ### 1. Define Evaluations with the `@eval` Decorator
@@ -232,13 +272,11 @@ Scenario: Auto-mapping special parameter names
 ```
 
 ```gherkin
-Scenario: Custom parameter names require function signature
-  Given @parametrize("prompt,expected", [("a", "b")])
-  When the function signature includes (ctx: EvalContext, prompt, expected)
-  Then parameters are passed as function arguments
-
-  When the function signature omits prompt/expected
-  Then error: "unexpected keyword argument"
+Scenario: Using custom parameter names
+  Given @parametrize("prompt,expected", [("hello", "world")])
+  And the function is defined as def my_eval(ctx: EvalContext, prompt, expected)
+  When the evaluation runs
+  Then prompt="hello" and expected="world" are available in the function body
 ```
 
 ```gherkin
@@ -250,10 +288,17 @@ Scenario: Stacked parametrize (Cartesian product)
 ```
 
 **Invariants:**
-- Special parameter names that auto-populate context: `input`, `reference`, `metadata`, `run_data`, `latency`
-- Non-special parameters MUST be in the function signature
-- Without custom `ids`, variants are numbered [0], [1], [2], etc.
-- `@eval` decorator must be placed ABOVE `@parametrize`
+- Parameters named `input`, `reference`, `metadata`, `run_data`, or `latency` auto-populate ctx fields
+- Other parameters must appear in the function signature to be accessible
+- Without custom `ids`, variants get numeric IDs: `[0]`, `[1]`, `[2]`, etc.
+- Decorator order matters: `@eval` above `@parametrize`
+
+**What Users Expect vs Reality:**
+| User Expects | Reality |
+|--------------|---------|
+| 4 tests from 2x2 stacked parametrize | Creates 4 evaluations with IDs [0]-[3] |
+| Named IDs like `[gpt4-high]` | Must explicitly provide `ids=["gpt4-high", ...]` |
+| All params auto-available | Only special names auto-inject; others need signature |
 
 ---
 
@@ -979,9 +1024,195 @@ Shows all print statements from evaluation functions in addition to other output
 
 ---
 
-## Discrepancies Identified
+## Discrepancies: Documentation vs Reality
 
-None identified during this analysis. Documentation and implementation appear consistent.
+### Broken Features (Documented but Not Implemented)
+
+| Feature | Documented In | Reality |
+|---------|---------------|---------|
+| `--dev` flag for `twevals serve` | README line 319: "Enable hot reload" | **Flag does not exist in CLI implementation** |
+| `--host` flag for `twevals serve` | README line 320: "Host interface (default 127.0.0.1)" | **Flag does not exist in CLI implementation** |
+
+### Untested Features (Implemented but No Test Coverage)
+
+| Feature | Risk Level | Notes |
+|---------|------------|-------|
+| `--no-save` flag | High | Outputs JSON to stdout - zero tests |
+| `--limit` flag | High | Limits evaluations run - zero tests |
+| `--session` flag | Medium | Session naming - zero CLI tests |
+| `--run-name` flag | Medium | Run naming - zero CLI tests |
+| Auto-generated friendly names | Medium | "swift-falcon" style names - zero tests |
+| Global `--timeout` CLI flag | Medium | Tested at decorator level, not CLI level |
+| Evaluators execution pipeline | Medium | Only basic smoke tests, no edge cases |
+
+### Documentation Drift
+
+| Claim | Location | Actual Behavior |
+|-------|----------|-----------------|
+| "Exit codes for failed evaluations" | CLI docs line 315-317 | Exit 0 regardless of pass/fail; only execution errors cause non-zero |
+
+---
+
+## Common User Confusion States
+
+These are mistakes new users commonly make, with the error messages they'll encounter.
+
+### Forgetting to Add EvalContext Parameter
+
+**What the user does:**
+```python
+@eval(input="test")
+def my_eval():  # Missing ctx: EvalContext
+    return EvalResult(input="test", output="result")
+```
+
+**What happens:** Works, but user loses access to auto-scoring, assertion capture, and the builder pattern. No error, just confusion about why assertions don't create scores.
+
+**Better pattern:**
+```python
+@eval(input="test")
+def my_eval(ctx: EvalContext):
+    ctx.output = "result"
+    assert ctx.output  # This becomes a score
+```
+
+---
+
+### Using Target Without Context Parameter
+
+**What the user does:**
+```python
+def my_target(ctx):
+    ctx.output = "result"
+
+@eval(target=my_target)
+def my_eval():  # No ctx parameter
+    pass
+```
+
+**Error message:** `ValueError: Target functions require the evaluation function to accept a context parameter`
+
+---
+
+### Forgetting Custom Parameters in Function Signature
+
+**What the user does:**
+```python
+@eval
+@parametrize("prompt,expected", [("a", "b")])
+def my_eval(ctx: EvalContext):  # Missing prompt, expected
+    print(prompt)  # NameError
+```
+
+**Error message:** `TypeError: my_eval() got unexpected keyword argument 'prompt'`
+
+**Fix:** Add parameters to signature: `def my_eval(ctx: EvalContext, prompt, expected):`
+
+---
+
+### Putting @eval Below @parametrize
+
+**What the user does:**
+```python
+@parametrize("x", [1, 2])
+@eval(dataset="test")  # Wrong order
+def my_eval(ctx: EvalContext, x):
+    pass
+```
+
+**What happens:** Discovery fails silently or produces unexpected results.
+
+**Fix:** `@eval` must be ABOVE `@parametrize`
+
+---
+
+### Calling add_score Without Key and No Default
+
+**What the user does:**
+```python
+@eval  # No default_score_key
+def my_eval(ctx: EvalContext):
+    ctx.add_score(True, "passed")  # No key argument
+```
+
+**Error message:** `ValueError: Must specify score key or set default_score_key`
+
+**Fix:** Either `@eval(default_score_key="accuracy")` or `ctx.add_score(True, "passed", key="accuracy")`
+
+---
+
+### Score Missing Both Value and Passed
+
+**What the user does:**
+```python
+return EvalResult(
+    input="test",
+    output="result",
+    scores=[{"key": "accuracy"}]  # Missing value or passed
+)
+```
+
+**Error message:** `ValidationError: Either 'value' or 'passed' must be provided in score`
+
+---
+
+### Returning Wrong Type from Eval Function
+
+**What the user does:**
+```python
+@eval
+def my_eval(ctx: EvalContext):
+    return "just a string"  # Wrong type
+```
+
+**Error message:** `ValueError: Evaluation function must return EvalResult, List[EvalResult], EvalContext, or None (with context param), got <class 'str'>`
+
+---
+
+### Path Doesn't Exist
+
+**What the user does:**
+```bash
+twevals run nonexistent_folder/
+```
+
+**Error message:** `Error: Path nonexistent_folder/ does not exist`
+**Exit code:** 1
+
+---
+
+### Invalid Path Type
+
+**What the user does:**
+```bash
+twevals run some_file.txt  # Not a .py file or directory
+```
+
+**Error message:** `ValueError: Path some_file.txt is neither a Python file nor a directory`
+
+---
+
+### Concurrency Set to Zero
+
+**What the user does:**
+```bash
+twevals run evals/ --concurrency 0
+```
+
+**Error message:** `ValueError: concurrency must be at least 1, got 0`
+
+---
+
+### Mismatched Parametrize Value Count
+
+**What the user does:**
+```python
+@parametrize("a,b,c", [(1, 2)])  # 3 params, 2 values
+def my_eval(ctx, a, b, c):
+    pass
+```
+
+**Error message:** `ValueError: Expected 3 values, got 2`
 
 ---
 
@@ -993,3 +1224,64 @@ None identified during this analysis. Documentation and implementation appear co
 4. **`call_async()` method** - EvalFunction has a `call_async()` method for explicitly calling async functions
 5. **Result status field** - Results have a `status` field in the UI: "not_started", "pending", "running", "completed", "error", "cancelled"
 6. **Annotations field** - Results support an `annotations` field for human review notes (editable in UI)
+
+---
+
+## Test Coverage Gaps (Recommendations)
+
+Based on this analysis, the following tests should be added to match the documented experience:
+
+### High Priority (Broken or High-Risk)
+
+```gherkin
+# Fix or remove from docs
+Scenario: --dev flag enables hot reload
+  # Currently: Flag doesn't exist. Either implement or remove from docs.
+
+Scenario: --host flag changes bind address
+  # Currently: Flag doesn't exist. Either implement or remove from docs.
+```
+
+```gherkin
+# Add CLI tests
+Scenario: --no-save outputs JSON to stdout
+  When the user runs `twevals run evals/ --no-save`
+  Then JSON is printed to stdout
+  And no file is created in .twevals/runs/
+
+Scenario: --limit restricts evaluation count
+  Given 10 @eval functions exist
+  When the user runs `twevals run evals/ --limit 3`
+  Then only 3 evaluations run
+```
+
+### Medium Priority (Untested Features)
+
+```gherkin
+Scenario: --session and --run-name appear in output JSON
+  When the user runs `twevals run evals/ --session my-session --run-name baseline`
+  Then the JSON file contains session_name="my-session" and run_name="baseline"
+
+Scenario: Auto-generated friendly run names
+  When the user runs `twevals run evals/` without --run-name
+  Then run_name is a friendly adjective-noun pair like "swift-falcon"
+
+Scenario: Global --timeout overrides decorator timeout
+  Given @eval(timeout=60.0) on a function
+  When the user runs `twevals run evals/ --timeout 5.0`
+  Then the 5.0 second timeout is used (CLI wins)
+```
+
+### Low Priority (Edge Cases)
+
+```gherkin
+Scenario: Complex evaluator chains with errors
+  Given an evaluator that raises an exception
+  When the evaluation completes
+  Then the error is captured and other evaluators still run
+
+Scenario: Concurrent modification during UI rerun
+  Given a run is in progress
+  When the user starts another rerun
+  Then [define expected behavior - queue? cancel? error?]
+```
