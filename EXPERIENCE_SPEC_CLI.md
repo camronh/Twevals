@@ -116,13 +116,13 @@ Scenario: Auto-generated names
 
 ### Output Formats
 
-**Minimal (default):**
+**Minimal (default) Example:**
 ```
 Running evals.py
 Results saved to .twevals/runs/swift-falcon_2024-01-15T10-30-00Z.json
 ```
 
-**Visual (`--visual`):**
+**Visual (`--visual`) Example:**
 ```
 Running evals.py
 customer_service.py ..F
@@ -130,10 +130,7 @@ customer_service.py ..F
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃                     customer_service                           ┃
 ┣━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┫
-┃ Name                ┃ Status   ┃ Score    ┃ Latency           ┃
-┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-│ test_refund         │ ✓ passed │ 1.0      │ 0.23s             │
-│ test_complaint      │ ✗ failed │ 0.0      │ 0.45s             │
+┃ ...                ┃ ...      ┃ ...      ┃ ...               ┃
 └─────────────────────┴──────────┴──────────┴───────────────────┘
 
 Total Functions: 2
