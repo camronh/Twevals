@@ -234,3 +234,161 @@ def test_error():
         result = self.runner.invoke(cli, ['run', 'nonexistent.py'])
         assert result.exit_code == 1  # Error code for missing file
         assert 'does not exist' in result.output
+
+    def test_limit_flag(self):
+        """--limit N runs at most N evaluations"""
+        with self.runner.isolated_filesystem():
+            with open('test_limit.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval(dataset="test")
+def test_1():
+    return EvalResult(input="1", output="1")
+
+@eval(dataset="test")
+def test_2():
+    return EvalResult(input="2", output="2")
+
+@eval(dataset="test")
+def test_3():
+    return EvalResult(input="3", output="3")
+
+@eval(dataset="test")
+def test_4():
+    return EvalResult(input="4", output="4")
+
+@eval(dataset="test")
+def test_5():
+    return EvalResult(input="5", output="5")
+""")
+
+            result = self.runner.invoke(cli, ['run', 'test_limit.py', '--limit', '2', '--visual'])
+            assert result.exit_code == 0
+            assert 'Total Evaluations: 2' in result.output
+
+    def test_no_save_stdout(self):
+        """--no-save outputs JSON to stdout"""
+        with self.runner.isolated_filesystem():
+            with open('test_nosave.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval()
+def test_nosave():
+    return EvalResult(input="x", output="y")
+""")
+
+            result = self.runner.invoke(cli, ['run', 'test_nosave.py', '--no-save'])
+            assert result.exit_code == 0
+            # Output should contain valid JSON
+            import json
+            # The JSON is in the output, parse it
+            assert '"total_evaluations"' in result.output
+            assert '"results"' in result.output
+
+    def test_no_save_no_file(self):
+        """--no-save prevents file from being written to .twevals/runs/"""
+        with self.runner.isolated_filesystem():
+            with open('test_nosave2.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval()
+def test_nosave():
+    return EvalResult(input="x", output="y")
+""")
+
+            result = self.runner.invoke(cli, ['run', 'test_nosave2.py', '--no-save'])
+            assert result.exit_code == 0
+            # No file should be saved
+            assert not Path('.twevals/runs').exists() or len(list(Path('.twevals/runs').glob('*.json'))) == 0
+
+    def test_session_flag(self):
+        """--session sets session_name in stored JSON"""
+        with self.runner.isolated_filesystem():
+            with open('test_session.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval()
+def test_session():
+    return EvalResult(input="x", output="y")
+""")
+
+            result = self.runner.invoke(cli, ['run', 'test_session.py', '--session', 'my-session'])
+            assert result.exit_code == 0
+
+            # Load from default storage location
+            runs_dir = Path('.twevals/runs')
+            run_files = [f for f in runs_dir.glob('*.json') if f.name != 'latest.json']
+            assert len(run_files) == 1
+            with open(run_files[0]) as f:
+                data = json.load(f)
+            assert data['session_name'] == 'my-session'
+
+    def test_run_name_flag(self):
+        """--run-name sets run_name in stored JSON"""
+        with self.runner.isolated_filesystem():
+            with open('test_runname.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval()
+def test_runname():
+    return EvalResult(input="x", output="y")
+""")
+
+            result = self.runner.invoke(cli, ['run', 'test_runname.py', '--run-name', 'baseline'])
+            assert result.exit_code == 0
+
+            # Load from default storage location
+            runs_dir = Path('.twevals/runs')
+            run_files = [f for f in runs_dir.glob('*.json') if f.name != 'latest.json']
+            assert len(run_files) == 1
+            with open(run_files[0]) as f:
+                data = json.load(f)
+            assert data['run_name'] == 'baseline'
+
+    def test_comma_separated_datasets(self):
+        """--dataset a,b filters with OR logic"""
+        with self.runner.isolated_filesystem():
+            with open('test_comma_ds.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval(dataset="alpha")
+def test_alpha():
+    return EvalResult(input="a", output="a")
+
+@eval(dataset="beta")
+def test_beta():
+    return EvalResult(input="b", output="b")
+
+@eval(dataset="gamma")
+def test_gamma():
+    return EvalResult(input="g", output="g")
+""")
+
+            # Comma-separated datasets should match alpha OR beta
+            result = self.runner.invoke(cli, ['run', 'test_comma_ds.py', '--dataset', 'alpha,beta', '--visual'])
+            assert result.exit_code == 0
+            assert 'Total Functions: 2' in result.output
+            assert 'Total Evaluations: 2' in result.output
+
+    def test_exit_code_success_regardless_of_pass_fail(self):
+        """Exit code 0 on completion regardless of pass/fail status"""
+        with self.runner.isolated_filesystem():
+            with open('test_exitcode.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval()
+def test_failing():
+    return EvalResult(input="x", output="y", scores=[{"key": "check", "passed": False}])
+""")
+
+            result = self.runner.invoke(cli, ['run', 'test_exitcode.py', '--visual'])
+            # Exit code should be 0 even when evals fail
+            assert result.exit_code == 0
+            assert 'FAIL' in result.output

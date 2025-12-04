@@ -282,11 +282,32 @@ def test_normal():
 
         funcs = generate_eval_functions(test_func)
         assert len(funcs) == 2
-        
+
         result0 = funcs[0]()
         assert result0.input == 1
         assert result0.output == 2
-        
+
         result1 = funcs[1]()
         assert result1.input == 3
         assert result1.output == 4
+
+    def test_empty_parametrize_list(self):
+        """Empty values list generates no eval functions"""
+        @eval()
+        @parametrize("x", [])
+        def test_func(x):
+            return EvalResult(input=x, output=x)
+
+        funcs = generate_eval_functions(test_func)
+        assert len(funcs) == 0
+
+    def test_single_item_parametrize(self):
+        """Single item in values list generates one eval function"""
+        @eval()
+        @parametrize("x", [42])
+        def test_func(x):
+            return EvalResult(input=x, output=x * 2)
+
+        funcs = generate_eval_functions(test_func)
+        assert len(funcs) == 1
+        assert funcs[0]().output == 84

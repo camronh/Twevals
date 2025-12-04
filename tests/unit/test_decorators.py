@@ -228,3 +228,29 @@ class TestEvalTimeout:
         assert isinstance(result, EvalResult)
         assert result.error is not None
         assert "timeout" in result.error.lower() or "timed out" in result.error.lower()
+
+
+class TestTargetValidation:
+    """Test target function validation"""
+
+    def test_target_requires_context_param(self):
+        """ValueError when target used without context parameter"""
+        def my_target(ctx: EvalContext):
+            return "result"
+
+        with pytest.raises(ValueError) as exc_info:
+            @eval(target=my_target)
+            def test_func():  # No context param!
+                return EvalResult(input="x", output="y")
+
+        assert "context parameter" in str(exc_info.value)
+
+    def test_invalid_return_type_error_message(self):
+        """Check exact error message for invalid return type"""
+        @eval()
+        def test_func():
+            return "not an EvalResult"
+
+        result = test_func()
+        assert result.error is not None
+        assert "must return EvalResult" in result.error

@@ -459,3 +459,17 @@ class TestContextParameterNames:
 
         result = test_func()
         assert result.input == "test"
+
+
+class TestAddScoreValidation:
+    """Test add_score validation errors"""
+
+    def test_add_score_requires_key_or_default(self):
+        """ValueError when no key provided and no default_score_key set"""
+        ctx = EvalContext()  # No default_score_key
+        ctx.default_score_key = None  # Explicitly clear it
+
+        with pytest.raises(ValueError) as exc_info:
+            ctx.add_score(True, "Test")
+
+        assert "Must specify score key or set default_score_key" in str(exc_info.value)

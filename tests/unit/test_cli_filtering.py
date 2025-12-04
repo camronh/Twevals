@@ -92,3 +92,32 @@ def func_b(): return EvalResult(input='b', output='b')
             assert result.exit_code == 0
             assert 'Total Functions: 1' in result.output
 
+    def test_combined_dataset_and_label_filter(self):
+        """--dataset X --label Y uses AND logic (must match both)"""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            with open('test_and_filter.py', 'w') as f:
+                f.write("""
+from twevals import eval, EvalResult
+
+@eval(dataset="prod", labels=["fast"])
+def func_a(): return EvalResult(input='a', output='a')
+
+@eval(dataset="prod", labels=["slow"])
+def func_b(): return EvalResult(input='b', output='b')
+
+@eval(dataset="staging", labels=["fast"])
+def func_c(): return EvalResult(input='c', output='c')
+""")
+
+            # Only func_a matches both dataset=prod AND label=fast
+            result = runner.invoke(cli, [
+                'run', 'test_and_filter.py',
+                '--dataset', 'prod',
+                '--label', 'fast',
+                '--visual'
+            ])
+            assert result.exit_code == 0
+            assert 'Total Functions: 1' in result.output
+            assert 'Total Evaluations: 1' in result.output
+

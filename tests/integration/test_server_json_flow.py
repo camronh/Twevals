@@ -373,3 +373,139 @@ def third():
     data2 = store.load_run(new_run_id)
     statuses2 = [r["result"].get("status") for r in data2["results"]]
     assert all(status == "cancelled" for status in statuses2)
+
+
+def test_list_sessions_endpoint(tmp_path: Path):
+    """GET /api/sessions returns unique session names"""
+    store = ResultsStore(tmp_path / "runs")
+    store.save_run(make_summary(), run_id="2024-01-01T00-00-00Z", session_name="session-a")
+    store.save_run(make_summary(), run_id="2024-01-02T00-00-00Z", session_name="session-b")
+    store.save_run(make_summary(), run_id="2024-01-03T00-00-00Z", session_name="session-a")  # Duplicate
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id="dummy")
+    client = TestClient(app)
+
+    response = client.get("/api/sessions")
+    assert response.status_code == 200
+    assert set(response.json()["sessions"]) == {"session-a", "session-b"}
+
+
+def test_list_session_runs_endpoint(tmp_path: Path):
+    """GET /api/sessions/{name}/runs lists runs for that session"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id_1 = store.save_run(make_summary(), run_id="2024-01-01T00-00-00Z", session_name="my-session", run_name="baseline")
+    run_id_2 = store.save_run(make_summary(), run_id="2024-01-02T00-00-00Z", session_name="my-session", run_name="improved")
+    store.save_run(make_summary(), run_id="2024-01-03T00-00-00Z", session_name="other-session")  # Different session
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id="dummy")
+    client = TestClient(app)
+
+    response = client.get("/api/sessions/my-session/runs")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["session_name"] == "my-session"
+    assert len(data["runs"]) == 2
+    run_ids = {r["run_id"] for r in data["runs"]}
+    assert run_id_1 in run_ids
+    assert run_id_2 in run_ids
+
+
+def test_update_run_name_endpoint(tmp_path: Path):
+    """PATCH /api/runs/{run_id} updates run_name"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary(), run_name="old-name")
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+    client = TestClient(app)
+
+    response = client.patch(f"/api/runs/{run_id}", json={"run_name": "new-name"})
+    assert response.status_code == 200
+    assert response.json()["run"]["run_name"] == "new-name"
+
+    # Verify persisted
+    data = store.load_run(run_id)
+    assert data["run_name"] == "new-name"
+
+
+def test_rerun_missing_path_error(tmp_path: Path):
+    """400 with 'Rerun unavailable: missing eval path' when no path configured"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary())
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id, path=None)
+    client = TestClient(app)
+
+    response = client.post("/api/runs/rerun")
+    assert response.status_code == 400
+    assert "Rerun unavailable: missing eval path" in response.json()["detail"]
+
+
+def test_rerun_deleted_path_error(tmp_path: Path):
+    """400 with 'Eval path not found: {path}' when path doesn't exist"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary())
+
+    nonexistent = tmp_path / "deleted_file.py"
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id, path=str(nonexistent))
+    client = TestClient(app)
+
+    response = client.post("/api/runs/rerun")
+    assert response.status_code == 400
+    assert "Eval path not found" in response.json()["detail"]
+
+
+def test_invalid_run_id_404(tmp_path: Path):
+    """404 with 'Run not found' for non-existent run_id"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary())
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+    client = TestClient(app)
+
+    response = client.get("/runs/nonexistent-run-id/results/0")
+    assert response.status_code == 404
+    assert "Run not found" in response.json()["detail"]
+
+
+def test_result_index_out_of_range_404(tmp_path: Path):
+    """404 with 'Result not found' when index exceeds results length"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary())  # 2 results
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+    client = TestClient(app)
+
+    response = client.get(f"/runs/{run_id}/results/999")
+    assert response.status_code == 404
+    assert "Result not found" in response.json()["detail"]
+
+
+def test_readonly_fields_not_editable(tmp_path: Path):
+    """PATCH ignores input, output, reference, dataset, labels, metadata, run_data, latency, error"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary())
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+    client = TestClient(app)
+
+    # Try to update read-only fields
+    response = client.patch(f"/api/runs/{run_id}/results/0", json={
+        "result": {
+            "input": "hacked-input",
+            "output": "hacked-output",
+            "reference": "hacked-ref",
+            "latency": 999.0,
+            "error": "hacked-error",
+            "metadata": {"hacked": True},
+            "run_data": {"hacked": True},
+        }
+    })
+    assert response.status_code == 200
+
+    # Verify fields were NOT changed
+    data = store.load_run(run_id)
+    result = data["results"][0]["result"]
+    assert result["input"] == "i1"  # Original value
+    assert result["output"] == "o1"  # Original value
+    assert result["latency"] == 0.1  # Original value
+    assert result["metadata"] == {"k": 1}  # Original value
