@@ -50,15 +50,10 @@ async def test_refund_requests():
             },
             trace_data={
                 "trace_id": f"refund_{expected_keyword}_{prompt.replace(' ', '_')}",
-                "trace": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    },
-                    {
-                        "role": "assistant",
-                        "content": result["output"]
-                    }
+                "messages": [
+                    {"role": "system", "content": "You are a helpful customer service assistant."},
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": result["output"]}
                 ]
             },
         ))
