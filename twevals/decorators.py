@@ -24,7 +24,6 @@ class EvalFunction:
         reference: Any = None,
         default_score_key: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        metadata_from_params: Optional[List[str]] = None,
         timeout: Optional[float] = None,
     ):
         self.func = func
@@ -32,7 +31,6 @@ class EvalFunction:
         # Track whether decorator explicitly provided list params (including empty lists)
         self._provided_labels = labels
         self._provided_evaluators = evaluators
-        self._provided_metadata_from_params = metadata_from_params
         self.labels = labels if labels is not None else []
         self.evaluators = evaluators if evaluators is not None else []
         self.target = target
@@ -49,7 +47,6 @@ class EvalFunction:
             'default_score_key': default_score_key,
             'metadata': metadata,
         }
-        self.metadata_from_params = metadata_from_params if metadata_from_params is not None else []
 
         functools.update_wrapper(self, func)
 
@@ -106,14 +103,6 @@ class EvalFunction:
         # Default ctx.input to provided function kwargs if not explicitly set
         if 'input' not in context_init and 'input' in kwargs:
             context_init['input'] = kwargs['input']
-
-        # Extract metadata_from_params if specified
-        if self.metadata_from_params:
-            if 'metadata' not in context_init:
-                context_init['metadata'] = {}
-            for param_name in self.metadata_from_params:
-                if param_name in kwargs:
-                    context_init['metadata'][param_name] = kwargs[param_name]
 
         return EvalContext(**context_init)
 
@@ -428,7 +417,6 @@ def eval(
     reference: Any = None,
     default_score_key: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
-    metadata_from_params: Optional[List[str]] = None,
     timeout: Optional[float] = None,
 ):
     # Support both @eval and @eval()
@@ -449,7 +437,6 @@ def eval(
             reference=reference,
             default_score_key=default_score_key,
             metadata=metadata,
-            metadata_from_params=metadata_from_params,
             timeout=timeout,
         )
     return decorator

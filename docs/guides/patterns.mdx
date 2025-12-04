@@ -179,9 +179,10 @@ async def test_comprehensive(ctx: EvalContext):
 Compare multiple approaches:
 
 ```python
-@eval(input="Explain recursion simply", dataset="model_comparison", metadata_from_params=["model"])
+@eval(input="Explain recursion simply", dataset="model_comparison")
 @parametrize("model", ["gpt-4", "gpt-3.5", "claude-3"])
 async def test_model_comparison(ctx: EvalContext, model):
+    ctx.metadata["model"] = model  # Track which model was used
     ctx.output = await call_model(model, ctx.input)
 
     assert len(ctx.output) > 50, "Response too short"

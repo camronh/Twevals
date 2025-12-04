@@ -35,7 +35,7 @@ Scenario: Run a specific function
   Then only test_refund runs
 
 Scenario: Run a parametrized variant
-  When the user runs `twevals run evals.py::test_math[2-3-5]`
+  When the user runs `twevals run evals.py::test_math[2][3][5]`
   Then only that specific variant runs
 ```
 
@@ -46,6 +46,10 @@ Scenario: Filter by dataset
   When the user runs `twevals run evals/ --dataset customer_service`
   Then only evaluations with dataset="customer_service" run
 
+Scenario: Filter by multiple datasets (comma-separated)
+  When the user runs `twevals run evals/ --dataset qa,customer_service`
+  Then evaluations with dataset="qa" OR dataset="customer_service" run
+
 Scenario: Filter by label
   When the user runs `twevals run evals/ --label production`
   Then only evaluations containing "production" in labels run
@@ -53,6 +57,10 @@ Scenario: Filter by label
 Scenario: Multiple labels (OR logic)
   When the user runs `twevals run evals/ --label a --label b`
   Then evaluations with label "a" OR "b" run
+
+Scenario: Combined filtering (AND logic between types)
+  When the user runs `twevals run evals/ --dataset qa --label production`
+  Then evaluations must match: (dataset=qa) AND (has label "production")
 
 Scenario: Limit evaluation count
   When the user runs `twevals run evals/ --limit 10`
@@ -175,15 +183,6 @@ Scenario: Filter in UI
 
 ---
 
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `TWEVALS_CONCURRENCY` | Default concurrency level |
-| `TWEVALS_TIMEOUT` | Default timeout in seconds |
-
----
-
 ## Configuration File (`twevals.json`)
 
 ```json
@@ -195,7 +194,7 @@ Scenario: Filter in UI
 }
 ```
 
-**Precedence:** CLI flags > Environment variables > Config file > Defaults
+**Precedence:** CLI flags > Config file > Defaults
 
 ---
 
@@ -252,22 +251,3 @@ Scenario: Concurrency set to zero
 | `--run-name` | str | auto | Run name |
 | `--results-dir` | path | .twevals/runs | Results directory |
 
----
-
-## Known Issues
-
-### Documented but Not Implemented
-
-| Flag | Documented Behavior | Status |
-|------|---------------------|--------|
-| `--dev` | Enable hot reload for serve | **Not implemented** |
-| `--host` | Bind to specific interface | **Not implemented** |
-
-### Untested Features
-
-| Flag | Risk |
-|------|------|
-| `--no-save` | Zero test coverage |
-| `--limit` | Zero test coverage |
-| `--session` | Zero CLI test coverage |
-| `--run-name` | Zero CLI test coverage |

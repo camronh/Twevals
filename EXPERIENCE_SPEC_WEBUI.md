@@ -106,26 +106,19 @@ Scenario: Navigate between results
 ## Inline Editing
 
 ```gherkin
-Scenario: Edit dataset
-  Given the detail view is open
-  When the user edits the dataset field
-  Then the change saves to the JSON file immediately
-
-Scenario: Edit labels
-  Given the detail view is open
-  When the user adds or removes labels
-  Then changes save to the JSON file immediately
-
 Scenario: Edit annotations
   Given the detail view is open
   When the user adds annotation text
   Then the annotation saves to the JSON file
   And annotations persist across page reloads
+
+Scenario: Edit scores
+  Given the detail view is open
+  When the user modifies a score's value, passed, or notes
+  Then the change saves to the JSON file immediately
 ```
 
 **Editable Fields:**
-- Dataset
-- Labels
 - Scores (value, passed, notes)
 - Annotations
 
@@ -133,6 +126,8 @@ Scenario: Edit annotations
 - Input
 - Output
 - Reference
+- Dataset
+- Labels
 - Metadata
 - Run Data
 - Latency
@@ -271,9 +266,11 @@ Results are stored in `.twevals/runs/`:
 ├── runs/
 │   ├── baseline_2024-01-15T10-30-00Z.json
 │   ├── swift-falcon_2024-01-15T14-45-00Z.json
-│   └── latest.json  (copy of most recent)
+│   └── latest.json
 └── twevals.json
 ```
+
+**`latest.json`:** A copy of the most recent run. The UI uses this for quick loading without scanning the directory. Updated atomically after each run completes.
 
 ### JSON Schema
 

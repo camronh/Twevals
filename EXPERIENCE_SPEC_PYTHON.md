@@ -53,7 +53,6 @@ Scenario: Pre-populated context fields
 | `timeout` | float | None | Max execution time (seconds) |
 | `target` | callable | None | Pre-hook that runs first |
 | `evaluators` | list[callable] | [] | Post-processing score functions |
-| `metadata_from_params` | list[str] | [] | Auto-extract params to metadata |
 
 ### Return Types
 
@@ -114,6 +113,10 @@ Scenario: add_output with arbitrary dict
 ```
 
 **Known fields extracted:** `output`, `latency`, `run_data`, `metadata`
+
+**When to use which:**
+- Use `ctx.add_output(result)` when your agent returns a dict with `output`, `latency`, `run_data`, or `metadata` keys - fields are extracted automatically
+- Use `ctx.output = result` for direct assignment when you just have the output value
 
 ### Scoring
 
@@ -225,7 +228,22 @@ Scenario: Custom parameters require function signature
 ```python
 @parametrize("model", ["gpt-4", "claude"])
 @parametrize("temp", [0.0, 1.0])
-# Creates 4 evaluations: [0], [1], [2], [3]
+# Creates 4 evaluations: [model][temp], e.g. [gpt-4][0.0]
+```
+
+### Loading Test Cases from File
+
+```python
+import json
+
+with open("test_cases.json") as f:
+    cases = json.load(f)  # [{"input": "...", "reference": "..."}, ...]
+
+@eval(dataset="from_file")
+@parametrize("input,reference", [(c["input"], c["reference"]) for c in cases])
+def test_from_file(ctx: EvalContext):
+    ctx.output = agent(ctx.input)
+    assert ctx.output == ctx.reference
 ```
 
 ---

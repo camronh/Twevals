@@ -77,24 +77,19 @@ def test_patch_endpoint_updates_json(tmp_path: Path):
     app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
     client = TestClient(app)
 
-    # Update index 1 dataset and scores
+    # Update index 1 scores (only scores and annotations are editable)
     payload = {
-        "dataset": "new_ds",
-        "labels": ["prod"],
         "result": {"scores": [{"key": "metric", "value": 1.0}]},
     }
     pr = client.patch(f"/api/runs/{run_id}/results/1", json=payload)
     assert pr.status_code == 200
     body = pr.json()
     assert body["ok"] is True
-    assert body["result"]["dataset"] == "new_ds"
-    assert body["result"]["labels"] == ["prod"]
     assert body["result"]["result"]["scores"] == [{"key": "metric", "value": 1.0}]
 
-    # GET should reflect change
-    r = client.get("/results")
-    assert r.status_code == 200
-    assert "new_ds" in r.text
+    # Verify the scores were persisted
+    data = store.load_run(run_id)
+    assert data["results"][1]["result"]["scores"] == [{"key": "metric", "value": 1.0}]
 
 
 def test_annotation_via_patch(tmp_path: Path):

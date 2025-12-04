@@ -188,15 +188,10 @@ class ResultsStore:
     def update_result(self, run_id: str, index: int, updates: Dict[str, Any]) -> Dict[str, Any]:
         """Update allowed fields for a specific result entry and persist.
 
-        Allowed fields:
-        - dataset
-        - labels
+        Allowed fields (annotations + scores only):
         - result.scores
-        - result.metadata
-        - result.error
-        - result.reference
-        - result.annotation (full replace)
-        - result.annotations (full replace)
+        - result.annotation
+        - result.annotations
         """
         lock = self._get_lock(run_id)
         with lock:
@@ -206,17 +201,10 @@ class ResultsStore:
                 raise IndexError("result index out of range")
 
             entry = results[index]
-            # Top-level fields
-            if "dataset" in updates:
-                entry["dataset"] = updates["dataset"]
-            if "labels" in updates:
-                entry["labels"] = updates["labels"]
-
-            # Nested result fields
             result_updates = updates.get("result") or {}
             if result_updates:
                 result_entry = entry.setdefault("result", {})
-                for key in ("scores", "metadata", "error", "reference", "annotation", "annotations"):
+                for key in ("scores", "annotation", "annotations"):
                     if key in result_updates:
                         result_entry[key] = result_updates[key]
 

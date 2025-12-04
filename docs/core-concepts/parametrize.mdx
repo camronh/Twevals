@@ -137,7 +137,7 @@ Run a specific parametrized test:
 twevals run evals.py::test_math
 
 # Run specific variant
-twevals run evals.py::test_math[2-3-5]
+twevals run evals.py::test_math[2][3][5]
 ```
 
 ## Combining with Other Options
@@ -146,7 +146,6 @@ twevals run evals.py::test_math[2-3-5]
 @eval(
     dataset="sentiment",
     default_score_key="accuracy",
-    metadata_from_params=["model"],
     timeout=5.0
 )
 @parametrize("model", ["gpt-4", "gpt-3.5"])
@@ -156,6 +155,7 @@ twevals run evals.py::test_math[2-3-5]
 ])
 async def test_sentiment(ctx: EvalContext, model, text, expected):
     ctx.input = text
+    ctx.metadata["model"] = model  # Track which model was used
     ctx.metadata["text_length"] = len(text)
     ctx.output = await analyze_sentiment(text, model=model)
     assert ctx.output == expected

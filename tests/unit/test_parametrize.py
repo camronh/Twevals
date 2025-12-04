@@ -172,10 +172,11 @@ class TestParametrize:
         # Check combined IDs in function names
         func_names = [f.__name__ for f in funcs]
         # Note: stacked decorators apply in reverse order (temp-model)
-        assert any("cold-v3" in name for name in func_names)
-        assert any("hot-v3" in name for name in func_names)
-        assert any("cold-v4" in name for name in func_names)
-        assert any("hot-v4" in name for name in func_names)
+        # IDs are chained with ][ separator
+        assert any("cold][v3" in name for name in func_names)
+        assert any("hot][v3" in name for name in func_names)
+        assert any("cold][v4" in name for name in func_names)
+        assert any("hot][v4" in name for name in func_names)
     
     @pytest.mark.asyncio
     async def test_async_parametrize(self):

@@ -26,7 +26,7 @@ twevals serve examples
 ### UI highlights
 
 - Expand rows to see inputs, outputs, metadata, scores, and annotations.
-- Edit datasets, labels, scores, metadata, or annotations inline; changes persist to JSON.
+- Edit scores or annotations inline; changes persist to JSON.
 - Actions menu: refresh, rerun the suite, export JSON/CSV.
 
 ## Authoring evals
@@ -142,7 +142,6 @@ Wraps a function and records evaluation results.
 - `timeout` (float): Maximum execution time in seconds
 - `target` (callable): Pre-hook that runs before the eval
 - `evaluators` (list): Callables that add scores to a result
-- `metadata_from_params` (list): Auto-extract params to metadata
 
 **Examples:**
 
@@ -316,8 +315,6 @@ twevals run path/to/evals.py::function_name
 ```
 --session TEXT          Session name to group runs
 --run-name TEXT         Name for this run
---dev                   Enable hot reload
---host TEXT             Host interface (default 127.0.0.1)
 --port INT              Port (default 8000)
 ```
 

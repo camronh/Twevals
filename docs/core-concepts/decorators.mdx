@@ -87,21 +87,6 @@ async def test_classification(ctx: EvalContext):
     assert ctx.output in ["positive", "negative", "neutral"]
 ```
 
-### Metadata from Parameters
-
-Auto-extract parametrized values to metadata:
-
-```python
-@eval(metadata_from_params=["model", "temperature"])
-@parametrize("model,temperature,prompt", [
-    ("gpt-4", 0.0, "Hello"),
-    ("gpt-3.5", 0.7, "Hello"),
-])
-async def test_models(ctx: EvalContext, model, temperature, prompt):
-    # metadata automatically includes {"model": "gpt-4", "temperature": 0.0}
-    ...
-```
-
 ### Timeout
 
 Set a maximum execution time:
@@ -181,7 +166,6 @@ def test_batch():
 | `input` | Any | Pre-populate ctx.input |
 | `reference` | Any | Pre-populate ctx.reference |
 | `metadata` | dict | Pre-populate ctx.metadata |
-| `metadata_from_params` | list[str] | Auto-extract params to metadata |
 | `default_score_key` | str | Key for auto-added scores |
 | `timeout` | float | Max execution time in seconds |
 | `target` | callable | Pre-hook to run before evaluation |

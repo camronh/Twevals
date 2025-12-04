@@ -236,31 +236,7 @@ async def test_assertion_preservation(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 9: metadata_from_params (Advanced!)
-# ============================================================================
-
-@eval(
-    dataset="model_comparison",
-    default_score_key="quality",
-    metadata_from_params=["model", "temperature"]  # Auto-extract to metadata!
-)
-@parametrize("model", ["gpt-3.5", "gpt-4"])
-@parametrize("temperature", [0.0, 1.0])
-async def test_metadata_extraction(ctx: EvalContext, model, temperature):
-    """metadata_from_params automatically adds params to metadata"""
-    # ctx.metadata already has {"model": "gpt-4", "temperature": 1.0}!
-
-    ctx.input = {"prompt": "Hello", "model": model, "temperature": temperature}
-
-    # Simulate model call
-    creativity = temperature * 0.8 + (0.2 if "gpt-4" in model else 0.1)
-    ctx.add_output(f"Response from {model} at temp {temperature}")
-
-    ctx.add_score(min(creativity, 1.0), f"Creativity: {creativity:.2f}", key="creativity")
-
-
-# ============================================================================
-# Pattern 10: Metadata from Parameters
+# Pattern 9: Track Parameters in Metadata
 # ============================================================================
 
 @eval(dataset="model_config")
@@ -268,7 +244,7 @@ async def test_metadata_extraction(ctx: EvalContext, model, temperature):
     ("gpt-3.5", 0.0),
     ("gpt-4", 1.0),
 ])
-async def test_metadata_from_params(ctx: EvalContext, model, temperature):
+async def test_track_params(ctx: EvalContext, model, temperature):
     """Store parameters in metadata for tracking"""
     ctx.input = f"Test with {model}"
     ctx.metadata["model"] = model
@@ -279,7 +255,7 @@ async def test_metadata_from_params(ctx: EvalContext, model, temperature):
 
 
 # ============================================================================
-# Pattern 11: Ultra-Minimal (THE DREAM!)
+# Pattern 10: Ultra-Minimal (THE DREAM!)
 # ============================================================================
 
 @eval(dataset="sentiment", default_score_key="accuracy")
@@ -295,7 +271,7 @@ def test_ultra_minimal(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 12: Explicit Return (Still Works!)
+# Pattern 11: Explicit Return (Still Works!)
 # ============================================================================
 
 @eval(dataset="explicit_return", default_score_key="correctness")
@@ -309,7 +285,7 @@ async def test_explicit_return(ctx: EvalContext):
 
 
 # ============================================================================
-# Pattern 13: No Return (Auto-Return!)
+# Pattern 12: No Return (Auto-Return!)
 # ============================================================================
 
 @eval(dataset="auto_return", default_score_key="correctness")

@@ -79,32 +79,27 @@ def test_update_result_persists_and_limits_fields(tmp_path: Path):
     summary = minimal_summary()
     run_id = store.save_run(summary, run_id="2024-01-01T00-00-00Z", run_name="test-run")
 
+    # Only scores and annotations are editable
     updated = store.update_result(
         run_id,
         0,
         {
-            "dataset": "new_ds",
-            "labels": ["prod"],
             "result": {
                 "scores": [{"key": "accuracy", "value": 0.9}],
-                "metadata": {"model": "x"},
-                "error": None,
-                "reference": {"gold": 1},
-                # Unknown field should be ignored
+                # Unknown fields should be ignored
                 "unknown": "ignored",
             },
-            # Unknown top-level field should be ignored
+            # Unknown top-level fields should be ignored
             "foo": "bar",
         },
     )
 
-    assert updated["dataset"] == "new_ds"
-    assert updated["labels"] == ["prod"]
     assert updated["result"]["scores"] == [{"key": "accuracy", "value": 0.9}]
-    assert updated["result"]["metadata"] == {"model": "x"}
-    assert updated["result"]["reference"] == {"gold": 1}
     assert "foo" not in updated
     assert "unknown" not in updated["result"]
+    # dataset and labels should be unchanged (not editable)
+    assert updated["dataset"] == "ds"
+    assert updated["labels"] == ["test"]
 
     # Persisted to disk - load via store
     on_disk = store.load_run(run_id)

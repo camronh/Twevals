@@ -72,12 +72,10 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
             reference=context_kwargs.get('reference', eval_settings.context_kwargs.get('reference') if eval_settings else None),
             default_score_key=eval_settings.context_kwargs.get('default_score_key') if eval_settings else None,
             metadata=merged_metadata or None,
-            metadata_from_params=eval_settings.metadata_from_params if eval_settings else None,
         )
         if eval_settings:
             eval_func._provided_labels = getattr(eval_settings, '_provided_labels', None)
             eval_func._provided_evaluators = getattr(eval_settings, '_provided_evaluators', None)
-            eval_func._provided_metadata_from_params = getattr(eval_settings, '_provided_metadata_from_params', None)
 
         functions.append(eval_func)
     return functions
@@ -117,7 +115,7 @@ def parametrize(
             for old_params, old_id in zip(func.__param_sets__, func.__param_ids__):
                 for new_params, new_id in zip(param_sets, ids or [None] * len(param_sets)):
                     new_param_sets.append({**old_params, **new_params})
-                    new_ids.append(f"{old_id}-{new_id}" if old_id and new_id else old_id or new_id)
+                    new_ids.append(f"{old_id}][{new_id}" if old_id and new_id else old_id or new_id)
             func.__param_sets__, func.__param_ids__ = new_param_sets, new_ids
         else:
             func.__param_sets__ = param_sets

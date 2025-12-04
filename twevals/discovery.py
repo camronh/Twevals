@@ -130,7 +130,7 @@ class EvalDiscovery:
         import copy
 
         valid_keys = {'dataset', 'labels', 'evaluators', 'target', 'input', 'reference',
-                      'default_score_key', 'metadata', 'metadata_from_params'}
+                      'default_score_key', 'metadata'}
         invalid_keys = set(file_defaults.keys()) - valid_keys
         if invalid_keys:
             print(f"Warning: Unknown keys in twevals_defaults: {', '.join(sorted(invalid_keys))}")
@@ -139,8 +139,7 @@ class EvalDiscovery:
             func.dataset = file_defaults['dataset']
 
         # Apply list params only if decorator didn't provide them (None = not provided)
-        for attr, provided_attr in [('labels', '_provided_labels'), ('evaluators', '_provided_evaluators'),
-                                     ('metadata_from_params', '_provided_metadata_from_params')]:
+        for attr, provided_attr in [('labels', '_provided_labels'), ('evaluators', '_provided_evaluators')]:
             if attr in file_defaults and getattr(func, provided_attr, None) is None:
                 setattr(func, attr, copy.deepcopy(file_defaults[attr]))
 

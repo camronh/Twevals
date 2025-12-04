@@ -21,9 +21,7 @@ console = Console()
 
 
 class ResultUpdateBody(BaseModel):
-    dataset: Optional[str] = None
-    labels: Optional[list[str]] = None
-    result: Optional[dict] = None
+    result: Optional[dict] = None  # Only scores, annotation, annotations allowed
 
 
 class RerunRequest(BaseModel):

@@ -281,10 +281,9 @@ def noop_evaluator(result):
 twevals_defaults = {
     "labels": ["production"],
     "evaluators": [noop_evaluator],
-    "metadata_from_params": ["foo"],
 }
 
-@eval(labels=[], evaluators=[], metadata_from_params=[])
+@eval(labels=[], evaluators=[])
 def test_empty_lists_override():
     return EvalResult(
         input="test input",
@@ -301,7 +300,6 @@ def test_empty_lists_override():
 
         assert func.labels == []
         assert func.evaluators == []
-        assert func.metadata_from_params == []
 
     def test_twevals_defaults_not_dict_ignored(self, tmp_path: Path):
         """Non-dict twevals_defaults should be ignored gracefully."""
@@ -507,37 +505,6 @@ def test_with_target(context):
         assert len(functions) == 1
         assert functions[0].target is not None
         assert functions[0].target.__name__ == "my_target"
-
-    def test_metadata_from_params_support(self, tmp_path: Path):
-        """twevals_defaults should support metadata_from_params parameter."""
-        test_file = tmp_path / "test_metadata_from_params.py"
-        test_file.write_text("""
-from twevals import eval, parametrize
-from twevals.context import EvalResult
-
-twevals_defaults = {
-    "metadata_from_params": ["model", "temperature"],
-}
-
-@parametrize("model,temperature", [
-    ("gpt-4", 0.7),
-    ("gpt-3.5", 0.5),
-])
-@eval
-def test_with_metadata_from_params(model, temperature):
-    return EvalResult(
-        input=f"{model} at {temperature}",
-        output="test",
-        scores={"key": "correctness", "value": 1.0}
-    )
-""")
-
-        discovery = EvalDiscovery()
-        functions = discovery.discover(str(tmp_path))
-
-        assert len(functions) == 2
-        for func in functions:
-            assert func.metadata_from_params == ["model", "temperature"]
 
     def test_default_score_key_fallback_to_correctness(self, tmp_path: Path):
         """When no default_score_key is set anywhere, should fall back to 'correctness'."""
