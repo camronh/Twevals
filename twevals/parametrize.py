@@ -15,7 +15,7 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
 
     sig = inspect.signature(base_func)
     has_context = any(p.annotation is EvalContext for p in sig.parameters.values())
-    context_field_names = {'input', 'output', 'reference', 'metadata', 'run_data', 'latency'}
+    context_field_names = {'input', 'output', 'reference', 'metadata', 'trace_data', 'latency'}
     is_async = inspect.iscoroutinefunction(base_func)
 
     functions = []

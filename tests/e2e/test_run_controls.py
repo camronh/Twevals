@@ -357,7 +357,7 @@ class TestRerunFunctionality:
                 "reference": f.context_kwargs.get("reference"),
                 "metadata": f.context_kwargs.get("metadata"),
                 "output": "old_output", "error": None, "scores": None, "latency": 0.1,
-                "run_data": None, "annotation": None, "annotations": None, "status": "completed",
+                "trace_data": None, "annotation": None, "annotations": None, "status": "completed",
             },
         } for f in functions]
 

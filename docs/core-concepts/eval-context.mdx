@@ -30,7 +30,7 @@ async def test_capital(ctx: EvalContext):
     assert ctx.output == ctx.reference
 ```
 
-With `@parametrize`, special parameter names (`input`, `reference`, `metadata`, `run_data`, `latency`) auto-populate context fields:
+With `@parametrize`, special parameter names (`input`, `reference`, `metadata`, `trace_data`, `latency`) auto-populate context fields:
 
 ```python
 @eval(dataset="sentiment")
@@ -157,6 +157,6 @@ async def test_classification(ctx: EvalContext, prompt, expected_category):
 | `output` | Any | The system output |
 | `reference` | Any | Expected output (optional) |
 | `metadata` | dict | Custom metadata |
-| `run_data` | dict | Debug/trace data |
+| `trace_data` | dict | Debug/trace data |
 | `latency` | float | Execution time |
 | `scores` | list | List of Score objects |

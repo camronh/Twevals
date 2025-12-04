@@ -48,7 +48,7 @@ async def test_refund_requests():
                 "passed": expected_keyword in result["output"].lower(),
                 "notes": f"Expected keyword '{expected_keyword}' not found in output" if expected_keyword not in result["output"].lower() else None
             },
-            run_data={
+            trace_data={
                 "trace_id": f"refund_{expected_keyword}_{prompt.replace(' ', '_')}",
                 "trace": [
                     {
@@ -92,7 +92,7 @@ def test_greeting_responses():
             ],
             metadata={"model": "gpt-4", "temperature": 0.7},
             latency=0.05,  # Override latency for testing
-            run_data={
+            trace_data={
                 "token_usage": {"prompt": 6, "completion": 8, "total": 14},
                 "system_prompt": "You are a helpful assistant.",
             },
@@ -113,7 +113,7 @@ def test_single_case():
     return EvalResult(
         input=input,
         output=output,
-        run_data={"debug": {"echo": True, "reason": "static demo"}},
+        trace_data={"debug": {"echo": True, "reason": "static demo"}},
     )
 
 
@@ -130,7 +130,7 @@ def test_assertion_failure():
     return EvalResult(
         input=input,
         output=output,
-        run_data={"note": "this will not run due to assertion"},
+        trace_data={"note": "this will not run due to assertion"},
     )
 
 
@@ -148,5 +148,5 @@ def test_assertion_pass():
     return EvalResult(
         input=input,
         output=output,
-        run_data={"note": "passed all assertions, auto-scored as passed"},
+        trace_data={"note": "passed all assertions, auto-scored as passed"},
     )

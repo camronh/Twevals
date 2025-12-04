@@ -16,7 +16,7 @@ class EvalResult:
     error: str = None       # Optional: error message
     latency: float = None   # Optional: execution time in seconds
     metadata: dict = {}     # Optional: custom metadata
-    run_data: dict = {}     # Optional: debug/trace data
+    trace_data: dict = {}     # Optional: debug/trace data
 ```
 
 ## Fields
@@ -112,7 +112,7 @@ EvalResult(
 )
 ```
 
-### run_data (optional)
+### trace_data (optional)
 
 Debug and trace information. Not displayed in main UI views.
 
@@ -120,7 +120,7 @@ Debug and trace information. Not displayed in main UI views.
 EvalResult(
     input="test",
     output="result",
-    run_data={
+    trace_data={
         "tokens_used": 150,
         "api_calls": 2,
         "trace_id": "abc123"
@@ -259,7 +259,7 @@ result = EvalResult(
         "temperature": 0.0,
         "category": "geography"
     },
-    run_data={
+    trace_data={
         "tokens": 45,
         "api_latency": 0.189
     }

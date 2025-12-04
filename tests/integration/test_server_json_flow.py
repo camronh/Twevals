@@ -30,7 +30,7 @@ def make_summary() -> dict:
                     "error": None,
                     "latency": 0.1,
                     "metadata": {"k": 1},
-                    "run_data": {"foo": [1, 2, 3]},
+                    "trace_data": {"foo": [1, 2, 3]},
                 },
             },
             {
@@ -139,7 +139,7 @@ def test_export_endpoints(tmp_path: Path):
     assert rc.status_code == 200
     assert rc.headers.get("content-type", "").startswith("text/csv")
     text = rc.text
-    assert "function,dataset,labels,input,output,reference,scores,error,latency,metadata,run_data,annotations" in text.splitlines()[0]
+    assert "function,dataset,labels,input,output,reference,scores,error,latency,metadata,trace_data,annotations" in text.splitlines()[0]
 
 
 def test_rerun_endpoint(tmp_path: Path, monkeypatch):
@@ -481,7 +481,7 @@ def test_result_index_out_of_range_404(tmp_path: Path):
 
 
 def test_readonly_fields_not_editable(tmp_path: Path):
-    """PATCH ignores input, output, reference, dataset, labels, metadata, run_data, latency, error"""
+    """PATCH ignores input, output, reference, dataset, labels, metadata, trace_data, latency, error"""
     store = ResultsStore(tmp_path / "runs")
     run_id = store.save_run(make_summary())
 
@@ -497,7 +497,7 @@ def test_readonly_fields_not_editable(tmp_path: Path):
             "latency": 999.0,
             "error": "hacked-error",
             "metadata": {"hacked": True},
-            "run_data": {"hacked": True},
+            "trace_data": {"hacked": True},
         }
     })
     assert response.status_code == 200

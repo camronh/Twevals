@@ -106,7 +106,7 @@ async def test_response_tone(ctx: EvalContext):
     assert ctx.output == ctx.reference, f"Expected {ctx.reference} tone, got {ctx.output}"
 ```
 
-Special parameter names (`input`, `reference`, `metadata`, `run_data`, `latency`) auto-populate context fields. For other parameters, include them in the function signature.
+Special parameter names (`input`, `reference`, `metadata`, `trace_data`, `latency`) auto-populate context fields. For other parameters, include them in the function signature.
 
 ## Track Progress with Sessions
 

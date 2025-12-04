@@ -32,7 +32,7 @@ async def run_agent(prompt):
     return {
         "output": response,
         "latency": end_time - start_time,
-        "run_data": {
+        "trace_data": {
             "model": AGENT_MODEL,
             "temperature": AGENT_TEMPERATURE,
             "tokens": random.randint(50, 200)
@@ -57,7 +57,7 @@ async def test_simple_context(ctx: EvalContext):
     ctx.input = "I want a refund"
     ctx.reference = fetch_ground_truth(ctx.input)
 
-    # Smart add_output extracts output, latency, and run_data
+    # Smart add_output extracts output, latency, and trace_data
     ctx.add_output(await run_agent(ctx.input))
 
     # Simple boolean score with default key
@@ -294,7 +294,7 @@ async def test_auto_return(ctx: EvalContext):
     ctx.input = "test"
     ctx.add_output(await run_agent(ctx.input))
     ctx.add_score(True, "Passed")
-    ctx.run_data["trace_url"] = "https://twevals.com"
+    ctx.trace_data["trace_url"] = "https://twevals.com"
     # No return! Decorator handles it
 
 

@@ -1,7 +1,7 @@
 """
 Verbose examples to test UI rendering of long inputs/outputs.
 """
-from twevals import eval, EvalResult, parametrize
+from twevals import eval, EvalResult, parametrize, EvalContext
 
 LONG_ARTICLE = """The rapid advancement of artificial intelligence has fundamentally transformed how we approach software development, data analysis, and decision-making processes across industries. Machine learning models, particularly large language models (LLMs), have demonstrated remarkable capabilities in understanding and generating human-like text, leading to applications ranging from automated customer service to sophisticated code generation tools.
 
@@ -118,7 +118,7 @@ def test_article_summarization():
             {"key": "coverage", "value": 0.85},
             {"key": "conciseness", "passed": True},
         ],
-        run_data={
+        trace_data={
             "model": "summarizer-v2",
             "input_tokens": 412,
             "output_tokens": 28,
@@ -178,7 +178,7 @@ def get_history(self, max_messages: int = 10) -> List[Dict[str, str]]:
             {"key": "false_positive_rate", "value": 0.05},
         ],
         metadata={"reviewer_model": "code-review-v3", "language": "python"},
-        run_data={
+        trace_data={
             "analysis": {
                 "lines_analyzed": 45,
                 "complexity_score": 12,
@@ -213,7 +213,7 @@ What patterns and practices would you recommend for making our system more resil
             {"key": "actionable", "passed": True},
         ],
         metadata={"domain": "distributed_systems", "complexity": "advanced"},
-        run_data={
+        trace_data={
             "retrieval": {
                 "documents_searched": 142,
                 "relevant_docs": 8,
@@ -346,7 +346,7 @@ Would you like me to show you the JWT token generation and the login endpoint ne
             "total_tokens": 1847,
             "model": "claude-3-sonnet",
         },
-        run_data={
+        trace_data={
             "trace": conversation_input["messages"] + [{"role": "assistant", "content": final_response[:100] + "..."}],
             "context_window_usage": 0.23,
             "cached_tokens": 412,
@@ -413,9 +413,9 @@ def test_structured_data_processing(ctx: EvalContext, scenario_idx):
     ctx.output = output
     ctx.add_score(True, key="schema_validation")
     ctx.add_score(0.99, key="processing_accuracy")
-    ctx.run_data = {
+    ctx.trace_data.update({
         "input_depth": 4,
         "total_fields": 25,
         "processing_steps": ["validate", "transform", "enrich", "output"],
-    }
+    })
     ctx.latency = 0.34

@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Union
-from twevals.schemas import EvalResult
+from twevals.schemas import EvalResult, TraceData
 
 
 class EvalContext:
@@ -13,7 +13,7 @@ class EvalContext:
         reference: Any = None,
         default_score_key: Optional[str] = "correctness",
         metadata: Optional[Dict[str, Any]] = None,
-        run_data: Optional[Dict[str, Any]] = None,
+        trace_data: Optional[Union[Dict[str, Any], TraceData]] = None,
         latency: Optional[float] = None,
         **kwargs
     ):
@@ -22,7 +22,12 @@ class EvalContext:
         self.reference = reference
         self.default_score_key = default_score_key
         self.metadata = metadata or {}
-        self.run_data = run_data or {}
+        if isinstance(trace_data, TraceData):
+            self.trace_data = trace_data
+        elif isinstance(trace_data, dict):
+            self.trace_data = TraceData.from_dict(trace_data.copy())
+        else:
+            self.trace_data = TraceData()
         self.latency = latency
         self.scores: List[Dict] = []
         self.error: Optional[str] = None
@@ -30,18 +35,18 @@ class EvalContext:
     def add_output(self, data: Union[Dict[str, Any], Any], **kwargs) -> "EvalContext":
         """Smart output setter that extracts EvalResult fields from dicts
 
-        - Dict with known fields (output, latency, run_data, metadata) - extracts them
+        - Dict with known fields (output, latency, trace_data, metadata) - extracts them
         - Dict without known fields - stores entire dict as output
         - Non-dict values - stores directly as output
         """
-        known_fields = {'output', 'latency', 'run_data', 'metadata'}
+        known_fields = {'output', 'latency', 'trace_data', 'metadata'}
         if isinstance(data, dict) and known_fields & data.keys():
             if 'output' in data:
                 self.output = data['output']
             if 'latency' in data:
                 self.latency = data['latency']
-            if 'run_data' in data:
-                self.run_data.update(data['run_data'])
+            if 'trace_data' in data:
+                self.trace_data.update(data['trace_data'])
             if 'metadata' in data:
                 self.metadata.update(data['metadata'])
         else:
@@ -92,7 +97,8 @@ class EvalContext:
         return EvalResult(
             input=self.input, output=self.output, reference=self.reference,
             scores=scores, error=self.error, latency=self.latency,
-            metadata=self.metadata or None, run_data=self.run_data or None,
+            metadata=self.metadata or None,
+            trace_data=self.trace_data.to_dict() if self.trace_data else None,
         )
 
     def build_with_error(self, error_message: str) -> EvalResult:

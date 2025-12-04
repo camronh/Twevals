@@ -48,7 +48,7 @@ def test_sentiment_classification(text, expected_sentiment):
             "key": "accuracy",
             "passed": detected == expected_sentiment
         },
-        run_data={
+        trace_data={
             "features": {"contains_love": "love" in text_lower, "length": len(text)},
         },
     )
@@ -83,7 +83,7 @@ def test_calculator(operation, a, b, expected):
             "key": "correctness",
             "passed": result == expected
         },
-        run_data={
+        trace_data={
             "op": operation,
             "args": [a, b],
             "intermediate": {
@@ -150,7 +150,7 @@ def test_qa_with_ids(question, context, expected_answer):
             {"key": "confidence", "value": 0.8 if answer != "I don't know" else 0.2}
         ],
         metadata={"model": "mock_qa_v1"},
-        run_data={
+        trace_data={
             "retrieval": {
                 "top_keys": list(simple_answers.keys()),
                 "matched": key if answer != "I don't know" else None,
@@ -179,7 +179,7 @@ async def test_model_temperatures(model, temperature):
             "value": min(creativity_score, 1.0)
         },
         metadata={"model": model, "temperature": temperature},
-        run_data={
+        trace_data={
             "sampling": {"top_p": 0.95, "temperature": temperature},
             "env": {"model": model},
             "trace_url": "https://twevals.com",

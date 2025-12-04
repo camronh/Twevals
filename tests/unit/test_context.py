@@ -56,14 +56,14 @@ class TestAddOutput:
         result = {
             "output": "test output",
             "latency": 0.5,
-            "run_data": {"tokens": 100},
+            "trace_data": {"tokens": 100},
             "metadata": {"model": "gpt-4"},
         }
         ctx.add_output(result)
 
         assert ctx.output == "test output"
         assert ctx.latency == 0.5
-        assert ctx.run_data == {"tokens": 100}
+        assert ctx.trace_data["tokens"] == 100
         assert ctx.metadata == {"model": "gpt-4"}
 
     def test_add_output_dict_partial(self):
@@ -73,7 +73,7 @@ class TestAddOutput:
 
         assert ctx.output == "test"
         assert ctx.latency == 0.3
-        assert ctx.run_data == {}
+        assert not ctx.trace_data  # Empty TraceData is falsy
 
     def test_add_output_with_kwargs_override(self):
         """Test add_output with kwargs overriding dict values"""
@@ -101,13 +101,13 @@ class TestAddOutput:
         assert ctx.output == {'full_name': 'Kim Diaz', 'user_id': 'user_00000'}
         # Other fields should remain untouched
         assert ctx.latency is None
-        assert ctx.run_data == {}
+        assert not ctx.trace_data  # Empty TraceData is falsy
 
     def test_add_output_dict_simple_data(self):
         """Test add_output with various simple dict structures
 
         Common case: API responses, parsed data, etc. that don't contain
-        the specific 'output', 'latency', 'run_data', 'metadata' keys.
+        the specific 'output', 'latency', 'trace_data', 'metadata' keys.
         """
         ctx = EvalContext()
 
@@ -238,7 +238,7 @@ class TestBuild:
             output="output",
             reference="reference",
             metadata={"model": "test"},
-            run_data={"tokens": 100},
+            trace_data={"tokens": 100},
             latency=0.5,
             default_score_key="test",
         )
@@ -250,7 +250,7 @@ class TestBuild:
         assert result.output == "output"
         assert result.reference == "reference"
         assert result.metadata == {"model": "test"}
-        assert result.run_data == {"tokens": 100}
+        assert result.trace_data == {"tokens": 100}
         assert result.latency == 0.5
         assert len(result.scores) == 1
 

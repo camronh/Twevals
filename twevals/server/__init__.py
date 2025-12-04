@@ -123,7 +123,7 @@ def create_app(
                     "reference": f.context_kwargs.get("reference"),
                     "metadata": f.context_kwargs.get("metadata"),
                     "output": None, "error": None, "scores": None, "latency": None,
-                    "run_data": None, "annotation": None, "annotations": None, "status": "pending",
+                    "trace_data": None, "annotation": None, "annotations": None, "status": "pending",
                 },
             } for f in functions]
             func_index = {id(func): idx for idx, func in enumerate(functions)}
@@ -373,7 +373,7 @@ def create_app(
                         "reference": f.context_kwargs.get("reference"),
                         "metadata": f.context_kwargs.get("metadata"),
                         "output": None, "error": None, "scores": None, "latency": None,
-                        "run_data": None, "annotation": None, "annotations": None, "status": "not_started",
+                        "trace_data": None, "annotation": None, "annotations": None, "status": "not_started",
                     },
                 } for f in all_functions]
 
@@ -431,7 +431,7 @@ def create_app(
             "error",
             "latency",
             "metadata",
-            "run_data",
+            "trace_data",
             "annotations",
         ]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -450,7 +450,7 @@ def create_app(
                 "error": result.get("error"),
                 "latency": result.get("latency"),
                 "metadata": _json.dumps(result.get("metadata")),
-                "run_data": _json.dumps(result.get("run_data")),
+                "trace_data": _json.dumps(result.get("trace_data")),
                 "annotations": _json.dumps(result.get("annotations")),
             })
         csv_bytes = output.getvalue()

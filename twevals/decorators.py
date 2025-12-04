@@ -115,7 +115,7 @@ class EvalFunction:
             context.add_output({
                 "output": target_result.output,
                 "latency": target_result.latency,
-                "run_data": target_result.run_data,
+                "trace_data": target_result.trace_data,
                 "metadata": target_result.metadata,
             })
         else:

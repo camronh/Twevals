@@ -59,10 +59,66 @@
       .collapse-icon { transition: transform 0.15s ease; }
       .collapse-icon.open { transform: rotate(180deg); }
 
-      /* Compact data panels */
       .data-panel { display: flex; flex-direction: column; min-height: 0; }
       .data-panel-header { flex-shrink: 0; }
       .data-panel-body { flex: 1; overflow: auto; min-height: 0; }
+
+      /* Resize handles */
+      .resize-handle-v {
+        width: 5px;
+        cursor: col-resize;
+        background: transparent;
+        position: relative;
+        flex-shrink: 0;
+        z-index: 10;
+      }
+      .resize-handle-v::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 2px;
+        width: 1px;
+        background: rgb(59 130 246 / 0.2);
+        transition: background 0.15s, width 0.15s, left 0.15s;
+      }
+      .dark .resize-handle-v::after { background: rgb(63 63 70 / 0.8); }
+      .resize-handle-v:hover::after, .resize-handle-v.dragging::after {
+        background: rgb(59 130 246 / 0.6);
+        width: 3px;
+        left: 1px;
+      }
+      .dark .resize-handle-v:hover::after, .dark .resize-handle-v.dragging::after { background: rgb(59 130 246 / 0.5); }
+
+      .resize-handle-h {
+        height: 5px;
+        cursor: row-resize;
+        background: transparent;
+        position: relative;
+        flex-shrink: 0;
+        z-index: 10;
+      }
+      .resize-handle-h::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 2px;
+        height: 1px;
+        background: rgb(59 130 246 / 0.2);
+        transition: background 0.15s, height 0.15s, top 0.15s;
+      }
+      .dark .resize-handle-h::after { background: rgb(63 63 70 / 0.8); }
+      .resize-handle-h:hover::after, .resize-handle-h.dragging::after {
+        background: rgb(59 130 246 / 0.6);
+        height: 3px;
+        top: 1px;
+      }
+      .dark .resize-handle-h:hover::after, .dark .resize-handle-h.dragging::after { background: rgb(59 130 246 / 0.5); }
+
+      body.resizing { cursor: col-resize; user-select: none; }
+      body.resizing-v { cursor: row-resize; }
+      body.resizing * { cursor: inherit !important; user-select: none !important; }
     </style>
   </head>
   <body class="min-h-screen bg-blue-50/40 font-sans text-zinc-800 dark:bg-neutral-950 dark:text-zinc-100">
@@ -79,7 +135,6 @@
     {% set has_run_data = result.result.run_data is defined and result.result.run_data is not none %}
     {% set has_scores = result.result.scores and result.result.scores | length > 0 %}
 
-    {# Calculate overall pass/fail #}
     {% set ns = namespace(all_passed=true, any_failed=false, total_scores=0) %}
     {% if has_scores %}
       {% for s in result.result.scores %}
@@ -150,14 +205,14 @@
       </div>
       {% endif %}
 
-      <!-- Main Content Area - fills remaining space -->
+      <!-- Main Content Area -->
       <div class="flex-1 flex min-h-0 overflow-hidden">
         <!-- Left: Data Panels -->
-        <div class="flex-1 flex flex-col min-w-0 border-r border-blue-200/60 dark:border-zinc-800">
-          <!-- Input/Output Row - side by side -->
-          <div class="flex-1 flex min-h-0">
-            <!-- Input -->
-            <div class="flex-1 flex flex-col min-w-0 border-r border-blue-100 dark:border-zinc-800/60">
+        <div id="main-panel" class="flex flex-col min-w-0" style="width: calc(100% - 320px);">
+          <!-- Input/Output Row -->
+          <div id="io-row" class="flex min-h-0" style="flex: 1 1 auto;">
+            <!-- Input Panel -->
+            <div id="input-panel" class="flex flex-col min-w-0" style="width: 50%;">
               <div class="data-panel-header flex items-center justify-between border-b border-blue-100 bg-blue-50/50 px-3 py-1.5 dark:border-zinc-800/60 dark:bg-zinc-900/50">
                 <span class="text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Input</span>
                 <button class="copy-btn text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" data-copy="data-input" title="Copy">
@@ -172,8 +227,11 @@
               </div>
             </div>
 
-            <!-- Output -->
-            <div class="flex-1 flex flex-col min-w-0">
+            <!-- Resize handle between Input/Output -->
+            <div class="resize-handle-v" data-resize="input-output"></div>
+
+            <!-- Output Panel -->
+            <div id="output-panel" class="flex flex-col min-w-0" style="flex: 1;">
               <div class="data-panel-header flex items-center justify-between border-b border-blue-100 bg-emerald-50/50 px-3 py-1.5 dark:border-zinc-800/60 dark:bg-zinc-900/50">
                 <span class="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Output</span>
                 <button class="copy-btn text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" data-copy="data-output" title="Copy">
@@ -189,30 +247,33 @@
             </div>
           </div>
 
-          <!-- Reference Row (if exists) -->
           {% if has_reference %}
-          <div class="flex-shrink-0 border-t border-blue-200/60 dark:border-zinc-800" style="max-height: 30%;">
-            <div class="h-full flex flex-col">
-              <div class="data-panel-header flex items-center justify-between border-b border-amber-200/40 bg-amber-50/50 px-3 py-1.5 dark:border-amber-500/10 dark:bg-amber-500/5">
-                <span class="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Reference</span>
-                <button class="copy-btn text-amber-500 hover:text-amber-700 dark:hover:text-amber-300" data-copy="data-ref" title="Copy">
-                  <svg class="copy-icon h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                  <svg class="check-icon hidden h-3.5 w-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-                </button>
-              </div>
-              <div class="data-panel-body p-3 overflow-auto bg-amber-50/30 dark:bg-amber-500/5">
-                <div id="data-ref" class="data-viewer">
-                  <div class="data-surface"><pre class="data-pre text-amber-900 dark:text-amber-200">{{ result.result.reference }}</pre></div>
-                </div>
+          <!-- Resize handle between I/O and Reference -->
+          <div class="resize-handle-h" data-resize="io-ref"></div>
+
+          <!-- Reference Row -->
+          <div id="ref-panel" class="flex flex-col flex-shrink-0" style="height: 150px; min-height: 60px;">
+            <div class="data-panel-header flex items-center justify-between border-b border-amber-200/40 bg-amber-50/50 px-3 py-1.5 dark:border-amber-500/10 dark:bg-amber-500/5">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Reference</span>
+              <button class="copy-btn text-amber-500 hover:text-amber-700 dark:hover:text-amber-300" data-copy="data-ref" title="Copy">
+                <svg class="copy-icon h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                <svg class="check-icon hidden h-3.5 w-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+            </div>
+            <div class="data-panel-body p-3 overflow-auto bg-amber-50/30 dark:bg-amber-500/5">
+              <div id="data-ref" class="data-viewer">
+                <div class="data-surface"><pre class="data-pre text-amber-900 dark:text-amber-200">{{ result.result.reference }}</pre></div>
               </div>
             </div>
           </div>
           {% endif %}
         </div>
 
-        <!-- Right Sidebar: Scores, Metadata, Run Data, Annotation -->
-        <div class="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-auto bg-zinc-50 dark:bg-zinc-900/50">
-          <!-- Scores -->
+        <!-- Resize handle between Main and Sidebar -->
+        <div class="resize-handle-v" data-resize="main-sidebar"></div>
+
+        <!-- Right Sidebar -->
+        <div id="sidebar-panel" class="flex flex-col min-h-0 overflow-auto bg-zinc-50 dark:bg-zinc-900/50" style="width: 320px; min-width: 200px;">
           {% if has_scores %}
           <div class="border-b border-blue-200/60 dark:border-zinc-800">
             <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 bg-zinc-100/50 dark:bg-zinc-800/30">Scores</div>
@@ -237,7 +298,6 @@
           </div>
           {% endif %}
 
-          <!-- Metadata -->
           {% if has_metadata %}
           <div class="border-b border-blue-200/60 dark:border-zinc-800">
             <div role="button" tabindex="0" onclick="toggleCollapse('metadata')" onkeydown="if(event.key==='Enter')toggleCollapse('metadata')" class="flex cursor-pointer items-center justify-between px-3 py-2 bg-zinc-100/50 hover:bg-zinc-100 dark:bg-zinc-800/30 dark:hover:bg-zinc-800/50">
@@ -256,7 +316,6 @@
           </div>
           {% endif %}
 
-          <!-- Run Data -->
           {% if has_run_data %}
           <div class="border-b border-blue-200/60 dark:border-zinc-800">
             <div role="button" tabindex="0" onclick="toggleCollapse('run-data')" onkeydown="if(event.key==='Enter')toggleCollapse('run-data')" class="flex cursor-pointer items-center justify-between px-3 py-2 bg-zinc-100/50 hover:bg-zinc-100 dark:bg-zinc-800/30 dark:hover:bg-zinc-800/50">
@@ -275,7 +334,6 @@
           </div>
           {% endif %}
 
-          <!-- Annotation -->
           <div class="flex-1">
             <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 bg-zinc-100/50 dark:bg-zinc-800/30">Annotation</div>
             <div class="p-3">
@@ -287,7 +345,6 @@
             </div>
           </div>
 
-          <!-- Keyboard hints at bottom -->
           <div class="flex-shrink-0 px-3 py-2 border-t border-blue-200/60 bg-zinc-100/30 dark:border-zinc-800 dark:bg-zinc-800/20">
             <div class="flex items-center gap-4 text-[10px] text-zinc-400">
               <span><kbd class="rounded border border-zinc-300 bg-white px-1 font-mono dark:border-zinc-600 dark:bg-zinc-800">↑↓</kbd> nav</span>
@@ -316,22 +373,18 @@
       const functionName = {{ result.function | tojson }};
 
       function escapeHtml(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-
       function looksLikeMarkdown(text) {
         if (!text) return false;
         return [/^#{1,6}\s+\S/m, /^\s*[-*+]\s+\S/m, /^\s*\d+\.\s+\S/m, /^>+\s+\S/m, /`{3,}[\s\S]*?`{3,}/m, /\[.+?\]\(.+?\)/m].some(re => re.test(text));
       }
-
       function highlightWithin(container) {
         if (typeof hljs === 'undefined' || !container) return;
         container.querySelectorAll('pre code').forEach(code => hljs.highlightElement(code));
       }
-
       function highlightJson(rawText) {
         if (typeof hljs !== 'undefined') { try { return hljs.highlight(rawText, { language: 'json' }).value; } catch {} }
         return escapeHtml(rawText);
       }
-
       function renderDataViewer(targetId, content, options = {}) {
         const container = document.getElementById(targetId);
         if (!container) return;
@@ -364,11 +417,74 @@
         container.innerHTML = `<div class="data-surface"><pre class="data-pre">${escapeHtml(rawText)}</pre></div>`;
         container.dataset.raw = rawText;
       }
-
       function navigateTo(idx) { if (idx >= 0 && idx < total) window.location.href = `/runs/${runId}/results/${idx}`; }
       function toggleCollapse(id) {
         document.getElementById(id + '-content')?.classList.toggle('open');
         document.getElementById(id + '-icon')?.classList.toggle('open');
+      }
+
+      // Resizable panels
+      function initResizable() {
+        const handles = document.querySelectorAll('.resize-handle-v, .resize-handle-h');
+        handles.forEach(handle => {
+          let startX, startY, startWidth, startHeight, target1, target2, isVertical;
+
+          handle.addEventListener('mousedown', e => {
+            e.preventDefault();
+            isVertical = handle.classList.contains('resize-handle-h');
+            handle.classList.add('dragging');
+            document.body.classList.add('resizing');
+            if (isVertical) document.body.classList.add('resizing-v');
+
+            const resizeType = handle.dataset.resize;
+            if (resizeType === 'input-output') {
+              target1 = document.getElementById('input-panel');
+              target2 = document.getElementById('output-panel');
+              startX = e.clientX;
+              startWidth = target1.offsetWidth;
+            } else if (resizeType === 'main-sidebar') {
+              target1 = document.getElementById('main-panel');
+              target2 = document.getElementById('sidebar-panel');
+              startX = e.clientX;
+              startWidth = target2.offsetWidth;
+            } else if (resizeType === 'io-ref') {
+              target1 = document.getElementById('io-row');
+              target2 = document.getElementById('ref-panel');
+              startY = e.clientY;
+              startHeight = target2.offsetHeight;
+            }
+
+            const onMouseMove = ev => {
+              if (resizeType === 'input-output') {
+                const delta = ev.clientX - startX;
+                const parentWidth = target1.parentElement.offsetWidth - 5;
+                const newWidth = Math.max(100, Math.min(parentWidth - 100, startWidth + delta));
+                target1.style.width = newWidth + 'px';
+              } else if (resizeType === 'main-sidebar') {
+                const delta = startX - ev.clientX;
+                const containerWidth = target1.parentElement.offsetWidth - 5;
+                const newSidebarWidth = Math.max(200, Math.min(containerWidth - 300, startWidth + delta));
+                target2.style.width = newSidebarWidth + 'px';
+                target1.style.width = `calc(100% - ${newSidebarWidth}px)`;
+              } else if (resizeType === 'io-ref') {
+                const delta = startY - ev.clientY;
+                const containerHeight = target1.parentElement.offsetHeight - 5;
+                const newRefHeight = Math.max(60, Math.min(containerHeight - 100, startHeight + delta));
+                target2.style.height = newRefHeight + 'px';
+              }
+            };
+
+            const onMouseUp = () => {
+              handle.classList.remove('dragging');
+              document.body.classList.remove('resizing', 'resizing-v');
+              document.removeEventListener('mousemove', onMouseMove);
+              document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+          });
+        });
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -378,6 +494,8 @@
         if (dataPayloads.reference !== null) renderDataViewer('data-ref', dataPayloads.reference);
         if (dataPayloads.metadata !== null) renderDataViewer('data-meta', dataPayloads.metadata);
         if (dataPayloads.run !== null) renderDataViewer('data-run', dataPayloads.run);
+
+        initResizable();
 
         document.getElementById('prev-btn')?.addEventListener('click', () => navigateTo(currentIndex - 1));
         document.getElementById('next-btn')?.addEventListener('click', () => navigateTo(currentIndex + 1));
