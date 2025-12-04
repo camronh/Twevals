@@ -151,7 +151,7 @@ Scenario: Export as CSV
     - function, dataset, labels
     - input, output, reference
     - scores, error, latency
-    - metadata, run_data, annotations
+    - metadata, trace_data, annotations
 ```
 
 ---
@@ -299,7 +299,7 @@ Results are stored in `.twevals/runs/`:
         "error": null,
         "latency": 0.234,
         "metadata": {"model": "gpt-4"},
-        "run_data": {},
+        "trace_data": {},
         "status": "completed",
         "annotations": null
       }

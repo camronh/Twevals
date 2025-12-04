@@ -90,7 +90,9 @@ ctx.input = "test input"
 ctx.output = "model response"
 ctx.reference = "expected output"
 ctx.metadata["model"] = "gpt-4"
-ctx.run_data["trace_id"] = "abc123"
+ctx.trace_data.trace_url = "https://langsmith.com/trace/abc123"
+ctx.trace_data.messages = [{"role": "user", "content": "Hello"}]
+ctx.trace_data["custom_field"] = "arbitrary data"  # extra props still work
 ```
 
 ### Smart Output Extraction
@@ -101,10 +103,10 @@ Scenario: add_output with simple value
   Then ctx.output = "response"
 
 Scenario: add_output with structured dict
-  Given ctx.add_output({"output": "response", "latency": 0.5, "run_data": {...}})
+  Given ctx.add_output({"output": "response", "latency": 0.5, "trace_data": {...}})
   Then ctx.output = "response"
   And ctx.latency = 0.5
-  And ctx.run_data = {...}
+  And ctx.trace_data is updated with {...}
 
 Scenario: add_output with arbitrary dict
   Given ctx.add_output({"name": "John", "age": 30})
@@ -112,10 +114,10 @@ Scenario: add_output with arbitrary dict
   And other fields unchanged (dict stored as-is)
 ```
 
-**Known fields extracted:** `output`, `latency`, `run_data`, `metadata`
+**Known fields extracted:** `output`, `latency`, `trace_data`, `metadata`
 
 **When to use which:**
-- Use `ctx.add_output(result)` when your agent returns a dict with `output`, `latency`, `run_data`, or `metadata` keys - fields are extracted automatically
+- Use `ctx.add_output(result)` when your agent returns a dict with `output`, `latency`, `trace_data`, or `metadata` keys - fields are extracted automatically
 - Use `ctx.output = result` for direct assignment when you just have the output value
 
 ### Scoring
@@ -143,6 +145,50 @@ Scenario: Full control
 ```python
 result = ctx.build()           # Normal completion
 result = ctx.build_with_error("message")  # Error with partial data
+```
+
+### TraceData
+
+**Intent:** User wants structured storage for trace/debug info with first-class support for messages and trace URLs.
+
+#### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `messages` | List[Any] | Conversation messages (any format: OpenAI, Anthropic, LangChain, etc.) |
+| `trace_url` | str \| None | Link to external observability platform (LangSmith, Langfuse, etc.) |
+| `[key]` | Any | Arbitrary extra properties via dict-style access |
+
+#### Usage
+
+```python
+# Set trace URL
+ctx.trace_data.trace_url = "https://langsmith.com/trace/abc"
+
+# Set messages (replaces any existing)
+ctx.trace_data.messages = conversation_history
+
+# Add messages method (replaces, not appends)
+ctx.trace_data.add_messages([
+    {"role": "user", "content": "Hello"},
+    {"role": "assistant", "content": "Hi there!"},
+])
+
+# Extra properties still work
+ctx.trace_data["tokens_used"] = 150
+ctx.trace_data.custom_metric = 0.95
+```
+
+```gherkin
+Scenario: add_messages replaces existing
+  Given ctx.trace_data.messages = [msg1]
+  When ctx.trace_data.add_messages([msg2, msg3])
+  Then ctx.trace_data.messages = [msg2, msg3]
+
+Scenario: Universal message format
+  Given messages in any format (OpenAI dicts, Anthropic dicts, LangChain BaseMessage)
+  When ctx.trace_data.add_messages(messages)
+  Then messages are stored as-is without transformation
 ```
 
 ---
@@ -202,7 +248,7 @@ Scenario: Parameters named input/reference auto-populate context
   And parameters don't need to be in function signature
 ```
 
-**Special parameter names:** `input`, `reference`, `metadata`, `run_data`, `latency`
+**Special parameter names:** `input`, `reference`, `metadata`, `trace_data`, `latency`
 
 ### Custom Parameter Names
 
@@ -355,7 +401,12 @@ class EvalResult:
     error: str = None
     latency: float = None
     metadata: dict = {}
-    run_data: dict = {}
+    trace_data: TraceData = TraceData()
+
+class TraceData:
+    messages: List[Any] = []
+    trace_url: Optional[str] = None
+    # Plus arbitrary extra properties via __getitem__/__setitem__
 ```
 
 **Scores convenience:** Can pass single dict, list of dicts, or list of Score objects.
