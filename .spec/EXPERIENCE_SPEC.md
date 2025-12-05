@@ -63,7 +63,7 @@ Twevals is a **pytest-inspired, code-first evaluation framework** for LLM applic
 | Capability | What It Enables | Spec |
 |------------|-----------------|------|
 | `@parametrize` | Multiple test cases from one function | [Python](./EXPERIENCE_SPEC_PYTHON.md#parametrize-decorator) |
-| `add_score()` | Numeric and named metrics | [Python](./EXPERIENCE_SPEC_PYTHON.md#scoring) |
+| `store()` | Set all context fields with explicit params | [Python](./EXPERIENCE_SPEC_PYTHON.md#the-store-method) |
 | File-level defaults | Shared config across evals | [Python](./EXPERIENCE_SPEC_PYTHON.md#file-level-defaults) |
 | Evaluators | Reusable post-processing | [Python](./EXPERIENCE_SPEC_PYTHON.md#evaluators) |
 | Target hooks | Separated agent invocation | [Python](./EXPERIENCE_SPEC_PYTHON.md#target-hooks) |
@@ -93,7 +93,7 @@ Twevals is a **pytest-inspired, code-first evaluation framework** for LLM applic
          │
          ▼
 ┌─────────────────┐
-│  EvalContext    │ ◄── ctx.input, ctx.output, ctx.add_score()
+│  EvalContext    │ ◄── ctx.store(input=, output=, scores=)
 │  (mutable)      │
 └────────┬────────┘
          │ .build()
@@ -185,7 +185,7 @@ These are mistakes new users commonly make.
 |----------------|---------------|
 | Target without context param | `ValueError: Target functions require... context parameter` |
 | Custom param not in signature | `TypeError: got unexpected keyword argument 'prompt'` |
-| `add_score()` without key | `ValueError: Must specify score key or set default_score_key` |
+| `store(scores=...)` without key and no default | `ValueError: Must specify score key or set default_score_key` |
 | Score missing value and passed | `ValidationError: Either 'value' or 'passed' must be provided` |
 | Wrong return type | `ValueError: Evaluation function must return EvalResult, List[EvalResult], EvalContext, or None` |
 | Path doesn't exist | `Error: Path nonexistent.py does not exist` (exit 1) |
@@ -230,7 +230,7 @@ Scenario: Global --timeout overrides decorator timeout
 ## Undocumented Capabilities
 
 1. **Context Manager:** `with EvalContext() as ctx:`
-2. **Smart add_output():** Extracts known keys from dicts automatically
+2. **store() with spread:** `ctx.store(**agent_result, scores=True)` for clean agent integration
 3. **Forward ref annotations:** `ctx: "EvalContext"` works
 4. **call_async():** `await func.call_async()` for async functions
 5. **Result status field:** "not_started", "pending", "running", "completed", "error", "cancelled"

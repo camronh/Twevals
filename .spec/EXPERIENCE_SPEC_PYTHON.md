@@ -95,49 +95,53 @@ ctx.trace_data.messages = [{"role": "user", "content": "Hello"}]
 ctx.trace_data["custom_field"] = "arbitrary data"  # extra props still work
 ```
 
-### Smart Output Extraction
+### The store() Method
 
-```gherkin
-Scenario: add_output with simple value
-  Given ctx.add_output("response")
-  Then ctx.output = "response"
+**Intent:** Single method to set all context fields with explicit params.
 
-Scenario: add_output with structured dict
-  Given ctx.add_output({"output": "response", "latency": 0.5, "trace_data": {...}})
-  Then ctx.output = "response"
-  And ctx.latency = 0.5
-  And ctx.trace_data is updated with {...}
-
-Scenario: add_output with arbitrary dict
-  Given ctx.add_output({"name": "John", "age": 30})
-  Then ctx.output = {"name": "John", "age": 30}
-  And other fields unchanged (dict stored as-is)
+```python
+ctx.store(
+    input="test input",
+    output="model response",
+    reference="expected",
+    latency=0.5,
+    scores=True,  # or float, dict, or list of dicts
+    messages=[...],  # sets trace_data.messages
+    trace_url="https://...",  # sets trace_data.trace_url
+    metadata={"key": "value"},  # merges into ctx.metadata
+    trace_data={"custom": "data"},  # merges into ctx.trace_data
+)
 ```
 
-**Known fields extracted:** `output`, `latency`, `trace_data`, `metadata`
+**Parameters:**
+- All optional - only set what you pass
+- `scores` - flexible: bool, float, dict, or list of dicts. Always appends.
+- `metadata` and `trace_data` - merge into existing
 
-**When to use which:**
-- Use `ctx.add_output(result)` when your agent returns a dict with `output`, `latency`, `trace_data`, or `metadata` keys - fields are extracted automatically
-- Use `ctx.output = result` for direct assignment when you just have the output value
+**Spread pattern for agent results:**
+```python
+result = await run_agent(ctx.input)  # {"output": "...", "latency": 0.5}
+ctx.store(**result, input="test", scores=True)
+```
 
 ### Scoring
 
 ```gherkin
 Scenario: Boolean score
-  Given ctx.add_score(True, "Test passed")
-  Then score created with passed=True, notes="Test passed"
+  Given ctx.store(scores=True)
+  Then score created with passed=True, key=default_score_key
 
 Scenario: Numeric score
-  Given ctx.add_score(0.85, "Similarity")
-  Then score created with value=0.85, notes="Similarity"
+  Given ctx.store(scores=0.85)
+  Then score created with value=0.85, key=default_score_key
 
-Scenario: Named score
-  Given ctx.add_score(True, "Valid format", key="format")
-  Then score created with key="format"
-
-Scenario: Full control
-  Given ctx.add_score(key="quality", value=0.9, passed=True, notes="...")
+Scenario: Dict score with custom key
+  Given ctx.store(scores={"passed": True, "key": "format", "notes": "Valid"})
   Then score created with all fields
+
+Scenario: Multiple scores
+  Given ctx.store(scores=[{"passed": True, "key": "accuracy"}, {"value": 0.9, "key": "quality"}])
+  Then two scores appended
 ```
 
 ### Building Results
@@ -448,7 +452,7 @@ Scenario: Evaluation exceeds timeout
 | Error | Cause |
 |-------|-------|
 | `ValueError: Either 'value' or 'passed' must be provided` | Score missing both |
-| `ValueError: Must specify score key or set default_score_key` | add_score() without key |
+| `ValueError: Must specify score key or set default_score_key` | store(scores=...) without key and no default_score_key |
 | `ValueError: Target functions require... context parameter` | target without ctx param |
 | `ValueError: Evaluation function must return EvalResult...` | Wrong return type |
 | `ValueError: Expected N values, got M` | Parametrize mismatch |
@@ -474,9 +478,11 @@ def test_math(ctx: EvalContext):
 def test_comprehensive(ctx: EvalContext):
     ctx.output = agent(ctx.input)
 
-    ctx.add_score("keyword" in ctx.output, "Contains keyword", key="relevance")
-    ctx.add_score(len(ctx.output) < 500, "Under limit", key="brevity")
-    ctx.add_score(0.85, "Similarity score", key="similarity")
+    ctx.store(scores=[
+        {"passed": "keyword" in ctx.output, "key": "relevance"},
+        {"passed": len(ctx.output) < 500, "key": "brevity"},
+        {"value": 0.85, "key": "similarity"}
+    ])
 ```
 
 ### Pattern 3: Parametrized Dataset
