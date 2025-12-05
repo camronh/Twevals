@@ -115,7 +115,7 @@ ctx.store(
 
 **Parameters:**
 - All optional - only set what you pass
-- `scores` - flexible: bool, float, dict, or list of dicts. Always appends.
+- `scores` - flexible: bool, float, dict, or list of dicts. Same key overwrites, different key appends.
 - `metadata` and `trace_data` - merge into existing
 
 ### Overwrite vs Append Behavior
@@ -127,17 +127,17 @@ Scenario: Scalar fields overwrite
   Then ctx.input = "second"
   And ctx.output = "one"  # unchanged
 
-Scenario: Scores always append
+Scenario: Scores with different keys append
   Given ctx.store(scores=True)
   When ctx.store(scores={"passed": False, "key": "format"})
   Then ctx.scores has 2 scores
   And first score has default key with passed=True
   And second score has key="format" with passed=False
 
-Scenario: Same score key appends (does not overwrite)
+Scenario: Same score key overwrites
   Given ctx.store(scores={"passed": True, "key": "accuracy"})
   When ctx.store(scores={"passed": False, "key": "accuracy"})
-  Then ctx.scores has 2 scores with key="accuracy"
+  Then ctx.scores has 1 score with key="accuracy" and passed=False
 
 Scenario: Metadata merges
   Given ctx.store(metadata={"model": "gpt-4", "temp": 0.7})

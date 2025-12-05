@@ -137,17 +137,41 @@ class TestStore:
         assert ctx.scores[0]["key"] == "accuracy"
         assert ctx.scores[1]["key"] == "quality"
 
-    def test_store_scores_append(self):
-        """Test multiple store calls append scores"""
+    def test_store_scores_same_key_overwrites(self):
+        """Test multiple store calls with same key overwrite"""
         ctx = EvalContext(default_score_key="test")
         ctx.store(scores=True)
         ctx.store(scores=False)
         ctx.store(scores=0.8)
 
+        # All use default key "test", so each overwrites the previous
+        assert len(ctx.scores) == 1
+        assert ctx.scores[0]["value"] == 0.8
+        assert ctx.scores[0]["key"] == "test"
+
+    def test_store_scores_different_keys_append(self):
+        """Test store calls with different keys append"""
+        ctx = EvalContext(default_score_key="default")
+        ctx.store(scores=True)  # uses default key
+        ctx.store(scores={"passed": False, "key": "format"})
+        ctx.store(scores={"value": 0.9, "key": "quality"})
+
         assert len(ctx.scores) == 3
-        assert ctx.scores[0]["passed"] is True
-        assert ctx.scores[1]["passed"] is False
-        assert ctx.scores[2]["value"] == 0.8
+        assert ctx.scores[0]["key"] == "default"
+        assert ctx.scores[1]["key"] == "format"
+        assert ctx.scores[2]["key"] == "quality"
+
+    def test_store_scores_overwrite_specific_key(self):
+        """Test that storing same key overwrites that specific score"""
+        ctx = EvalContext(default_score_key="default")
+        ctx.store(scores={"passed": True, "key": "accuracy"})
+        ctx.store(scores={"passed": True, "key": "format"})
+        ctx.store(scores={"passed": False, "key": "accuracy"})  # overwrite accuracy
+
+        assert len(ctx.scores) == 2
+        # Find the accuracy score - it should be the overwritten one
+        accuracy_score = next(s for s in ctx.scores if s["key"] == "accuracy")
+        assert accuracy_score["passed"] is False
 
     def test_store_chaining(self):
         """Test that store returns self for chaining"""

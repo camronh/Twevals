@@ -51,7 +51,7 @@ class EvalContext:
             output: The output/response from the system
             reference: The expected/ground truth output
             latency: Execution time in seconds
-            scores: Score(s) - bool, float, dict, or list of dicts. Always appends.
+            scores: Score(s) - bool, float, dict, or list of dicts. Same key overwrites, different key appends.
             messages: Conversation messages (sets trace_data.messages)
             trace_url: Link to external trace viewer (sets trace_data.trace_url)
             metadata: Custom metadata (merges into existing)
@@ -89,16 +89,25 @@ class EvalContext:
             self._add_single_score(scores)
 
     def _add_single_score(self, score: Union[bool, float, Dict[str, Any]]) -> None:
-        """Internal: process and append a single score."""
+        """Internal: add a single score. Overwrites if same key exists, otherwise appends."""
         if isinstance(score, dict):
             score_dict = score.copy()
             if 'key' not in score_dict:
                 score_dict['key'] = self.default_score_key or "correctness"
-            self.scores.append(score_dict)
         elif isinstance(score, bool):
-            self.scores.append({'key': self.default_score_key or "correctness", 'passed': score})
+            score_dict = {'key': self.default_score_key or "correctness", 'passed': score}
         elif isinstance(score, (int, float)):
-            self.scores.append({'key': self.default_score_key or "correctness", 'value': score})
+            score_dict = {'key': self.default_score_key or "correctness", 'value': score}
+        else:
+            return
+
+        # Overwrite if same key exists, otherwise append
+        key = score_dict['key']
+        for i, existing in enumerate(self.scores):
+            if existing.get('key') == key:
+                self.scores[i] = score_dict
+                return
+        self.scores.append(score_dict)
 
     def build(self) -> EvalResult:
         """Convert to immutable EvalResult."""
