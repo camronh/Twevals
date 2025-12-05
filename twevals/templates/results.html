@@ -42,12 +42,17 @@
     {% if summary.run_name %}
     <span class="text-zinc-300 dark:text-zinc-700">·</span>
     <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Run</span>
-    <div class="group flex items-center gap-1">
-      <span id="run-name-text" class="font-mono text-xs text-blue-600 dark:text-blue-500">{{ summary.run_name }}</span>
+    <div class="group flex items-center gap-1" id="run-name-container" data-run-id="{{ run_id }}">
+      <span id="run-name-text" class="cursor-pointer font-mono text-xs text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-500 dark:hover:text-blue-400" title="Click to edit">{{ summary.run_name }}</span>
+      <input id="run-name-input" class="hidden w-32 rounded border border-blue-400 bg-white px-1.5 py-0.5 font-mono text-xs text-zinc-800 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100" type="text" value="{{ summary.run_name }}" />
+      <button id="run-name-save" class="hidden h-4 w-4 items-center justify-center rounded text-emerald-500 hover:text-emerald-600" aria-label="Save">
+        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+      </button>
       <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-400 opacity-0 transition hover:text-blue-600 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-blue-500" data-copy="run-name-text" aria-label="Copy run name">
         <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
       </button>
+      <svg id="run-name-edit-icon" class="h-3 w-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition dark:text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
     </div>
     {% endif %}
   </div>
