@@ -120,27 +120,27 @@
       body.resizing-v { cursor: row-resize; }
       body.resizing * { cursor: inherit !important; user-select: none !important; }
 
-      /* Message boxes - stacked vertical style */
+      /* Message boxes - compact stacked style */
       .msg-box {
-        border-radius: 0.375rem;
+        border-radius: 0.25rem;
         font-size: 0.75rem;
-        line-height: 1.4;
+        line-height: 1.35;
         overflow: hidden;
       }
       .msg-box-header {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.625rem;
+        padding: 0.125rem 0.375rem;
+        font-size: 0.5625rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.03em;
       }
       .msg-box-content {
-        padding: 0.5rem;
+        padding: 0.25rem 0.375rem;
         white-space: pre-wrap;
         word-break: break-word;
         font-family: 'JetBrains Mono', ui-monospace, monospace;
         font-size: 0.6875rem;
-        max-height: 200px;
+        max-height: 300px;
         overflow-y: auto;
       }
       .msg-user .msg-box-header { background: rgb(59 130 246 / 0.2); color: rgb(37 99 235); }
@@ -202,32 +202,10 @@
               <svg class="copy-icon h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
               <svg class="check-icon hidden h-3.5 w-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
             </button>
-            <span class="rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status, pill_tones.get('completed')) }}">{{ status }}</span>
-            {% if result.result.latency is not none %}
-            <span class="font-mono text-xs {% if result.result.latency <= 1 %}text-emerald-600 dark:text-emerald-400{% elif result.result.latency <= 5 %}text-blue-600 dark:text-blue-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">{{ result.result.latency | round(2) }}s</span>
-            {% endif %}
-            {% if has_scores %}
-              {% if ns.all_passed and ns.total_scores > 0 %}
-              <span class="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>pass</span>
-              {% elif ns.any_failed %}
-              <span class="flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>fail</span>
-              {% endif %}
-            {% endif %}
-          </div>
-          <span class="text-zinc-300 dark:text-zinc-700">|</span>
-          <div class="flex items-center gap-2 text-xs text-zinc-500">
-            {% if result.dataset %}<span>{{ result.dataset }}</span>{% endif %}
-            {% if result.labels %}{% for la in result.labels %}<span class="rounded bg-zinc-100 px-1 py-0.5 text-[10px] dark:bg-zinc-800">{{ la }}</span>{% endfor %}{% endif %}
           </div>
         </div>
         <div class="flex items-center gap-1">
           <span class="text-xs text-zinc-500 mr-2">{{ index + 1 }}/{{ total }}</span>
-          {% if has_trace_data and result.result.trace_data.trace_url %}
-          <a href="{{ result.result.trace_data.trace_url }}" target="_blank" class="flex h-7 items-center gap-1 rounded border border-zinc-200 px-2 text-xs text-zinc-500 hover:border-blue-300 hover:text-blue-600 dark:border-zinc-700 dark:hover:border-blue-500 dark:hover:text-blue-400">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            Trace
-          </a>
-          {% endif %}
           <button id="prev-btn" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 dark:border-zinc-700 dark:hover:border-blue-500" title="↑" {% if index <= 0 %}disabled{% endif %}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
           </button>
@@ -320,6 +298,66 @@
 
         <!-- Right Sidebar -->
         <div id="sidebar-panel" class="flex flex-col min-h-0 overflow-auto bg-zinc-50 dark:bg-zinc-900/50" style="width: 320px; min-width: 200px;">
+          <!-- Eval Info -->
+          <div class="border-b border-blue-200/60 dark:border-zinc-800 p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Status</span>
+              <span class="rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status, pill_tones.get('completed')) }}">{{ status }}</span>
+            </div>
+            {% if result.result.latency is not none %}
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Latency</span>
+              <span class="font-mono text-xs {% if result.result.latency <= 1 %}text-emerald-600 dark:text-emerald-400{% elif result.result.latency <= 5 %}text-blue-600 dark:text-blue-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">{{ result.result.latency | round(2) }}s</span>
+            </div>
+            {% endif %}
+            {% if has_scores %}
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Result</span>
+              {% if ns.all_passed and ns.total_scores > 0 %}
+              <span class="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>pass</span>
+              {% elif ns.any_failed %}
+              <span class="flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>fail</span>
+              {% else %}
+              <span class="text-xs text-zinc-500">—</span>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% if result.dataset %}
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Dataset</span>
+              <span class="text-xs text-zinc-600 dark:text-zinc-300">{{ result.dataset }}</span>
+            </div>
+            {% endif %}
+            {% if result.labels %}
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Labels</span>
+              <div class="flex gap-1">{% for la in result.labels %}<span class="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">{{ la }}</span>{% endfor %}</div>
+            </div>
+            {% endif %}
+            {% if has_trace_data and result.result.trace_data.trace_url %}
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Trace</span>
+              <a href="{{ result.result.trace_data.trace_url }}" target="_blank" class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Open
+              </a>
+            </div>
+            {% endif %}
+          </div>
+
+          {% if has_messages %}
+          <!-- Messages Toggle -->
+          <div class="border-b border-blue-200/60 dark:border-zinc-800">
+            <button onclick="toggleMessagesPane()" class="w-full flex items-center justify-between px-3 py-2 bg-zinc-100/50 hover:bg-zinc-100 dark:bg-zinc-800/30 dark:hover:bg-zinc-800/50 text-left">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Messages</span>
+              <span class="flex items-center gap-1.5">
+                <span class="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-600 dark:text-zinc-200">{{ result.result.trace_data.messages | length }}</span>
+                <svg class="h-3.5 w-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </span>
+            </button>
+          </div>
+          {% endif %}
+
           {% if has_scores %}
           <div class="border-b border-blue-200/60 dark:border-zinc-800">
             <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 bg-zinc-100/50 dark:bg-zinc-800/30">Scores</div>
@@ -402,35 +440,20 @@
     </div>
 
     {% if has_messages %}
-    <!-- Messages Bottom Bar -->
-    <div id="messages-bar" onclick="openMessagesOverlay()" class="fixed bottom-0 left-0 right-0 z-40 cursor-pointer border-t border-violet-300/50 bg-violet-50 px-4 py-2 hover:bg-violet-100 dark:border-violet-500/30 dark:bg-violet-950/90 dark:hover:bg-violet-900/90">
-      <div class="flex items-center justify-center gap-2">
-        <svg class="h-4 w-4 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        <span class="text-sm font-medium text-violet-700 dark:text-violet-300">Messages</span>
-        <span class="rounded-full bg-violet-200 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-800 dark:text-violet-200">{{ result.result.trace_data.messages | length }}</span>
-        <span class="text-xs text-violet-500 dark:text-violet-400">Click to expand</span>
+    <!-- Messages Sliding Pane -->
+    <div id="messages-pane" class="fixed top-0 right-0 bottom-0 z-50 translate-x-full border-l border-zinc-200 bg-white shadow-xl transition-transform duration-200 dark:border-zinc-700 dark:bg-zinc-900" style="width: 700px;">
+      <!-- Resize Handle -->
+      <div id="messages-resize-handle" class="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500/50 active:bg-blue-500/70"></div>
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
+        <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Messages <span class="text-zinc-400">({{ result.result.trace_data.messages | length }})</span></span>
+        <button onclick="toggleMessagesPane()" class="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
       </div>
-    </div>
-
-    <!-- Messages Fullscreen Overlay -->
-    <div id="messages-overlay" class="fixed inset-0 z-50 hidden">
-      <div class="absolute inset-0 bg-black/60" onclick="closeMessagesOverlay()"></div>
-      <div class="absolute inset-4 top-8 flex flex-col rounded-lg bg-white shadow-2xl dark:bg-zinc-900">
-        <!-- Header -->
-        <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
-          <div class="flex items-center gap-3">
-            <svg class="h-5 w-5 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-            <span class="text-lg font-semibold text-zinc-800 dark:text-zinc-100">Messages</span>
-            <span class="rounded-full bg-violet-100 px-2 py-0.5 text-sm text-violet-700 dark:bg-violet-900 dark:text-violet-200">{{ result.result.trace_data.messages | length }}</span>
-          </div>
-          <button onclick="closeMessagesOverlay()" class="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300">
-            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <!-- Messages Content -->
-        <div class="flex-1 overflow-auto p-4">
-          <div id="data-messages" class="mx-auto max-w-4xl space-y-3"></div>
-        </div>
+      <!-- Messages Content -->
+      <div class="h-[calc(100%-41px)] overflow-auto">
+        <div id="data-messages" class="space-y-1 p-2"></div>
       </div>
     </div>
     {% endif %}
@@ -504,13 +527,48 @@
         document.getElementById(id + '-icon')?.classList.toggle('open');
       }
 
-      function openMessagesOverlay() {
-        document.getElementById('messages-overlay')?.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+      function toggleMessagesPane() {
+        const pane = document.getElementById('messages-pane');
+        if (pane) pane.classList.toggle('translate-x-full');
       }
-      function closeMessagesOverlay() {
-        document.getElementById('messages-overlay')?.classList.add('hidden');
-        document.body.style.overflow = '';
+      function closeMessagesPane() {
+        document.getElementById('messages-pane')?.classList.add('translate-x-full');
+      }
+
+      function initMessagesPaneResize() {
+        const handle = document.getElementById('messages-resize-handle');
+        const pane = document.getElementById('messages-pane');
+        if (!handle || !pane) return;
+
+        let startX, startWidth;
+        handle.addEventListener('mousedown', e => {
+          e.preventDefault();
+          startX = e.clientX;
+          startWidth = pane.offsetWidth;
+          document.body.style.cursor = 'ew-resize';
+          document.body.style.userSelect = 'none';
+
+          const onMouseMove = ev => {
+            const delta = startX - ev.clientX;
+            const newWidth = Math.max(300, Math.min(window.innerWidth - 100, startWidth + delta));
+            pane.style.width = newWidth + 'px';
+          };
+
+          const onMouseUp = () => {
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            localStorage.setItem('twevals:messagesPaneWidth', pane.style.width);
+          };
+
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // Restore saved width
+        const savedWidth = localStorage.getItem('twevals:messagesPaneWidth');
+        if (savedWidth) pane.style.width = savedWidth;
       }
 
       function renderMessages(messages) {
@@ -622,6 +680,7 @@
               document.body.classList.remove('resizing', 'resizing-v');
               document.removeEventListener('mousemove', onMouseMove);
               document.removeEventListener('mouseup', onMouseUp);
+              saveResizeSizes();
             };
 
             document.addEventListener('mousemove', onMouseMove);
@@ -630,16 +689,53 @@
         });
       }
 
+      function saveResizeSizes() {
+        const sizes = {};
+        const inputPanel = document.getElementById('input-panel');
+        const sidebarPanel = document.getElementById('sidebar-panel');
+        const refPanel = document.getElementById('ref-panel');
+        if (inputPanel) sizes.inputWidth = inputPanel.style.width;
+        if (sidebarPanel) sizes.sidebarWidth = sidebarPanel.style.width;
+        if (refPanel) sizes.refHeight = refPanel.style.height;
+        localStorage.setItem('twevals:detailSizes', JSON.stringify(sizes));
+      }
+
+      function restoreResizeSizes() {
+        try {
+          const sizes = JSON.parse(localStorage.getItem('twevals:detailSizes') || '{}');
+          const inputPanel = document.getElementById('input-panel');
+          const mainPanel = document.getElementById('main-panel');
+          const sidebarPanel = document.getElementById('sidebar-panel');
+          const refPanel = document.getElementById('ref-panel');
+          if (sizes.inputWidth && inputPanel) inputPanel.style.width = sizes.inputWidth;
+          if (sizes.sidebarWidth && sidebarPanel && mainPanel) {
+            sidebarPanel.style.width = sizes.sidebarWidth;
+            mainPanel.style.width = `calc(100% - ${sizes.sidebarWidth})`;
+          }
+          if (sizes.refHeight && refPanel) refPanel.style.height = sizes.refHeight;
+        } catch {}
+      }
+
       document.addEventListener('DOMContentLoaded', () => {
         if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
         renderDataViewer('data-input', dataPayloads.input);
         renderDataViewer('data-output', dataPayloads.output, { placeholder: '—' });
         if (dataPayloads.reference !== null) renderDataViewer('data-ref', dataPayloads.reference);
         if (dataPayloads.metadata !== null) renderDataViewer('data-meta', dataPayloads.metadata);
-        if (dataPayloads.trace !== null) renderDataViewer('data-trace', dataPayloads.trace);
+        // Filter out messages and trace_url from trace data display
+        if (dataPayloads.trace !== null) {
+          const filteredTrace = Object.fromEntries(
+            Object.entries(dataPayloads.trace).filter(([k]) => k !== 'messages' && k !== 'trace_url')
+          );
+          if (Object.keys(filteredTrace).length > 0) {
+            renderDataViewer('data-trace', filteredTrace);
+          }
+        }
         if (dataPayloads.messages !== null) renderMessages(dataPayloads.messages);
 
         initResizable();
+        restoreResizeSizes();
+        initMessagesPaneResize();
 
         document.getElementById('prev-btn')?.addEventListener('click', () => navigateTo(currentIndex - 1));
         document.getElementById('next-btn')?.addEventListener('click', () => navigateTo(currentIndex + 1));
@@ -649,8 +745,8 @@
           if (e.key === 'ArrowUp') { e.preventDefault(); navigateTo(currentIndex - 1); }
           else if (e.key === 'ArrowDown') { e.preventDefault(); navigateTo(currentIndex + 1); }
           else if (e.key === 'Escape') {
-            const overlay = document.getElementById('messages-overlay');
-            if (overlay && !overlay.classList.contains('hidden')) { closeMessagesOverlay(); }
+            const pane = document.getElementById('messages-pane');
+            if (pane && !pane.classList.contains('translate-x-full')) { closeMessagesPane(); }
             else { window.location.href = '/'; }
           }
         });
