@@ -503,7 +503,7 @@
       }
 
       function getVisibleMainRows() {
-        return Array.from(document.querySelectorAll('tr[data-row="main"]:not([hidden]):not(.filtered-out)'));
+        return Array.from(document.querySelectorAll('tr[data-row="main"]:not(.hidden)'));
       }
 
       function syncCheckboxesToSelection() {
