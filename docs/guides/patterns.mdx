@@ -154,7 +154,7 @@ async def test_edge_case(ctx: EvalContext):
 
 ## Pattern 7: Multi-Metric Evaluation
 
-Use `add_score()` when you need multiple named metrics or numeric scores:
+Use `store(scores=...)` when you need multiple named metrics or numeric scores:
 
 ```python
 @eval(input="Explain quantum computing", dataset="qa")
@@ -165,11 +165,13 @@ async def test_comprehensive(ctx: EvalContext):
     assert ctx.output is not None, "Got no output"
     assert len(ctx.output) > 50, "Response too short"
 
-    # Numeric/named metrics with add_score
+    # Numeric/named metrics with store()
     keywords = ["quantum", "superposition", "qubit"]
     matches = sum(1 for kw in keywords if kw in ctx.output.lower())
-    ctx.add_score(matches / len(keywords), f"{matches}/{len(keywords)} keywords", key="coverage")
-    ctx.add_score(len(ctx.output) < 500, f"Length: {len(ctx.output)}", key="brevity")
+    ctx.store(scores=[
+        {"value": matches / len(keywords), "key": "coverage", "notes": f"{matches}/{len(keywords)} keywords"},
+        {"passed": len(ctx.output) < 500, "key": "brevity", "notes": f"Length: {len(ctx.output)}"}
+    ])
 ```
 
 **Use when:** You need numeric scores or multiple independent metrics.

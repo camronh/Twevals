@@ -75,17 +75,39 @@ assert "expected" in ctx.output.lower(), "Missing expected content"
 
 Failed assertions become failing scores with the message as notes.
 
-### Advanced Scoring with add_score()
+### Using store() for Explicit Scoring
 
-For numeric scores or multiple named metrics:
+For numeric scores or multiple named metrics, use `store()`:
 
 ```python
 # Numeric score (0-1 range)
-ctx.add_score(0.85, "Confidence score")
+ctx.store(scores=0.85)
 
 # Multiple scores with different keys
-ctx.add_score(True, "Format correct", key="format")
-ctx.add_score(0.9, "Relevance score", key="relevance")
+ctx.store(scores=[
+    {"passed": True, "key": "format"},
+    {"value": 0.9, "key": "relevance"}
+])
+```
+
+### Setting Multiple Fields at Once
+
+`store()` lets you set multiple context fields in one call:
+
+```python
+# From agent result
+result = await run_agent(ctx.input)
+ctx.store(**result, scores=True)  # Spread agent result
+
+# Or set everything explicitly
+ctx.store(
+    input="test",
+    output="response",
+    latency=0.5,
+    scores=True,
+    messages=[{"role": "user", "content": "test"}],
+    metadata={"model": "gpt-4"}
+)
 ```
 
 ## Auto-Return Behavior
@@ -148,8 +170,22 @@ async def test_classification(ctx: EvalContext, prompt, expected_category):
 
 | Method | Description |
 |--------|-------------|
-| `add_score(value, notes, key)` | Add a score (boolean or numeric) |
+| `store(input, output, reference, latency, scores, messages, trace_url, metadata, trace_data)` | Set any context fields at once |
 | `build()` | Convert to immutable EvalResult |
+
+### store() Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input` | Any | The test input |
+| `output` | Any | The system output |
+| `reference` | Any | Expected output |
+| `latency` | float | Execution time in seconds |
+| `scores` | bool/float/dict/list | Score(s) to add |
+| `messages` | list | Conversation messages (sets trace_data.messages) |
+| `trace_url` | str | External trace link (sets trace_data.trace_url) |
+| `metadata` | dict | Merges into ctx.metadata |
+| `trace_data` | dict | Merges into ctx.trace_data |
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -157,6 +193,6 @@ async def test_classification(ctx: EvalContext, prompt, expected_category):
 | `output` | Any | The system output |
 | `reference` | Any | Expected output (optional) |
 | `metadata` | dict | Custom metadata |
-| `trace_data` | dict | Debug/trace data |
+| `trace_data` | TraceData | Debug/trace data |
 | `latency` | float | Execution time |
 | `scores` | list | List of Score objects |

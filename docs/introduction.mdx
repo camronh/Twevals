@@ -64,7 +64,7 @@ from twevals import eval, parametrize, EvalContext
 )
 async def test_sentiment_analysis(ctx: EvalContext):
     # Run test and store output in context
-    ctx.add_output(await analyze_sentiment(ctx.input))
+    ctx.output = await analyze_sentiment(ctx.input)
 
     # Evaluate!
     assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
@@ -81,7 +81,7 @@ Or use `@parametrize` to apply eval to a dataset:
 ])
 async def test_sentiment_batch(ctx: EvalContext):
     # Parametrized data is injected into the ctx
-    ctx.add_output(await analyze_sentiment(ctx.input))
+    ctx.output = await analyze_sentiment(ctx.input)
 
     assert ctx.output == ctx.reference, f"Expected {ctx.reference}, got {ctx.output}"
 ```

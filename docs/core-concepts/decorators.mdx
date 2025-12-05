@@ -78,7 +78,7 @@ async def test_arithmetic(ctx: EvalContext):
 
 ### Default Score Key
 
-Specify the key for scores (used when assertions fail or with `add_score()`):
+Specify the key for scores (used when assertions fail or with `store(scores=...)`):
 
 ```python
 @eval(input="Classify this text", default_score_key="accuracy")

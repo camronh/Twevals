@@ -138,7 +138,7 @@ The typical way—let `EvalContext` build it:
 @eval(dataset="demo")
 async def my_eval(ctx: EvalContext):
     ctx.input = "test"
-    ctx.add_output(await my_agent(ctx.input))
+    ctx.output = await my_agent(ctx.input)
 
     assert ctx.output, "Got empty response"
     # Returns EvalResult automatically

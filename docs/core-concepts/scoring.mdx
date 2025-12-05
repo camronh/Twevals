@@ -83,9 +83,9 @@ When all assertions pass, a passing score is automatically added.
 
 ---
 
-## add_score() (For Advanced Cases)
+## store() for Explicit Scoring
 
-Use `add_score()` when you need more control than assertions provide:
+Use `store(scores=...)` when you need more control than assertions provide:
 
 - **Numeric scores** (confidence values, similarity scores)
 - **Multiple named metrics** per evaluation
@@ -97,8 +97,7 @@ Use `add_score()` when you need more control than assertions provide:
 @eval(input="Classify this text", dataset="classification")
 async def test_with_confidence(ctx: EvalContext):
     result = await classifier(ctx.input)
-    ctx.output = result["label"]
-    ctx.add_score(result["confidence"], "Model confidence")
+    ctx.store(output=result["label"], scores={"value": result["confidence"], "notes": "Model confidence"})
 ```
 
 ### Multiple Named Metrics
@@ -108,12 +107,14 @@ async def test_with_confidence(ctx: EvalContext):
 async def test_comprehensive(ctx: EvalContext):
     ctx.output = await my_agent(ctx.input)
 
-    ctx.add_score("quantum" in ctx.output.lower(), "Mentions quantum", key="relevance")
-    ctx.add_score(len(ctx.output) < 500, f"Length: {len(ctx.output)}", key="brevity")
-    ctx.add_score(calculate_similarity(ctx.output, reference), "Semantic similarity", key="similarity")
+    ctx.store(scores=[
+        {"passed": "quantum" in ctx.output.lower(), "key": "relevance", "notes": "Mentions quantum"},
+        {"passed": len(ctx.output) < 500, "key": "brevity", "notes": f"Length: {len(ctx.output)}"},
+        {"value": calculate_similarity(ctx.output, reference), "key": "similarity", "notes": "Semantic similarity"}
+    ])
 ```
 
-### Combining Assertions and add_score
+### Combining Assertions and store()
 
 You can use both in the same eval:
 
@@ -127,7 +128,7 @@ async def test_mixed(ctx: EvalContext):
     assert len(ctx.output) > 10, "Output too short"
 
     # Numeric quality metric
-    ctx.add_score(quality_score(ctx.output), "Quality score", key="quality")
+    ctx.store(scores={"value": quality_score(ctx.output), "key": "quality", "notes": "Quality score"})
 ```
 
 ---
@@ -178,6 +179,6 @@ Every score must have at least one of `value` or `passed`.
 |----------|-----|
 | Simple pass/fail checks | `assert` |
 | Multiple conditions that must all pass | Multiple `assert` statements |
-| Numeric confidence/similarity scores | `add_score(0.85, ...)` |
-| Multiple independent metrics | `add_score(..., key="metric_name")` |
+| Numeric confidence/similarity scores | `ctx.store(scores=0.85)` |
+| Multiple independent metrics | `ctx.store(scores=[{...}, {...}])` |
 | Reusable checks across evals | Evaluators |

@@ -26,8 +26,8 @@ async def my_agent_target(ctx: EvalContext):
     # Use the injected `input` from the evals.
     agent_results = run_agent(ctx.input)
 
-    # Inject output into context
-    ctx.add_output(agent_results["content"])
+    # Inject output into context using store()
+    ctx.store(output=agent_results["content"])
 
     # You can also inject anything you might need in other tests
     # For example, we can inject the RAG search results for future RAG evals

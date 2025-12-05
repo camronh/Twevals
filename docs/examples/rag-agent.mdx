@@ -57,7 +57,7 @@ async def test_rag_agent(ctx: EvalContext):
         answer=ctx.output,
         sources=ctx.metadata["source_docs"]
     )
-    ctx.add_score(score, reasoning, key="hallucination")
+    ctx.store(scores={"value": score, "key": "hallucination", "notes": reasoning})
 
     # Check correctness against reference
     correctness_result = await correctness_judge(
@@ -75,7 +75,7 @@ async def test_rag_agent(ctx: EvalContext):
 
 **Storing context for analysis** — We save the retrieved documents to `ctx.metadata`. This shows up in the results JSON and Web UI, so you can debug retrieval issues.
 
-**Multiple scoring criteria** — We use `ctx.add_score()` for hallucination (a named score) and `assert` for correctness (the default score). Both appear in your results.
+**Multiple scoring criteria** — We use `ctx.store(scores=...)` for hallucination (a named score) and `assert` for correctness (the default score). Both appear in your results.
 
 **LLM-as-judge** — The `hallucination_judge` and `correctness_judge` are placeholder functions representing whatever LLM judge you're using (OpenAI, Anthropic, your own prompts, etc.).
 

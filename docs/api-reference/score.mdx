@@ -104,7 +104,7 @@ Both numeric and boolean:
 
 ## Creating Scores
 
-### Via add_score()
+### Via store()
 
 The recommended way:
 
@@ -112,13 +112,13 @@ The recommended way:
 @eval(dataset="demo", default_score_key="accuracy")
 async def my_eval(ctx: EvalContext):
     # Boolean with notes
-    ctx.add_score(True, "Exact match")
+    ctx.store(scores={"passed": True, "notes": "Exact match"})
 
     # Numeric
-    ctx.add_score(0.85, "Confidence score", key="confidence")
+    ctx.store(scores={"value": 0.85, "key": "confidence", "notes": "Confidence score"})
 
     # Boolean with custom key
-    ctx.add_score(output.is_valid, "Valid format", key="format")
+    ctx.store(scores={"passed": output.is_valid, "key": "format", "notes": "Valid format"})
 ```
 
 ### Direct Construction
@@ -142,12 +142,14 @@ An evaluation can have multiple scores:
 @eval(dataset="qa")
 async def test_answer(ctx: EvalContext):
     ctx.input = "What is Python?"
-    ctx.add_output(await agent(ctx.input))
+    ctx.output = await agent(ctx.input)
 
-    ctx.add_score(is_correct, "Factually correct", key="accuracy")
-    ctx.add_score(is_concise, "Under 100 words", key="brevity")
-    ctx.add_score(confidence, "Model confidence", key="confidence")
-    ctx.add_score(is_safe, "No harmful content", key="safety")
+    ctx.store(scores=[
+        {"passed": is_correct, "key": "accuracy", "notes": "Factually correct"},
+        {"passed": is_concise, "key": "brevity", "notes": "Under 100 words"},
+        {"value": confidence, "key": "confidence", "notes": "Model confidence"},
+        {"passed": is_safe, "key": "safety", "notes": "No harmful content"}
+    ])
 ```
 
 Result:
@@ -180,8 +182,8 @@ Set via decorator to name auto-created scores:
 @eval(default_score_key="correctness")
 async def my_eval(ctx: EvalContext):
     ctx.input = "test"
-    ctx.add_output("result")
-    ctx.add_score(True, "All checks passed")
+    ctx.output = "result"
+    ctx.store(scores={"passed": True, "notes": "All checks passed"})
     # Score will have key="correctness"
 ```
 
@@ -193,7 +195,7 @@ If no score is added, Twevals creates one automatically:
 @eval(dataset="demo", default_score_key="success")
 async def test_no_explicit_score(ctx: EvalContext):
     ctx.input = "test"
-    ctx.add_output("result")
+    ctx.output = "result"
     # Auto-adds: {"key": "success", "passed": True}
 ```
 
@@ -203,38 +205,42 @@ async def test_no_explicit_score(ctx: EvalContext):
   <Accordion title="Use consistent key names">
     ```python
     # Good - consistent naming
-    ctx.add_score(..., key="accuracy")
-    ctx.add_score(..., key="format_valid")
-    ctx.add_score(..., key="response_time")
+    ctx.store(scores=[
+        {"key": "accuracy", ...},
+        {"key": "format_valid", ...},
+        {"key": "response_time", ...}
+    ])
 
-    # Avoid - inconsistent
-    ctx.add_score(..., key="Accuracy")
-    ctx.add_score(..., key="is_format_valid")
-    ctx.add_score(..., key="responseTime")
+    # Avoid - inconsistent keys
+    ctx.store(scores=[
+        {"key": "Accuracy", ...},
+        {"key": "is_format_valid", ...},
+        {"key": "responseTime", ...}
+    ])
     ```
   </Accordion>
 
   <Accordion title="Include meaningful notes">
     ```python
     # Good - explains the result
-    ctx.add_score(
-        False,
-        f"Expected '{expected}', got '{actual}'",
-        key="accuracy"
-    )
+    ctx.store(scores={
+        "passed": False,
+        "key": "accuracy",
+        "notes": f"Expected '{expected}', got '{actual}'"
+    })
 
     # Less helpful
-    ctx.add_score(False, "Failed", key="accuracy")
+    ctx.store(scores={"passed": False, "key": "accuracy", "notes": "Failed"})
     ```
   </Accordion>
 
   <Accordion title="Normalize numeric scores">
     ```python
     # Good - 0-1 range
-    ctx.add_score(similarity / 100, key="similarity")
+    ctx.store(scores={"value": similarity / 100, "key": "similarity"})
 
     # Harder to interpret
-    ctx.add_score(similarity, key="similarity")  # 0-100 range
+    ctx.store(scores={"value": similarity, "key": "similarity"})  # 0-100 range
     ```
   </Accordion>
 
@@ -242,12 +248,12 @@ async def test_no_explicit_score(ctx: EvalContext):
     ```python
     # Useful for thresholded metrics
     score = 0.75
-    ctx.add_score(
-        score,
-        f"Score: {score} (threshold: 0.7)",
-        key="quality"
-    )
-    # Also set passed based on threshold
+    ctx.store(scores={
+        "value": score,
+        "passed": score >= 0.7,
+        "key": "quality",
+        "notes": f"Score: {score} (threshold: 0.7)"
+    })
     ```
   </Accordion>
 </AccordionGroup>
