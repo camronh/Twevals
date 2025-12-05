@@ -446,6 +446,7 @@
       function getFilters() { return _filters; }
       function setFilters(f) {
         _filters = f || defaultFilters();
+        sessionStorage.setItem('twevals:filters', JSON.stringify(_filters));
         renderActiveFilters();
         applyAllFilters();
       }
@@ -967,7 +968,10 @@
         let timer;
         searchInput.addEventListener('input', () => {
           clearTimeout(timer);
-          timer = setTimeout(applyAllFilters, 120);
+          timer = setTimeout(() => {
+            sessionStorage.setItem('twevals:search', searchInput.value);
+            applyAllFilters();
+          }, 120);
         });
       }
 
@@ -1354,6 +1358,21 @@
         form?.addEventListener('submit', saveConfig);
       })();
 
+      // Restore filters and search from sessionStorage
+      function restoreFiltersAndSearch() {
+        const savedFilters = sessionStorage.getItem('twevals:filters');
+        if (savedFilters) {
+          try {
+            _filters = JSON.parse(savedFilters);
+          } catch {}
+        }
+        const savedSearch = sessionStorage.getItem('twevals:search');
+        const searchEl = document.getElementById('search-input');
+        if (savedSearch && searchEl) {
+          searchEl.value = savedSearch;
+        }
+      }
+
       // HTMX after swap handler
       document.addEventListener("htmx:afterSwap", function (e) {
         if (e.target.id === "results") {
@@ -1366,7 +1385,8 @@
           applyColumnVisibility();
           initScrollRestoration();
           wireActionsMenu();
-          try { populateScoreKeySelects(); populateDatasetLabelPills(); applyAllFilters(); } catch {}
+          restoreFiltersAndSearch();
+          try { populateScoreKeySelects(); populateDatasetLabelPills(); renderActiveFilters(); applyAllFilters(); } catch {}
           syncCheckboxesToSelection();
           checkRunningState();
           scheduleLiveRefresh();
