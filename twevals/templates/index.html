@@ -221,8 +221,7 @@
 
               <!-- Quick filters: pills for common filters -->
               <div class="mb-3 flex flex-wrap gap-1.5">
-                <button id="filter-has-annotation-yes" class="rounded-full px-2.5 py-1 text-[11px] font-medium transition bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">Has Note</button>
-                <button id="filter-has-annotation-no" class="rounded-full px-2.5 py-1 text-[11px] font-medium transition bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">No Note</button>
+                <button id="filter-has-annotation" class="rounded-full px-2.5 py-1 text-[11px] font-medium transition bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">Has Note</button>
                 <button id="filter-has-url" class="rounded-full px-2.5 py-1 text-[11px] font-medium transition bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">Has URL</button>
                 <button id="filter-has-messages" class="rounded-full px-2.5 py-1 text-[11px] font-medium transition bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">Has Messages</button>
               </div>
@@ -831,28 +830,31 @@
       document.getElementById('filter-has-url')?.addEventListener('click', () => toggleTraceFilter('hasUrl'));
       document.getElementById('filter-has-messages')?.addEventListener('click', () => toggleTraceFilter('hasMessages'));
 
-      // Annotation filter buttons
-      function updateAnnotationButtons() {
+      // Annotation filter toggle (cycles: any -> yes -> no -> any)
+      function updateAnnotationButton() {
         const f = getFilters();
-        const yesBtn = document.getElementById('filter-has-annotation-yes');
-        const noBtn = document.getElementById('filter-has-annotation-no');
-        const baseClass = 'rounded-full px-2.5 py-1 text-[11px] font-medium transition ';
-        if (yesBtn) yesBtn.className = baseClass + (f.annotation === 'yes' ? 'bg-blue-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700');
-        if (noBtn) noBtn.className = baseClass + (f.annotation === 'no' ? 'bg-blue-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700');
+        const btn = document.getElementById('filter-has-annotation');
+        if (!btn) return;
+        btn.className = 'rounded-full px-2.5 py-1 text-[11px] font-medium transition ';
+        if (f.annotation === 'yes') {
+          btn.className += 'bg-blue-500 text-white';
+          btn.textContent = 'Has Note';
+        } else if (f.annotation === 'no') {
+          btn.className += 'bg-rose-500/20 text-rose-600 dark:text-rose-400';
+          btn.textContent = 'No Note';
+        } else {
+          btn.className += 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700';
+          btn.textContent = 'Has Note';
+        }
       }
 
-      document.getElementById('filter-has-annotation-yes')?.addEventListener('click', () => {
+      document.getElementById('filter-has-annotation')?.addEventListener('click', () => {
         const f = getFilters();
-        f.annotation = f.annotation === 'yes' ? 'any' : 'yes';
+        if (f.annotation === 'any') f.annotation = 'yes';
+        else if (f.annotation === 'yes') f.annotation = 'no';
+        else f.annotation = 'any';
         setFilters(f);
-        updateAnnotationButtons();
-      });
-
-      document.getElementById('filter-has-annotation-no')?.addEventListener('click', () => {
-        const f = getFilters();
-        f.annotation = f.annotation === 'no' ? 'any' : 'no';
-        setFilters(f);
-        updateAnnotationButtons();
+        updateAnnotationButton();
       });
 
       // Sorting
@@ -1439,7 +1441,7 @@
           initScrollRestoration();
           wireExportButtons();
           restoreFiltersAndSearch();
-          try { populateScoreKeySelects(); populateDatasetLabelPills(); updateTraceFilterButtons(); updateAnnotationButtons(); renderActiveFilters(); applyAllFilters(); } catch {}
+          try { populateScoreKeySelects(); populateDatasetLabelPills(); updateTraceFilterButtons(); updateAnnotationButton(); renderActiveFilters(); applyAllFilters(); } catch {}
           syncCheckboxesToSelection();
           checkRunningState();
           scheduleLiveRefresh();
