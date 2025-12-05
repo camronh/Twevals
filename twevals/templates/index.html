@@ -101,18 +101,29 @@
       }
       .stats-expanded.hidden { display: none; }
 
-      .stats-expanded-header {
-        display: flex;
-        justify-content: flex-end;
-        padding: 0.5rem 1rem;
-        border-bottom: 1px solid #27272a;
-        background: #09090b;
-      }
-
       .stats-layout {
         display: flex;
         min-height: 200px;
+        position: relative;
       }
+
+      .stats-collapse-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 10;
+        display: flex;
+        width: 32px;
+        height: 32px;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: #71717a;
+        cursor: pointer;
+        transition: color 0.15s;
+      }
+      .stats-collapse-btn:hover { color: #d4d4d8; }
 
       /* Left panel: details + Y-axis labels */
       .stats-left {
