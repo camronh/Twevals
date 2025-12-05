@@ -1,5 +1,7 @@
 {% set ns = namespace(tests=summary.total_evaluations, passed=0, failed=0, pending=0, running=0, not_started=0) %}
+{% set active_ns = namespace(pending=0, running=0, completed=0, total=0) %}
 {% for r in summary.results %}
+  {% set idx = loop.index0 %}
   {% set status = r.result.status if r.result and r.result.status is defined else None %}
   {% if status == 'not_started' %}{% set ns.not_started = ns.not_started + 1 %}{% elif status == 'pending' %}{% set ns.pending = ns.pending + 1 %}{% elif status == 'running' %}{% set ns.running = ns.running + 1 %}{% endif %}
   {% set p = namespace(pass=false, fail=false) %}
@@ -9,11 +11,20 @@
     {% endfor %}
   {% endif %}
   {% if p.pass %}{% set ns.passed = ns.passed + 1 %}{% elif p.fail %}{% set ns.failed = ns.failed + 1 %}{% endif %}
+  {# Track progress for active indices only #}
+  {% if active_indices is none or idx in active_indices %}
+    {% set active_ns.total = active_ns.total + 1 %}
+    {% if status == 'pending' %}{% set active_ns.pending = active_ns.pending + 1 %}{% elif status == 'running' %}{% set active_ns.running = active_ns.running + 1 %}{% elif status not in ['not_started', none] %}{% set active_ns.completed = active_ns.completed + 1 %}{% endif %}
+  {% endif %}
 {% endfor %}
 {% set pending_total = ns.pending + ns.running + ns.not_started %}
 {% set total = summary.total_evaluations %}
 {% set completed = (total - pending_total) if total else 0 %}
-{% set pct_done = ((completed / total) * 100) | round(0) | int if total > 0 else 0 %}
+{# Progress bar uses active indices for selective runs #}
+{% set progress_total = active_ns.total if active_indices else total %}
+{% set progress_completed = active_ns.completed if active_indices else completed %}
+{% set progress_pending = (active_ns.pending + active_ns.running) if active_indices else (ns.pending + ns.running) %}
+{% set pct_done = ((progress_completed / progress_total) * 100) | round(0) | int if progress_total > 0 else 0 %}
 
 {% set pill_tones = {
   'not_started': 'text-zinc-400 bg-zinc-500/10 border border-zinc-500/40',
@@ -65,13 +76,13 @@
       <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Discovered</span>
       <span class="font-mono text-xs text-zinc-600 dark:text-zinc-400">{{ total }} eval{{ 's' if total != 1 else '' }}</span>
     </div>
-  {% elif pending_total > 0 %}
+  {% elif progress_pending > 0 %}
     <div class="flex items-center gap-2">
       <span class="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Progress</span>
       <div class="h-1.5 w-6 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
         <div class="h-full rounded-full bg-blue-500" style="width: {{ pct_done }}%"></div>
       </div>
-      <span class="font-mono text-xs text-blue-600 dark:text-blue-500">{{ completed }}/{{ total }}</span>
+      <span class="font-mono text-xs text-blue-600 dark:text-blue-500">{{ progress_completed }}/{{ progress_total }}</span>
     </div>
   {% else %}
     <div class="flex items-center gap-2">
