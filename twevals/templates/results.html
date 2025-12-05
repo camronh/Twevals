@@ -45,7 +45,7 @@
     </button>
   </div>
   <div class="stats-layout">
-    <!-- Left panel: summary info -->
+    <!-- Left panel: summary info + Y-axis labels -->
     <div class="stats-left">
       <div class="stats-left-content">
         <div class="stats-metric">
@@ -58,78 +58,74 @@
           <span class="stats-metric-label">avg latency</span>
         </div>
         {% endif %}
+        <div class="stats-left-footer">
+          {% if summary.session_name %}
+          <div class="stats-info-row">
+            <span class="stats-info-label">session</span>
+            <span class="stats-session">{{ summary.session_name }}</span>
+          </div>
+          {% endif %}
+          {% if summary.run_name %}
+          <div class="stats-info-row">
+            <span class="stats-info-label">run</span>
+            <span class="stats-run">{{ summary.run_name }}</span>
+          </div>
+          {% endif %}
+        </div>
       </div>
-      <div class="stats-left-footer">
-        {% if summary.session_name %}
-        <div class="stats-info-row">
-          <span class="stats-info-label">session</span>
-          <span class="stats-session">{{ summary.session_name }}</span>
-        </div>
-        {% endif %}
-        {% if summary.run_name %}
-        <div class="stats-info-row">
-          <span class="stats-info-label">run</span>
-          <span class="stats-run">{{ summary.run_name }}</span>
-        </div>
-        {% endif %}
+      <!-- Y-axis labels along the right edge -->
+      <div class="stats-yaxis">
+        <span class="stats-axis-label">100%</span>
+        <span class="stats-axis-label">75%</span>
+        <span class="stats-axis-label">50%</span>
+        <span class="stats-axis-label">25%</span>
+        <span class="stats-axis-label">0%</span>
       </div>
     </div>
 
-    <!-- Right panel: score bar chart grid -->
+    <!-- Right panel: chart area (Y-axis is the left border) -->
     <div class="stats-right">
-      <div class="stats-chart-outer">
-        <!-- Y-axis labels (outside the grid) -->
-        <div class="stats-chart-axis">
-          <span class="stats-axis-label">100%</span>
-          <span class="stats-axis-label">75%</span>
-          <span class="stats-axis-label">50%</span>
-          <span class="stats-axis-label">25%</span>
-          <span class="stats-axis-label">0%</span>
+      <!-- Chart area with gridlines -->
+      <div class="stats-chart-area">
+        <div class="stats-gridline" style="top: 0%"></div>
+        <div class="stats-gridline" style="top: 25%"></div>
+        <div class="stats-gridline" style="top: 50%"></div>
+        <div class="stats-gridline" style="top: 75%"></div>
+        <!-- Bars -->
+        <div class="stats-chart-bars">
+          {% for chip in score_chips %}
+            {% if chip.type == 'ratio' %}
+              {% set pct = ((chip.passed / chip.total) * 100) | round(0) | int if chip.total > 0 else 0 %}
+              {% set bar_color = 'vbar-green' if pct >= 80 else ('vbar-amber' if pct >= 50 else 'vbar-red') %}
+              <div class="stats-bar-col">
+                <div class="stats-chart-fill {{ bar_color }}" style="height: {{ pct }}%"></div>
+              </div>
+            {% elif chip.type == 'avg' %}
+              {% set avg = chip.avg %}
+              {% set pct = (avg * 100) | round(0) | int if avg <= 1 else ((avg * 10) | round(0) | int if avg <= 10 else ([avg, 100] | min | round(0) | int)) %}
+              {% set bar_color = 'vbar-green' if pct >= 80 else ('vbar-amber' if pct >= 50 else 'vbar-red') %}
+              <div class="stats-bar-col">
+                <div class="stats-chart-fill {{ bar_color }}" style="height: {{ pct }}%"></div>
+              </div>
+            {% endif %}
+          {% endfor %}
         </div>
-        <!-- Chart main area -->
-        <div class="stats-chart-main">
-          <!-- Bordered chart with gridlines -->
-          <div class="stats-chart-area">
-            <div class="stats-gridline" style="top: 0%"></div>
-            <div class="stats-gridline" style="top: 25%"></div>
-            <div class="stats-gridline" style="top: 50%"></div>
-            <div class="stats-gridline" style="top: 75%"></div>
-            <!-- Bars inside -->
-            <div class="stats-chart-bars">
-              {% for chip in score_chips %}
-                {% if chip.type == 'ratio' %}
-                  {% set pct = ((chip.passed / chip.total) * 100) | round(0) | int if chip.total > 0 else 0 %}
-                  {% set bar_color = 'vbar-green' if pct >= 80 else ('vbar-amber' if pct >= 50 else 'vbar-red') %}
-                  <div class="stats-bar-col">
-                    <div class="stats-chart-fill {{ bar_color }}" style="height: {{ pct }}%"></div>
-                  </div>
-                {% elif chip.type == 'avg' %}
-                  {% set avg = chip.avg %}
-                  {% set pct = (avg * 100) | round(0) | int if avg <= 1 else ((avg * 10) | round(0) | int if avg <= 10 else ([avg, 100] | min | round(0) | int)) %}
-                  {% set bar_color = 'vbar-green' if pct >= 80 else ('vbar-amber' if pct >= 50 else 'vbar-red') %}
-                  <div class="stats-bar-col">
-                    <div class="stats-chart-fill {{ bar_color }}" style="height: {{ pct }}%"></div>
-                  </div>
-                {% endif %}
-              {% endfor %}
-            </div>
-          </div>
-          <!-- Labels row (below chart) -->
-          <div class="stats-chart-labels">
-            {% for chip in score_chips %}
-              <span class="stats-chart-label">{{ chip.key }}</span>
-            {% endfor %}
-          </div>
-          <!-- Values row (below labels) -->
-          <div class="stats-chart-values">
-            {% for chip in score_chips %}
-              {% if chip.type == 'ratio' %}
-                <span class="stats-chart-value">{{ chip.passed }}/{{ chip.total }}</span>
-              {% elif chip.type == 'avg' %}
-                <span class="stats-chart-value">{{ chip.avg | round(2) }}</span>
-              {% endif %}
-            {% endfor %}
-          </div>
+      </div>
+      <!-- X-axis area (labels and values) -->
+      <div class="stats-xaxis">
+        <div class="stats-chart-labels">
+          {% for chip in score_chips %}
+            <span class="stats-chart-label">{{ chip.key }}</span>
+          {% endfor %}
+        </div>
+        <div class="stats-chart-values">
+          {% for chip in score_chips %}
+            {% if chip.type == 'ratio' %}
+              <span class="stats-chart-value">{{ chip.passed }}/{{ chip.total }}</span>
+            {% elif chip.type == 'avg' %}
+              <span class="stats-chart-value">{{ chip.avg | round(2) }}</span>
+            {% endif %}
+          {% endfor %}
         </div>
       </div>
     </div>
