@@ -32,64 +32,73 @@ class EvalContext:
         self.scores: List[Dict] = []
         self.error: Optional[str] = None
 
-    def add_output(self, data: Union[Dict[str, Any], Any], **kwargs) -> "EvalContext":
-        """Smart output setter that extracts EvalResult fields from dicts
-
-        - Dict with known fields (output, latency, trace_data, metadata) - extracts them
-        - Dict without known fields - stores entire dict as output
-        - Non-dict values - stores directly as output
-        """
-        known_fields = {'output', 'latency', 'trace_data', 'metadata'}
-        if isinstance(data, dict) and known_fields & data.keys():
-            if 'output' in data:
-                self.output = data['output']
-            if 'latency' in data:
-                self.latency = data['latency']
-            if 'trace_data' in data:
-                self.trace_data.update(data['trace_data'])
-            if 'metadata' in data:
-                self.metadata.update(data['metadata'])
-        else:
-            self.output = data
-
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-        return self
-
-    def add_score(
+    def store(
         self,
-        passed_or_value: Optional[Union[bool, float]] = None,
-        notes: Optional[str] = None,
-        key: Optional[str] = None,
-        **kwargs
+        input: Any = None,
+        output: Any = None,
+        reference: Any = None,
+        latency: Optional[float] = None,
+        scores: Optional[Union[bool, float, Dict[str, Any], List[Dict[str, Any]]]] = None,
+        messages: Optional[List[Any]] = None,
+        trace_url: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        trace_data: Optional[Dict[str, Any]] = None,
     ) -> "EvalContext":
-        """Add a score. Supports multiple calling patterns:
-        - Boolean: ctx.add_score(True, "passed")
-        - Numeric: ctx.add_score(0.95, "high score")
-        - Override key: ctx.add_score(True, "correct", key="accuracy")
-        - Full control: ctx.add_score(key="test", passed=True, value=0.95, notes="...")
+        """Store evaluation data. All params optional - only set what you pass.
+
+        Args:
+            input: The input to the evaluation
+            output: The output/response from the system
+            reference: The expected/ground truth output
+            latency: Execution time in seconds
+            scores: Score(s) - bool, float, dict, or list of dicts. Always appends.
+            messages: Conversation messages (sets trace_data.messages)
+            trace_url: Link to external trace viewer (sets trace_data.trace_url)
+            metadata: Custom metadata (merges into existing)
+            trace_data: Custom trace properties (merges into existing)
         """
-        score_key = key or kwargs.pop('key', None) or self.default_score_key
-        if not score_key:
-            raise ValueError("Must specify score key or set default_score_key")
+        if input is not None:
+            self.input = input
+        if output is not None:
+            self.output = output
+        if reference is not None:
+            self.reference = reference
+        if latency is not None:
+            self.latency = latency
 
-        score_dict = {'key': score_key}
-        if kwargs and passed_or_value is None:
-            score_dict.update(kwargs)
-        else:
-            if isinstance(passed_or_value, bool):
-                score_dict['passed'] = passed_or_value
-            elif isinstance(passed_or_value, (int, float)):
-                score_dict['value'] = passed_or_value
-            elif passed_or_value is not None:
-                score_dict['passed'] = bool(passed_or_value)
-            score_dict.update(kwargs)
+        if messages is not None:
+            self.trace_data.messages = messages
+        if trace_url is not None:
+            self.trace_data.trace_url = trace_url
+        if trace_data is not None:
+            self.trace_data.update(trace_data)
+        if metadata is not None:
+            self.metadata.update(metadata)
 
-        if notes:
-            score_dict['notes'] = notes
-        self.scores.append(score_dict)
+        if scores is not None:
+            self._add_scores(scores)
+
         return self
+
+    def _add_scores(self, scores: Union[bool, float, Dict[str, Any], List[Dict[str, Any]]]) -> None:
+        """Internal: process and append score(s)."""
+        if isinstance(scores, list):
+            for score in scores:
+                self._add_single_score(score)
+        else:
+            self._add_single_score(scores)
+
+    def _add_single_score(self, score: Union[bool, float, Dict[str, Any]]) -> None:
+        """Internal: process and append a single score."""
+        if isinstance(score, dict):
+            score_dict = score.copy()
+            if 'key' not in score_dict:
+                score_dict['key'] = self.default_score_key or "correctness"
+            self.scores.append(score_dict)
+        elif isinstance(score, bool):
+            self.scores.append({'key': self.default_score_key or "correctness", 'passed': score})
+        elif isinstance(score, (int, float)):
+            self.scores.append({'key': self.default_score_key or "correctness", 'value': score})
 
     def build(self) -> EvalResult:
         """Convert to immutable EvalResult."""
