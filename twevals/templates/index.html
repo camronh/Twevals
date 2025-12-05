@@ -424,7 +424,7 @@
         try { return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}"); } catch { return {}; }
       }
       function setColWidths(map) { localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map)); }
-      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: [], selectedLabels: [], hasUrl: null, hasMessages: null }; }
+      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: { include: [], exclude: [] }, selectedLabels: { include: [], exclude: [] }, hasUrl: null, hasMessages: null }; }
       function getFilters() { return _filters; }
       function setFilters(f) {
         _filters = f || defaultFilters();
@@ -553,19 +553,33 @@
           ct.appendChild(el);
         }
 
-        (f.selectedDatasets || []).forEach((ds, idx) => {
+        (f.selectedDatasets?.include || []).forEach((ds) => {
           count++;
           const el = document.createElement('span');
           el.className = 'inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200';
-          el.innerHTML = `dataset: ${ds}<button class="ml-1 text-emerald-200/80" onclick="removeDatasetFilter(${idx})">×</button>`;
+          el.innerHTML = `dataset: ${ds}<button class="ml-1 text-emerald-200/80" onclick="removeDatasetFilter('${ds}', 'include')">×</button>`;
+          ct.appendChild(el);
+        });
+        (f.selectedDatasets?.exclude || []).forEach((ds) => {
+          count++;
+          const el = document.createElement('span');
+          el.className = 'inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-200';
+          el.innerHTML = `exclude: ${ds}<button class="ml-1 text-rose-200/80" onclick="removeDatasetFilter('${ds}', 'exclude')">×</button>`;
           ct.appendChild(el);
         });
 
-        (f.selectedLabels || []).forEach((la, idx) => {
+        (f.selectedLabels?.include || []).forEach((la) => {
           count++;
           const el = document.createElement('span');
           el.className = 'inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200';
-          el.innerHTML = `label: ${la}<button class="ml-1 text-amber-200/80" onclick="removeLabelFilter(${idx})">×</button>`;
+          el.innerHTML = `label: ${la}<button class="ml-1 text-amber-200/80" onclick="removeLabelFilter('${la}', 'include')">×</button>`;
+          ct.appendChild(el);
+        });
+        (f.selectedLabels?.exclude || []).forEach((la) => {
+          count++;
+          const el = document.createElement('span');
+          el.className = 'inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-200';
+          el.innerHTML = `exclude: ${la}<button class="ml-1 text-rose-200/80" onclick="removeLabelFilter('${la}', 'exclude')">×</button>`;
           ct.appendChild(el);
         });
 
@@ -594,8 +608,8 @@
       window.removeValueRule = (idx) => { const f = getFilters(); f.valueRules.splice(idx, 1); setFilters(f); };
       window.removePassedRule = (idx) => { const f = getFilters(); f.passedRules.splice(idx, 1); setFilters(f); };
       window.removeAnnotationFilter = () => { const f = getFilters(); f.annotation = 'any'; setFilters(f); };
-      window.removeDatasetFilter = (idx) => { const f = getFilters(); f.selectedDatasets.splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
-      window.removeLabelFilter = (idx) => { const f = getFilters(); f.selectedLabels.splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
+      window.removeDatasetFilter = (ds, type) => { const f = getFilters(); const idx = f.selectedDatasets[type].indexOf(ds); if (idx >= 0) f.selectedDatasets[type].splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
+      window.removeLabelFilter = (lbl, type) => { const f = getFilters(); const idx = f.selectedLabels[type].indexOf(lbl); if (idx >= 0) f.selectedLabels[type].splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
       window.removeTraceFilter = (key) => { const f = getFilters(); f[key] = null; setFilters(f); updateTraceFilterButtons(); };
 
       // Column visibility
@@ -750,16 +764,22 @@
         const f = getFilters();
         const dsCt = document.getElementById('dataset-pills');
         const laCt = document.getElementById('label-pills');
+        const baseClass = 'rounded-full px-3 py-1 text-xs font-medium transition ';
+        const grayClass = 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700';
+        const blueClass = 'bg-blue-500 text-white';
+        const roseClass = 'bg-rose-500/20 text-rose-600 dark:text-rose-400';
+
         if (dsCt) {
           dsCt.innerHTML = '';
           if (datasets.length === 0) {
             dsCt.innerHTML = '<span class="text-xs text-zinc-400 italic">No datasets</span>';
           } else {
             datasets.forEach(ds => {
-              const isSelected = f.selectedDatasets?.includes(ds);
+              const isIncluded = f.selectedDatasets?.include?.includes(ds);
+              const isExcluded = f.selectedDatasets?.exclude?.includes(ds);
               const pill = document.createElement('button');
-              pill.className = `rounded-full px-3 py-1 text-xs font-medium transition ${isSelected ? 'bg-blue-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'}`;
-              pill.textContent = ds;
+              pill.className = baseClass + (isIncluded ? blueClass : isExcluded ? roseClass : grayClass);
+              pill.textContent = isExcluded ? '✕ ' + ds : ds;
               pill.onclick = (e) => { e.stopPropagation(); toggleDatasetFilter(ds); };
               dsCt.appendChild(pill);
             });
@@ -771,10 +791,11 @@
             laCt.innerHTML = '<span class="text-xs text-zinc-400 italic">No labels</span>';
           } else {
             labels.forEach(la => {
-              const isSelected = f.selectedLabels?.includes(la);
+              const isIncluded = f.selectedLabels?.include?.includes(la);
+              const isExcluded = f.selectedLabels?.exclude?.includes(la);
               const pill = document.createElement('button');
-              pill.className = `rounded-full px-3 py-1 text-xs font-medium transition ${isSelected ? 'bg-blue-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'}`;
-              pill.textContent = la;
+              pill.className = baseClass + (isIncluded ? blueClass : isExcluded ? roseClass : grayClass);
+              pill.textContent = isExcluded ? '✕ ' + la : la;
               pill.onclick = (e) => { e.stopPropagation(); toggleLabelFilter(la); };
               laCt.appendChild(pill);
             });
@@ -782,20 +803,37 @@
         }
       }
 
+      // Cycle: not selected -> include (blue) -> exclude (rose) -> not selected
       function toggleDatasetFilter(ds) {
         const f = getFilters();
-        const idx = f.selectedDatasets.indexOf(ds);
-        if (idx >= 0) f.selectedDatasets.splice(idx, 1);
-        else f.selectedDatasets.push(ds);
+        if (!f.selectedDatasets) f.selectedDatasets = { include: [], exclude: [] };
+        const incIdx = f.selectedDatasets.include.indexOf(ds);
+        const excIdx = f.selectedDatasets.exclude.indexOf(ds);
+        if (incIdx >= 0) {
+          f.selectedDatasets.include.splice(incIdx, 1);
+          f.selectedDatasets.exclude.push(ds);
+        } else if (excIdx >= 0) {
+          f.selectedDatasets.exclude.splice(excIdx, 1);
+        } else {
+          f.selectedDatasets.include.push(ds);
+        }
         setFilters(f);
         populateDatasetLabelPills();
       }
 
       function toggleLabelFilter(la) {
         const f = getFilters();
-        const idx = f.selectedLabels.indexOf(la);
-        if (idx >= 0) f.selectedLabels.splice(idx, 1);
-        else f.selectedLabels.push(la);
+        if (!f.selectedLabels) f.selectedLabels = { include: [], exclude: [] };
+        const incIdx = f.selectedLabels.include.indexOf(la);
+        const excIdx = f.selectedLabels.exclude.indexOf(la);
+        if (incIdx >= 0) {
+          f.selectedLabels.include.splice(incIdx, 1);
+          f.selectedLabels.exclude.push(la);
+        } else if (excIdx >= 0) {
+          f.selectedLabels.exclude.splice(excIdx, 1);
+        } else {
+          f.selectedLabels.include.push(la);
+        }
         setFilters(f);
         populateDatasetLabelPills();
       }
@@ -1044,17 +1082,22 @@
           if (f.annotation === 'yes' && !has) return false;
           if (f.annotation === 'no' && has) return false;
         }
-        // Dataset filter
-        if (f.selectedDatasets && f.selectedDatasets.length > 0) {
-          const ds = (mainTr?.getAttribute('data-dataset') || '').trim();
-          if (!f.selectedDatasets.includes(ds)) return false;
+        // Dataset filter (include and exclude)
+        const ds = (mainTr?.getAttribute('data-dataset') || '').trim();
+        if (f.selectedDatasets?.include?.length > 0) {
+          if (!f.selectedDatasets.include.includes(ds)) return false;
         }
-        // Labels filter (row must have at least one of the selected labels)
-        if (f.selectedLabels && f.selectedLabels.length > 0) {
-          let rowLabels = [];
-          try { rowLabels = JSON.parse(mainTr?.getAttribute('data-labels') || '[]') || []; } catch {}
-          const hasMatch = f.selectedLabels.some(l => rowLabels.includes(l));
-          if (!hasMatch) return false;
+        if (f.selectedDatasets?.exclude?.includes(ds)) return false;
+        // Labels filter (include and exclude)
+        let rowLabels = [];
+        try { rowLabels = JSON.parse(mainTr?.getAttribute('data-labels') || '[]') || []; } catch {}
+        if (f.selectedLabels?.include?.length > 0) {
+          const hasIncluded = f.selectedLabels.include.some(l => rowLabels.includes(l));
+          if (!hasIncluded) return false;
+        }
+        if (f.selectedLabels?.exclude?.length > 0) {
+          const hasExcluded = f.selectedLabels.exclude.some(l => rowLabels.includes(l));
+          if (hasExcluded) return false;
         }
         // Trace data filters
         if (f.hasUrl === true) {
@@ -1110,7 +1153,10 @@
         const visible = mains.filter(tr => !tr.classList.contains('hidden'));
         const hasActive = (() => {
           const f = getFilters();
-          return (f.valueRules.length + f.passedRules.length + (f.selectedDatasets?.length || 0) + (f.selectedLabels?.length || 0) + (f.annotation !== 'any' ? 1 : 0)) > 0 ||
+          const dsCount = (f.selectedDatasets?.include?.length || 0) + (f.selectedDatasets?.exclude?.length || 0);
+          const lblCount = (f.selectedLabels?.include?.length || 0) + (f.selectedLabels?.exclude?.length || 0);
+          const traceCount = (f.hasUrl !== null ? 1 : 0) + (f.hasMessages !== null ? 1 : 0);
+          return (f.valueRules.length + f.passedRules.length + dsCount + lblCount + traceCount + (f.annotation !== 'any' ? 1 : 0)) > 0 ||
             (document.getElementById('search-input')?.value || '').trim().length > 0;
         })();
         container.classList.toggle('hidden', !hasActive);
