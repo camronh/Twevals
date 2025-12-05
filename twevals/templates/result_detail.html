@@ -310,18 +310,6 @@
               <span class="font-mono text-xs {% if result.result.latency <= 1 %}text-emerald-600 dark:text-emerald-400{% elif result.result.latency <= 5 %}text-blue-600 dark:text-blue-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">{{ result.result.latency | round(2) }}s</span>
             </div>
             {% endif %}
-            {% if has_scores %}
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Result</span>
-              {% if ns.all_passed and ns.total_scores > 0 %}
-              <span class="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>pass</span>
-              {% elif ns.any_failed %}
-              <span class="flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>fail</span>
-              {% else %}
-              <span class="text-xs text-zinc-500">—</span>
-              {% endif %}
-            </div>
-            {% endif %}
             {% if result.dataset %}
             <div class="flex items-center justify-between">
               <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Dataset</span>
@@ -386,9 +374,9 @@
           <div class="border-b border-blue-200/60 dark:border-zinc-800">
             <div role="button" tabindex="0" onclick="toggleCollapse('metadata')" onkeydown="if(event.key==='Enter')toggleCollapse('metadata')" class="flex cursor-pointer items-center justify-between px-3 py-2 bg-zinc-100/50 hover:bg-zinc-100 dark:bg-zinc-800/30 dark:hover:bg-zinc-800/50">
               <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Metadata</span>
-              <svg id="metadata-icon" class="collapse-icon h-3.5 w-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              <svg id="metadata-icon" class="collapse-icon open h-3.5 w-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </div>
-            <div id="metadata-content" class="collapsible-content">
+            <div id="metadata-content" class="collapsible-content open">
               <div>
                 <div class="p-2 max-h-40 overflow-auto">
                   <div id="data-meta" class="data-viewer">
@@ -401,21 +389,27 @@
           {% endif %}
 
           {% if has_trace_data %}
+          {% set filtered_trace = {} %}
+          {% for k, v in result.result.trace_data.items() if k not in ['messages', 'trace_url'] %}
+            {% set _ = filtered_trace.update({k: v}) %}
+          {% endfor %}
+          {% if filtered_trace %}
           <div class="border-b border-blue-200/60 dark:border-zinc-800">
             <div role="button" tabindex="0" onclick="toggleCollapse('trace-data')" onkeydown="if(event.key==='Enter')toggleCollapse('trace-data')" class="flex cursor-pointer items-center justify-between px-3 py-2 bg-zinc-100/50 hover:bg-zinc-100 dark:bg-zinc-800/30 dark:hover:bg-zinc-800/50">
               <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Trace Data</span>
-              <svg id="trace-data-icon" class="collapse-icon h-3.5 w-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              <svg id="trace-data-icon" class="collapse-icon open h-3.5 w-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </div>
-            <div id="trace-data-content" class="collapsible-content">
+            <div id="trace-data-content" class="collapsible-content open">
               <div>
                 <div class="p-2 max-h-48 overflow-auto">
                   <div id="data-trace" class="data-viewer">
-                    <div class="data-surface"><pre class="data-pre text-zinc-600 dark:text-zinc-400 text-xs">{{ result.result.trace_data | tojson(indent=2) }}</pre></div>
+                    <div class="data-surface"><pre class="data-pre text-zinc-600 dark:text-zinc-400 text-xs">{{ filtered_trace | tojson(indent=2) }}</pre></div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+          {% endif %}
           {% endif %}
 
           <div class="flex-1">
@@ -576,6 +570,17 @@
         if (!container || !messages || !Array.isArray(messages)) return;
 
         container.dataset.raw = JSON.stringify(messages, null, 2);
+
+        // Check if messages match a known schema (have role/type and content/text/message)
+        const isKnownSchema = messages.length > 0 && messages.every(msg =>
+          (msg.role || msg.type) && (msg.content !== undefined || msg.text !== undefined || msg.message !== undefined || msg.tool_calls)
+        );
+
+        // If unknown schema, show raw JSON
+        if (!isKnownSchema) {
+          container.innerHTML = `<pre class="data-pre text-zinc-300 text-xs p-2">${escapeHtml(JSON.stringify(messages, null, 2))}</pre>`;
+          return;
+        }
 
         const html = messages.map(msg => {
           const role = (msg.role || msg.type || 'unknown').toLowerCase();
