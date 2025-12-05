@@ -35,8 +35,109 @@
   'cancelled': 'text-amber-300 bg-amber-500/10 border border-amber-500/40'
 } %}
 
+<!-- Expanded Stats Panel (hidden by default) -->
+<div id="stats-expanded" class="stats-expanded hidden">
+  <!-- Collapse button at top right -->
+  <div class="stats-expanded-header">
+    <button id="stats-collapse-btn" class="stats-collapse-btn" title="Collapse">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+      <span>Collapse</span>
+    </button>
+  </div>
+  <div class="stats-layout">
+    <!-- Left panel: summary info -->
+    <div class="stats-left">
+      <div class="stats-left-content">
+        <div class="stats-metric">
+          <span class="stats-metric-value">{{ total }}</span>
+          <span class="stats-metric-label">tests</span>
+        </div>
+        {% if summary.average_latency > 0 %}
+        <div class="stats-metric stats-metric-sm">
+          <span class="stats-metric-value">{{ summary.average_latency | round(2) }}<span class="stats-metric-unit">s</span></span>
+          <span class="stats-metric-label">avg latency</span>
+        </div>
+        {% endif %}
+      </div>
+      <div class="stats-left-footer">
+        {% if summary.session_name %}
+        <div class="stats-info-row">
+          <span class="stats-info-label">session</span>
+          <span class="stats-session">{{ summary.session_name }}</span>
+        </div>
+        {% endif %}
+        {% if summary.run_name %}
+        <div class="stats-info-row">
+          <span class="stats-info-label">run</span>
+          <span class="stats-run">{{ summary.run_name }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right panel: score bar chart grid -->
+    <div class="stats-right">
+      <div class="stats-chart-outer">
+        <!-- Y-axis labels (outside the grid) -->
+        <div class="stats-chart-axis">
+          <span class="stats-axis-label">100%</span>
+          <span class="stats-axis-label">75%</span>
+          <span class="stats-axis-label">50%</span>
+          <span class="stats-axis-label">25%</span>
+          <span class="stats-axis-label">0%</span>
+        </div>
+        <!-- Chart main area -->
+        <div class="stats-chart-main">
+          <!-- Bordered chart with gridlines -->
+          <div class="stats-chart-area">
+            <div class="stats-gridline" style="top: 0%"></div>
+            <div class="stats-gridline" style="top: 25%"></div>
+            <div class="stats-gridline" style="top: 50%"></div>
+            <div class="stats-gridline" style="top: 75%"></div>
+            <!-- Bars inside -->
+            <div class="stats-chart-bars">
+              {% for chip in score_chips %}
+                {% if chip.type == 'ratio' %}
+                  {% set pct = ((chip.passed / chip.total) * 100) | round(0) | int if chip.total > 0 else 0 %}
+                  {% set bar_color = 'vbar-green' if pct >= 80 else ('vbar-amber' if pct >= 50 else 'vbar-red') %}
+                  <div class="stats-bar-col">
+                    <div class="stats-chart-fill {{ bar_color }}" style="height: {{ pct }}%"></div>
+                  </div>
+                {% elif chip.type == 'avg' %}
+                  {% set avg = chip.avg %}
+                  {% set pct = (avg * 100) | round(0) | int if avg <= 1 else ((avg * 10) | round(0) | int if avg <= 10 else ([avg, 100] | min | round(0) | int)) %}
+                  {% set bar_color = 'vbar-green' if pct >= 80 else ('vbar-amber' if pct >= 50 else 'vbar-red') %}
+                  <div class="stats-bar-col">
+                    <div class="stats-chart-fill {{ bar_color }}" style="height: {{ pct }}%"></div>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+          <!-- Labels row (below chart) -->
+          <div class="stats-chart-labels">
+            {% for chip in score_chips %}
+              <span class="stats-chart-label">{{ chip.key }}</span>
+            {% endfor %}
+          </div>
+          <!-- Values row (below labels) -->
+          <div class="stats-chart-values">
+            {% for chip in score_chips %}
+              {% if chip.type == 'ratio' %}
+                <span class="stats-chart-value">{{ chip.passed }}/{{ chip.total }}</span>
+              {% elif chip.type == 'avg' %}
+                <span class="stats-chart-value">{{ chip.avg | round(2) }}</span>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Compact Stats Bar -->
-<div class="mb-3 flex flex-wrap items-center gap-3 border-b border-zinc-800 bg-zinc-900/50 px-4 py-2">
+<div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-zinc-800 bg-zinc-900/50 px-4 py-2">
   <!-- Session & Run Info -->
   {% if summary.session_name or summary.run_name %}
   <div class="flex items-center gap-2">
@@ -125,6 +226,14 @@
     <span class="font-mono text-[11px] text-zinc-400">{{ summary.average_latency | round(2) }}s</span>
   </div>
   {% endif %}
+
+  <!-- Expand button -->
+  <div class="ml-auto">
+    <button id="stats-expand-btn" class="flex h-6 items-center gap-1 rounded border border-zinc-700 bg-zinc-800/50 px-2 text-[10px] text-zinc-400 hover:border-zinc-600 hover:text-zinc-300 transition-colors" title="Expand stats">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      <span>Expand</span>
+    </button>
+  </div>
 </div>
 
 <!-- Filtered summary (computed client-side) -->
