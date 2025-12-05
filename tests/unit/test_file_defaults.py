@@ -515,10 +515,8 @@ from twevals.context import EvalContext
 
 @eval  # No default_score_key in decorator or file
 def test_uses_correctness_default(context: EvalContext):
-    # Should default to "correctness" when using add_score
-    context.input = "test"
-    context.output = "test"
-    context.add_score(True, "Test note")
+    # Should default to "correctness" when using store with scores
+    context.store(input="test", output="test", scores=True)
     return context.build()
 """)
 
@@ -549,9 +547,7 @@ twevals_defaults = {
 
 @eval
 def test_uses_file_default(context: EvalContext):
-    context.input = "test"
-    context.output = "test"
-    context.add_score(True, "Test note")
+    context.store(input="test", output="test", scores=True)
     return context.build()
 """)
 
@@ -581,9 +577,7 @@ twevals_defaults = {
 
 @eval(default_score_key="precision")
 def test_uses_decorator_default(context: EvalContext):
-    context.input = "test"
-    context.output = "test"
-    context.add_score(True, "Test note")
+    context.store(input="test", output="test", scores=True)
     return context.build()
 """)
 

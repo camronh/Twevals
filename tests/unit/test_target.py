@@ -9,9 +9,7 @@ from twevals.schemas import EvalResult
 def test_target_injects_output_and_custom_attrs():
     def target(ctx: EvalContext):
         ctx.other_data_not_in_schema = "foo"
-        ctx.add_output({"output": f"{ctx.input}-out"})
-        # Explicit latency to ensure it is preserved
-        ctx.latency = 0.123
+        ctx.store(output=f"{ctx.input}-out", latency=0.123)
 
     @eval(target=target, input="hello")
     def sample_eval(ctx: EvalContext):
@@ -30,7 +28,7 @@ def test_target_input_is_seeded_from_function_kwargs():
 
     def target(ctx: EvalContext):
         captured["input"] = ctx.input
-        ctx.add_output("ok")
+        ctx.store(output="ok")
 
     @eval(target=target)
     def sample_eval(ctx: EvalContext, input):
@@ -42,9 +40,9 @@ def test_target_input_is_seeded_from_function_kwargs():
     assert result.output == "ok"
 
 
-def test_target_can_return_payload():
+def test_target_can_set_output_and_metadata():
     def target(ctx: EvalContext):
-        return {"output": "from-target", "metadata": {"source": "target"}}
+        ctx.store(output="from-target", metadata={"source": "target"})
 
     @eval(target=target, input="hi")
     def sample_eval(ctx: EvalContext):
@@ -91,7 +89,7 @@ def test_target_error_includes_traceback():
 def test_async_target_is_supported():
     async def target(ctx: EvalContext):
         await asyncio.sleep(0)
-        ctx.add_output("async-target")
+        ctx.store(output="async-target")
 
     @eval(target=target, input="hi")
     async def sample_eval(ctx: EvalContext):

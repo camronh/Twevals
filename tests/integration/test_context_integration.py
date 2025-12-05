@@ -115,7 +115,7 @@ class TestParametrizeAutoMapping:
             else:
                 detected = "neutral"
 
-            ctx.store(output=detected, scores=ctx.output == ctx.reference)
+            ctx.store(output=detected, scores=detected == ctx.reference)
 
         # Execute all parametrized tests
         eval_functions = generate_eval_functions(test_sentiment)
@@ -351,7 +351,7 @@ class TestUltraMinimal:
         )
         def test_ultra_minimal(ctx: EvalContext):
             sentiment = "positive" if "love" in ctx.input.lower() else "negative"
-            ctx.store(output=sentiment, scores=ctx.output == ctx.reference)
+            ctx.store(output=sentiment, scores=sentiment == ctx.reference)
 
         eval_functions = generate_eval_functions(test_ultra_minimal)
         results = [func() for func in eval_functions]
