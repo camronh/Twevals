@@ -118,6 +118,43 @@ ctx.store(
 - `scores` - flexible: bool, float, dict, or list of dicts. Always appends.
 - `metadata` and `trace_data` - merge into existing
 
+### Overwrite vs Append Behavior
+
+```gherkin
+Scenario: Scalar fields overwrite
+  Given ctx.store(input="first", output="one")
+  When ctx.store(input="second")
+  Then ctx.input = "second"
+  And ctx.output = "one"  # unchanged
+
+Scenario: Scores always append
+  Given ctx.store(scores=True)
+  When ctx.store(scores={"passed": False, "key": "format"})
+  Then ctx.scores has 2 scores
+  And first score has default key with passed=True
+  And second score has key="format" with passed=False
+
+Scenario: Same score key appends (does not overwrite)
+  Given ctx.store(scores={"passed": True, "key": "accuracy"})
+  When ctx.store(scores={"passed": False, "key": "accuracy"})
+  Then ctx.scores has 2 scores with key="accuracy"
+
+Scenario: Metadata merges
+  Given ctx.store(metadata={"model": "gpt-4", "temp": 0.7})
+  When ctx.store(metadata={"model": "claude", "version": "3"})
+  Then ctx.metadata = {"model": "claude", "temp": 0.7, "version": "3"}
+
+Scenario: trace_data merges
+  Given ctx.store(trace_data={"tokens": 100})
+  When ctx.store(trace_data={"cost": 0.01})
+  Then ctx.trace_data contains tokens=100 and cost=0.01
+
+Scenario: messages overwrites (not appends)
+  Given ctx.store(messages=[msg1, msg2])
+  When ctx.store(messages=[msg3])
+  Then ctx.trace_data.messages = [msg3]
+```
+
 **Spread pattern for agent results:**
 ```python
 result = await run_agent(ctx.input)  # {"output": "...", "latency": 0.5}
