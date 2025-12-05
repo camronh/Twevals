@@ -15,7 +15,7 @@ class TestParametrize:
         def target(ctx: EvalContext):
             captured_inputs.append(ctx.input)
             captured_metadata.append(ctx.metadata)
-            ctx.add_output(ctx.input["prompt"] + "-out")
+            ctx.store(output=ctx.input["prompt"] + "-out")
 
         @eval(target=target)
         @parametrize("prompt,expected", [

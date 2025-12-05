@@ -39,176 +39,163 @@ class TestEvalContextBasics:
         assert ctx.metadata == {"key": "value"}
 
 
-class TestAddOutput:
-    """Test add_output method"""
+class TestStore:
+    """Test store method"""
 
-    def test_add_output_simple_value(self):
-        """Test add_output with simple value"""
+    def test_store_simple_values(self):
+        """Test store with simple field values"""
         ctx = EvalContext()
-        ctx.add_output("simple output")
+        ctx.store(input="test input", output="test output", reference="expected")
 
-        assert ctx.output == "simple output"
-        assert ctx.latency is None
-
-    def test_add_output_with_dict(self):
-        """Test add_output with dict containing multiple fields"""
-        ctx = EvalContext()
-        result = {
-            "output": "test output",
-            "latency": 0.5,
-            "trace_data": {"tokens": 100},
-            "metadata": {"model": "gpt-4"},
-        }
-        ctx.add_output(result)
-
+        assert ctx.input == "test input"
         assert ctx.output == "test output"
+        assert ctx.reference == "expected"
+
+    def test_store_latency(self):
+        """Test store with latency"""
+        ctx = EvalContext()
+        ctx.store(latency=0.5)
+
         assert ctx.latency == 0.5
+
+    def test_store_messages(self):
+        """Test store with messages (sets trace_data.messages)"""
+        ctx = EvalContext()
+        messages = [{"role": "user", "content": "hello"}]
+        ctx.store(messages=messages)
+
+        assert ctx.trace_data.messages == messages
+
+    def test_store_trace_url(self):
+        """Test store with trace_url"""
+        ctx = EvalContext()
+        ctx.store(trace_url="https://example.com/trace")
+
+        assert ctx.trace_data.trace_url == "https://example.com/trace"
+
+    def test_store_trace_data_merges(self):
+        """Test store merges trace_data into existing"""
+        ctx = EvalContext()
+        ctx.store(trace_data={"tokens": 100})
+        ctx.store(trace_data={"model": "gpt-4"})
+
         assert ctx.trace_data["tokens"] == 100
-        assert ctx.metadata == {"model": "gpt-4"}
+        assert ctx.trace_data["model"] == "gpt-4"
 
-    def test_add_output_dict_partial(self):
-        """Test add_output with dict containing only some fields"""
-        ctx = EvalContext()
-        ctx.add_output({"output": "test", "latency": 0.3})
+    def test_store_metadata_merges(self):
+        """Test store merges metadata into existing"""
+        ctx = EvalContext(metadata={"existing": "value"})
+        ctx.store(metadata={"new": "value"})
 
-        assert ctx.output == "test"
-        assert ctx.latency == 0.3
-        assert not ctx.trace_data  # Empty TraceData is falsy
+        assert ctx.metadata["existing"] == "value"
+        assert ctx.metadata["new"] == "value"
 
-    def test_add_output_with_kwargs_override(self):
-        """Test add_output with kwargs overriding dict values"""
-        ctx = EvalContext()
-        ctx.add_output(
-            {"output": "from dict", "latency": 0.5}, latency=0.8
-        )
-
-        assert ctx.output == "from dict"
-        assert ctx.latency == 0.8  # Overridden
-
-    def test_add_output_dict_without_known_fields(self):
-        """Test add_output with dict that doesn't contain known EvalResult fields
-
-        This tests the case where a user passes a dict like {'full_name': 'Kim Diaz'}
-        that should be stored as-is in the output field, not treated as a structured
-        EvalResult dict.
-        """
-        ctx = EvalContext()
-        user_data = {'full_name': 'Kim Diaz', 'user_id': 'user_00000'}
-        ctx.add_output(user_data)
-
-        # The dict should be stored as-is in the output field
-        assert ctx.output == user_data
-        assert ctx.output == {'full_name': 'Kim Diaz', 'user_id': 'user_00000'}
-        # Other fields should remain untouched
-        assert ctx.latency is None
-        assert not ctx.trace_data  # Empty TraceData is falsy
-
-    def test_add_output_dict_simple_data(self):
-        """Test add_output with various simple dict structures
-
-        Common case: API responses, parsed data, etc. that don't contain
-        the specific 'output', 'latency', 'trace_data', 'metadata' keys.
-        """
-        ctx = EvalContext()
-
-        # Test with nested dict
-        api_response = {
-            'status': 'success',
-            'data': {
-                'name': 'John Doe',
-                'age': 30
-            }
-        }
-        ctx.add_output(api_response)
-        assert ctx.output == api_response
-
-        # Test with list values
-        ctx2 = EvalContext()
-        list_data = {'items': [1, 2, 3], 'count': 3}
-        ctx2.add_output(list_data)
-        assert ctx2.output == list_data
-
-    def test_add_output_chaining(self):
-        """Test that add_output returns self for chaining"""
-        ctx = EvalContext()
-        result = ctx.add_output("test")
-
-        assert result is ctx
-
-
-class TestAddScore:
-    """Test add_score method"""
-
-    def test_add_score_boolean(self):
-        """Test add_score with boolean value"""
+    def test_store_scores_boolean(self):
+        """Test store with boolean score"""
         ctx = EvalContext(default_score_key="accuracy")
-        ctx.add_score(True, "Test passed")
+        ctx.store(scores=True)
 
         assert len(ctx.scores) == 1
         assert ctx.scores[0]["key"] == "accuracy"
         assert ctx.scores[0]["passed"] is True
-        assert ctx.scores[0]["notes"] == "Test passed"
 
-    def test_add_score_numeric(self):
-        """Test add_score with numeric value"""
+    def test_store_scores_numeric(self):
+        """Test store with numeric score"""
         ctx = EvalContext(default_score_key="similarity")
-        ctx.add_score(0.95, "High similarity")
+        ctx.store(scores=0.95)
 
         assert len(ctx.scores) == 1
         assert ctx.scores[0]["key"] == "similarity"
         assert ctx.scores[0]["value"] == 0.95
-        assert ctx.scores[0]["notes"] == "High similarity"
 
-    def test_add_score_with_custom_key(self):
-        """Test add_score with custom key override"""
-        ctx = EvalContext(default_score_key="default")
-        ctx.add_score(True, "Test", key="custom_key")
-
-        assert ctx.scores[0]["key"] == "custom_key"
-
-    def test_add_score_full_control(self):
-        """Test add_score with full kwargs control"""
+    def test_store_scores_dict(self):
+        """Test store with dict score"""
         ctx = EvalContext()
-        ctx.add_score(
-            key="comprehensive",
-            passed=True,
-            value=0.98,
-            notes="Detailed validation",
-        )
+        ctx.store(scores={"key": "custom", "passed": True, "notes": "test"})
 
         assert len(ctx.scores) == 1
-        score = ctx.scores[0]
-        assert score["key"] == "comprehensive"
-        assert score["passed"] is True
-        assert score["value"] == 0.98
-        assert score["notes"] == "Detailed validation"
+        assert ctx.scores[0]["key"] == "custom"
+        assert ctx.scores[0]["passed"] is True
+        assert ctx.scores[0]["notes"] == "test"
 
-    def test_add_score_uses_default_correctness(self):
-        """Test add_score uses 'correctness' as default key"""
-        ctx = EvalContext()  # Should default to "correctness"
-        ctx.add_score(True, "Test")
+    def test_store_scores_dict_uses_default_key(self):
+        """Test store with dict score uses default key when not specified"""
+        ctx = EvalContext(default_score_key="accuracy")
+        ctx.store(scores={"passed": True})
 
-        assert len(ctx.scores) == 1
-        assert ctx.scores[0]["key"] == "correctness"
+        assert ctx.scores[0]["key"] == "accuracy"
 
-    def test_add_score_multiple(self):
-        """Test adding multiple scores"""
+    def test_store_scores_list(self):
+        """Test store with list of scores"""
+        ctx = EvalContext()
+        ctx.store(scores=[
+            {"key": "accuracy", "passed": True},
+            {"key": "quality", "value": 0.9}
+        ])
+
+        assert len(ctx.scores) == 2
+        assert ctx.scores[0]["key"] == "accuracy"
+        assert ctx.scores[1]["key"] == "quality"
+
+    def test_store_scores_append(self):
+        """Test multiple store calls append scores"""
         ctx = EvalContext(default_score_key="test")
-        ctx.add_score(True, "First")
-        ctx.add_score(False, "Second")
-        ctx.add_score(0.8, "Third", key="custom")
+        ctx.store(scores=True)
+        ctx.store(scores=False)
+        ctx.store(scores=0.8)
 
         assert len(ctx.scores) == 3
         assert ctx.scores[0]["passed"] is True
         assert ctx.scores[1]["passed"] is False
         assert ctx.scores[2]["value"] == 0.8
 
-    def test_add_score_chaining(self):
-        """Test that add_score returns self for chaining"""
+    def test_store_chaining(self):
+        """Test that store returns self for chaining"""
         ctx = EvalContext(default_score_key="test")
-        result = ctx.add_score(True, "Test")
+        result = ctx.store(input="test")
 
         assert result is ctx
+
+    def test_store_all_params(self):
+        """Test store with all parameters at once"""
+        ctx = EvalContext(default_score_key="test")
+        ctx.store(
+            input="input",
+            output="output",
+            reference="reference",
+            latency=0.5,
+            scores=True,
+            messages=[{"role": "user", "content": "hi"}],
+            trace_url="https://trace.com",
+            metadata={"model": "gpt-4"},
+            trace_data={"tokens": 100}
+        )
+
+        assert ctx.input == "input"
+        assert ctx.output == "output"
+        assert ctx.reference == "reference"
+        assert ctx.latency == 0.5
+        assert len(ctx.scores) == 1
+        assert ctx.trace_data.messages == [{"role": "user", "content": "hi"}]
+        assert ctx.trace_data.trace_url == "https://trace.com"
+        assert ctx.trace_data["tokens"] == 100
+        assert ctx.metadata["model"] == "gpt-4"
+
+    def test_store_spread_pattern(self):
+        """Test store with ** spread from agent result"""
+        ctx = EvalContext(default_score_key="test")
+        agent_result = {
+            "output": "response",
+            "latency": 0.5,
+            "trace_data": {"tokens": 100}
+        }
+        ctx.store(**agent_result, input="test", scores=True)
+
+        assert ctx.input == "test"
+        assert ctx.output == "response"
+        assert ctx.latency == 0.5
+        assert ctx.trace_data["tokens"] == 100
+        assert len(ctx.scores) == 1
 
 
 class TestBuild:
@@ -221,7 +208,7 @@ class TestBuild:
             output="test output",
             default_score_key="accuracy",
         )
-        ctx.add_score(True, "Passed")
+        ctx.store(scores=True)
 
         result = ctx.build()
 
@@ -233,16 +220,16 @@ class TestBuild:
 
     def test_build_with_all_fields(self):
         """Test building with all fields populated"""
-        ctx = EvalContext(
+        ctx = EvalContext(default_score_key="test")
+        ctx.store(
             input="input",
             output="output",
             reference="reference",
             metadata={"model": "test"},
             trace_data={"tokens": 100},
             latency=0.5,
-            default_score_key="test",
+            scores=True
         )
-        ctx.add_score(True, "Score")
 
         result = ctx.build()
 
@@ -308,9 +295,7 @@ class TestContextWithDecorator:
 
         @eval(dataset="test", default_score_key="test")
         def test_func(ctx: EvalContext):
-            ctx.input = "test"
-            ctx.add_output("output")
-            ctx.add_score(True, "Passed")
+            ctx.store(input="test", output="output", scores=True)
 
         result = test_func()
 
@@ -333,8 +318,7 @@ class TestContextWithDecorator:
             assert ctx.default_score_key == "accuracy"
             assert ctx.metadata == {"source": "decorator"}
 
-            ctx.add_output("output")
-            ctx.add_score(True, "Test")
+            ctx.store(output="output", scores=True)
 
         result = test_func()
         assert result.input == "from decorator"
@@ -344,9 +328,7 @@ class TestContextWithDecorator:
 
         @eval(default_score_key="test")
         def test_func(ctx: EvalContext):
-            ctx.input = "test"
-            ctx.add_output("output")
-            ctx.add_score(True, "Passed")
+            ctx.store(input="test", output="output", scores=True)
             # No explicit return
 
         result = test_func()
@@ -359,9 +341,7 @@ class TestContextWithDecorator:
 
         @eval(default_score_key="test")
         def test_func(ctx: EvalContext):
-            ctx.input = "test"
-            ctx.add_output("output")
-            ctx.add_score(True, "Passed")
+            ctx.store(input="test", output="output", scores=True)
             return ctx  # Explicit return
 
         result = test_func()
@@ -379,8 +359,7 @@ class TestContextWithDecorator:
 
             ctx.input = "async test"
             await asyncio.sleep(0.01)
-            ctx.add_output("async output")
-            ctx.add_score(True, "Async passed")
+            ctx.store(output="async output", scores=True)
 
         result = await test_func.call_async()
 
@@ -393,9 +372,7 @@ class TestContextWithDecorator:
 
         @eval(default_score_key="test")
         def test_func(ctx: EvalContext):
-            ctx.input = "test input"
-            ctx.output = "partial output"
-            ctx.metadata = {"model": "test"}
+            ctx.store(input="test input", output="partial output", metadata={"model": "test"})
 
             # This should raise, but context data should be preserved
             raise ValueError("Test error")
@@ -417,9 +394,7 @@ class TestContextParameterNames:
 
         @eval(default_score_key="test")
         def test_func(context: EvalContext):
-            context.input = "test"
-            context.add_output("output")
-            context.add_score(True, "Passed")
+            context.store(input="test", output="output", scores=True)
 
         result = test_func()
         assert result.input == "test"
@@ -429,9 +404,7 @@ class TestContextParameterNames:
 
         @eval(default_score_key="test")
         def test_func(ctx: EvalContext):
-            ctx.input = "test"
-            ctx.add_output("output")
-            ctx.add_score(True, "Passed")
+            ctx.store(input="test", output="output", scores=True)
 
         result = test_func()
         assert result.input == "test"
@@ -441,9 +414,7 @@ class TestContextParameterNames:
 
         @eval(default_score_key="test")
         def test_func(my_custom_context: EvalContext):
-            my_custom_context.input = "test"
-            my_custom_context.add_output("output")
-            my_custom_context.add_score(True, "Passed")
+            my_custom_context.store(input="test", output="output", scores=True)
 
         result = test_func()
         assert result.input == "test"
@@ -453,23 +424,7 @@ class TestContextParameterNames:
 
         @eval(default_score_key="test")
         def test_func(ctx: "EvalContext"):
-            ctx.input = "test"
-            ctx.add_output("output")
-            ctx.add_score(True, "Passed")
+            ctx.store(input="test", output="output", scores=True)
 
         result = test_func()
         assert result.input == "test"
-
-
-class TestAddScoreValidation:
-    """Test add_score validation errors"""
-
-    def test_add_score_requires_key_or_default(self):
-        """ValueError when no key provided and no default_score_key set"""
-        ctx = EvalContext()  # No default_score_key
-        ctx.default_score_key = None  # Explicitly clear it
-
-        with pytest.raises(ValueError) as exc_info:
-            ctx.add_score(True, "Test")
-
-        assert "Must specify score key or set default_score_key" in str(exc_info.value)

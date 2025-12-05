@@ -20,12 +20,10 @@ class TestSimpleContextUsage:
 
             # Simulate agent call
             await asyncio.sleep(0.01)
-            ctx.add_output({"output": "Hello", "latency": 0.01})
+            ctx.store(output="Hello", latency=0.01)
 
-            ctx.add_score(
-                ctx.output == ctx.reference,
-                "Output matches",
-                key="correctness",
+            ctx.store(
+                scores={"passed": ctx.output == ctx.reference, "key": "correctness"}
             )
 
         result = await test_func.call_async()
@@ -53,10 +51,10 @@ class TestContextWithDefaults:
         def test_func(ctx: EvalContext):
             ctx.input = "test input"
             ctx.reference = "test input"
-            ctx.add_output("test input")
+            ctx.store(output="test input")
 
             # No key needed - uses default_score_key
-            ctx.add_score(ctx.output == ctx.reference, "Matches reference")
+            ctx.store(scores=ctx.output == ctx.reference)
 
         result = test_func()
 
@@ -81,8 +79,7 @@ class TestContextManager:
             ) as ctx:
                 ctx.reference = "expected"
                 await asyncio.sleep(0.01)
-                ctx.add_output("expected")
-                ctx.add_score(ctx.output == ctx.reference, "Validation")
+                ctx.store(output="expected", scores=ctx.output == ctx.reference)
                 return ctx
 
         result = await test_func.call_async()
@@ -118,10 +115,7 @@ class TestParametrizeAutoMapping:
             else:
                 detected = "neutral"
 
-            ctx.add_output(detected)
-            ctx.add_score(
-                ctx.output == ctx.reference, f"Detected: {detected}"
-            )
+            ctx.store(output=detected, scores=ctx.output == ctx.reference)
 
         # Execute all parametrized tests
         eval_functions = generate_eval_functions(test_sentiment)
@@ -160,10 +154,7 @@ class TestParametrizeCustomParams:
             }
             result = operations[operation](a, b)
 
-            ctx.add_output(result)
-            ctx.add_score(
-                result == expected, f"{a} {operation} {b} = {result}"
-            )
+            ctx.store(output=result, scores=result == expected)
 
         eval_functions = generate_eval_functions(test_calculator)
         results = [func() for func in eval_functions]
@@ -187,23 +178,23 @@ class TestMultipleScoreTypes:
             ctx.input = "What is the capital of France?"
             ctx.reference = "Paris"
             await asyncio.sleep(0.01)
-            ctx.add_output("The capital is Paris")
+            ctx.store(output="The capital is Paris")
 
             # Boolean score with default key
             exact_match = ctx.reference.lower() in ctx.output.lower()
-            ctx.add_score(exact_match, "Exact match check")
+            ctx.store(scores=exact_match)
 
             # Numeric score with custom key
             similarity = 0.95 if exact_match else 0.3
-            ctx.add_score(similarity, "Similarity score", key="similarity")
+            ctx.store(scores={"value": similarity, "key": "similarity"})
 
             # Full control pattern
-            ctx.add_score(
-                key="confidence",
-                value=0.9,
-                passed=True,
-                notes="High confidence",
-            )
+            ctx.store(scores={
+                "key": "confidence",
+                "value": 0.9,
+                "passed": True,
+                "notes": "High confidence",
+            })
 
         result = await test_func.call_async()
 
@@ -230,8 +221,7 @@ class TestAssertionPreservation:
             ctx.metadata = {"model": "test-model"}
 
             await asyncio.sleep(0.01)
-            result = {"output": "wrong output", "latency": 0.01}
-            ctx.add_output(result)
+            ctx.store(output="wrong output", latency=0.01)
 
             # This assertion will fail, but data should be preserved
             assert (
@@ -261,7 +251,7 @@ class TestAssertionPreservation:
         @eval(dataset="test", default_score_key="accuracy")
         async def test_func(ctx: EvalContext):
             ctx.input = "test"
-            ctx.add_output("wrong")
+            ctx.store(output="wrong")
             assert False  # Assertion without message
 
         result = await test_func.call_async()
@@ -279,7 +269,7 @@ class TestAssertionPreservation:
         @eval(dataset="test", default_score_key="correctness")
         def test_func(ctx: EvalContext):
             ctx.input = "test"
-            ctx.add_output("some output")
+            ctx.store(output="some output")
             # Raise a non-assertion error
             raise ValueError("This is an actual error, not a validation failure")
 
@@ -300,7 +290,7 @@ class TestAssertionPreservation:
         @eval(dataset="test", default_score_key="test")
         async def test_func(ctx: EvalContext):
             ctx.input = "test"
-            ctx.add_output("output")
+            ctx.store(output="output")
             assert False, "First assertion failed"
             assert False, "Second assertion failed"  # Never reached
 
@@ -326,16 +316,15 @@ class TestMetadataFromParams:
         @parametrize("model", ["model-a", "model-b"])
         @parametrize("temperature", [0.0, 1.0])
         async def test_func(ctx: EvalContext, model, temperature):
-            # Manually add params to metadata using set_params or direct assignment
-            ctx.metadata["model"] = model
-            ctx.metadata["temperature"] = temperature
-
             ctx.input = {"prompt": "Test", "model": model, "temp": temperature}
             await asyncio.sleep(0.01)
 
             creativity = temperature * 0.8
-            ctx.add_output(f"Response from {model} at temp {temperature}")
-            ctx.add_score(creativity, f"Creativity: {creativity}")
+            ctx.store(
+                output=f"Response from {model} at temp {temperature}",
+                metadata={"model": model, "temperature": temperature},
+                scores=creativity
+            )
 
         # Generate all combinations (2 models × 2 temps = 4 tests)
         eval_functions = generate_eval_functions(test_func)
@@ -362,8 +351,7 @@ class TestUltraMinimal:
         )
         def test_ultra_minimal(ctx: EvalContext):
             sentiment = "positive" if "love" in ctx.input.lower() else "negative"
-            ctx.add_output(sentiment)
-            ctx.add_score(ctx.output == ctx.reference)
+            ctx.store(output=sentiment, scores=ctx.output == ctx.reference)
 
         eval_functions = generate_eval_functions(test_ultra_minimal)
         results = [func() for func in eval_functions]
@@ -383,8 +371,7 @@ class TestExplicitReturn:
         async def test_func(ctx: EvalContext):
             ctx.input = "test"
             await asyncio.sleep(0.01)
-            ctx.add_output("test output")
-            ctx.add_score(True, "Passed")
+            ctx.store(output="test output", scores=True)
 
             return ctx  # Explicit return
 
@@ -406,8 +393,7 @@ class TestAutoReturn:
         async def test_func(ctx: EvalContext):
             ctx.input = "test"
             await asyncio.sleep(0.01)
-            ctx.add_output("test output")
-            ctx.add_score(True, "Passed")
+            ctx.store(output="test output", scores=True)
             # No return! Decorator handles it
 
         result = await test_func.call_async()
@@ -447,8 +433,7 @@ class TestBackwardCompatibility:
         @eval(dataset="test", default_score_key="test")
         def new_style(ctx: EvalContext):
             ctx.input = "new"
-            ctx.add_output("new")
-            ctx.add_score(True, "New style")
+            ctx.store(output="new", scores=True)
 
         old_result = old_style()
         new_result = new_style()
@@ -467,8 +452,7 @@ class TestEdgeCases:
         @eval(default_score_key="test")
         def test_func(ctx: EvalContext):
             # Don't set input
-            ctx.add_output("output")
-            ctx.add_score(True, "Test")
+            ctx.store(output="output", scores=True)
 
         result = test_func()
 
@@ -481,7 +465,7 @@ class TestEdgeCases:
         @eval()
         def test_func(ctx: EvalContext):
             ctx.input = "test"
-            ctx.add_output("output")
+            ctx.store(output="output")
             # No scores added - should default to passed=True
 
         result = test_func()
@@ -493,13 +477,11 @@ class TestEdgeCases:
         assert result.scores[0].passed is True
 
     def test_context_score_without_notes(self):
-        """Test add_score without notes parameter"""
+        """Test store with score without notes"""
 
         @eval(default_score_key="test")
         def test_func(ctx: EvalContext):
-            ctx.input = "test"
-            ctx.add_output("output")
-            ctx.add_score(True)  # No notes
+            ctx.store(input="test", output="output", scores=True)
 
         result = test_func()
 
