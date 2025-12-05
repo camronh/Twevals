@@ -96,6 +96,10 @@
          EXPANDED STATS PANEL - Two-column layout
          ═══════════════════════════════════════════════════════════════ */
       .stats-expanded {
+        border-bottom: 1px solid #d4d4d8;
+        background: #f4f4f5;
+      }
+      .dark .stats-expanded {
         border-bottom: 1px solid #27272a;
         background: #09090b;
       }
@@ -129,7 +133,10 @@
       .stats-left {
         width: 25%;
         display: flex;
-        border-right: 1px solid #52525b; /* This IS the Y-axis */
+        border-right: 1px solid #a1a1aa; /* This IS the Y-axis */
+      }
+      .dark .stats-left {
+        border-right: 1px solid #52525b;
       }
       .stats-left-content {
         flex: 1;
@@ -145,6 +152,9 @@
         gap: 0.25rem;
         margin-bottom: 0.75rem;
         padding-bottom: 0.75rem;
+        border-bottom: 1px solid #d4d4d8;
+      }
+      .dark .stats-left-header {
         border-bottom: 1px solid #27272a;
       }
       .stats-info-row {
@@ -188,8 +198,11 @@
         font-family: 'JetBrains Mono', monospace;
         font-size: 56px;
         font-weight: 600;
-        color: #fafafa;
+        color: #18181b;
         line-height: 1;
+      }
+      .dark .stats-metric-value {
+        color: #fafafa;
       }
       .stats-metric-sm .stats-metric-value {
         font-size: 32px;
@@ -253,8 +266,11 @@
       .stats-chart-area {
         height: 120px;
         position: relative;
-        border-bottom: 1px solid #52525b; /* X-axis line */
+        border-bottom: 1px solid #a1a1aa; /* X-axis line */
         margin-left: 0; /* Flush with Y-axis */
+      }
+      .dark .stats-chart-area {
+        border-bottom: 1px solid #52525b;
       }
       /* Gridlines */
       .stats-gridline {
@@ -262,8 +278,11 @@
         left: 0;
         right: 0;
         height: 1px;
-        background: #3f3f46;
+        background: #d4d4d8;
         pointer-events: none;
+      }
+      .dark .stats-gridline {
+        background: #3f3f46;
       }
       /* Bars container */
       .stats-chart-bars {
@@ -322,8 +341,11 @@
         font-family: 'JetBrains Mono', monospace;
         font-size: 12px;
         font-weight: 600;
-        color: #fafafa;
+        color: #18181b;
         text-align: center;
+      }
+      .dark .stats-chart-value {
+        color: #fafafa;
       }
 
       /* Bar colors */
@@ -338,14 +360,14 @@
       })();
     </script>
   </head>
-  <body class="min-h-screen bg-zinc-950 font-sans text-zinc-100">
+  <body class="min-h-screen bg-zinc-100 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100">
     <!-- Header -->
-    <header class="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur-sm">
+    <header class="sticky top-0 z-40 border-b border-zinc-300 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm">
       <div class="flex items-center justify-between px-4 py-2">
         <!-- Left: Logo & Title -->
         <div class="flex items-center gap-3">
           <img src="/static/logo.png" alt="twevals" class="h-7 w-7" />
-          <span class="font-mono text-base font-semibold tracking-tight text-zinc-100">twevals</span>
+          <span class="font-mono text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">twevals</span>
         </div>
 
         <!-- Right: Controls -->
@@ -358,12 +380,12 @@
           <!-- Search -->
           <div class="relative">
             <svg class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input id="search-input" type="search" class="w-56 rounded border border-zinc-700 bg-zinc-800 py-1.5 pl-7 pr-3 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-blue-500 focus:outline-none" placeholder="Search..." />
+            <input id="search-input" type="search" class="w-56 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 py-1.5 pl-7 pr-3 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:border-blue-500 focus:outline-none" placeholder="Search..." />
           </div>
 
           <!-- Filters -->
           <div class="dropdown relative">
-            <button id="filters-toggle" class="relative flex h-7 w-7 items-center justify-center rounded border border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300">
+            <button id="filters-toggle" class="relative flex h-7 w-7 items-center justify-center rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300">
               <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
               <span id="filters-count-badge" class="filter-badge absolute -right-1 -top-1 h-4 min-w-[14px] items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-bold text-white"></span>
             </button>
@@ -395,6 +417,7 @@
               <!-- Quick filters -->
               <div class="mb-2 flex flex-wrap gap-1">
                 <button id="filter-has-annotation" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Note</button>
+                <button id="filter-has-error" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Error</button>
                 <button id="filter-has-url" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has URL</button>
                 <button id="filter-has-messages" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Messages</button>
               </div>
@@ -415,7 +438,7 @@
 
           <!-- Columns -->
           <div class="dropdown relative">
-            <button id="columns-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300">
+            <button id="columns-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300">
               <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </button>
             <div id="columns-menu" class="columns-panel absolute right-0 z-50 mt-1 w-48 rounded border border-zinc-700 bg-zinc-900 p-2 text-xs shadow-xl">
@@ -436,7 +459,7 @@
           </div>
 
           <!-- Settings -->
-          <button id="settings-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300">
+          <button id="settings-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300">
             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
           </button>
 
@@ -456,13 +479,13 @@
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-zinc-800 py-3">
+    <footer class="border-t border-zinc-300 dark:border-zinc-800 py-3">
       <div class="flex items-center justify-center gap-6 text-xs text-zinc-500">
-        <a href="https://github.com/camronh/Twevals" target="_blank" class="flex items-center gap-1.5 hover:text-zinc-300">
+        <a href="https://github.com/camronh/Twevals" target="_blank" class="flex items-center gap-1.5 hover:text-zinc-700 dark:hover:text-zinc-300">
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
           GitHub
         </a>
-        <a href="https://twevals.com" target="_blank" class="flex items-center gap-1.5 hover:text-zinc-300">
+        <a href="https://twevals.com" target="_blank" class="flex items-center gap-1.5 hover:text-zinc-700 dark:hover:text-zinc-300">
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
           Docs
         </a>
@@ -472,49 +495,49 @@
     <!-- Settings Modal -->
     <div id="settings-modal" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/60" id="settings-backdrop"></div>
-      <div class="absolute left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded border border-zinc-700 bg-zinc-900 p-4 shadow-2xl">
+      <div class="absolute left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 shadow-2xl">
         <div class="mb-4 flex items-center justify-between">
-          <span class="text-sm font-medium text-zinc-100">Settings</span>
-          <button id="settings-close" class="text-zinc-500 hover:text-zinc-300">
+          <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Settings</span>
+          <button id="settings-close" class="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
         <form id="settings-form" class="space-y-3 text-xs">
           <div class="flex items-center justify-between">
-            <label class="text-zinc-400">Concurrency</label>
-            <input type="number" name="concurrency" min="0" class="w-20 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-zinc-200 focus:border-blue-500 focus:outline-none" />
+            <label class="text-zinc-600 dark:text-zinc-400">Concurrency</label>
+            <input type="number" name="concurrency" min="0" class="w-20 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-zinc-800 dark:text-zinc-200 focus:border-blue-500 focus:outline-none" />
           </div>
           <div class="flex items-center justify-between">
-            <label class="text-zinc-400">Results dir</label>
-            <input type="text" name="results_dir" class="w-32 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-zinc-200 focus:border-blue-500 focus:outline-none" />
+            <label class="text-zinc-600 dark:text-zinc-400">Results dir</label>
+            <input type="text" name="results_dir" class="w-32 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-zinc-800 dark:text-zinc-200 focus:border-blue-500 focus:outline-none" />
           </div>
           <div class="flex items-center justify-between">
-            <label class="text-zinc-400">Timeout (s)</label>
-            <input type="number" name="timeout" min="0" step="0.1" class="w-20 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-zinc-200 focus:border-blue-500 focus:outline-none" placeholder="none" />
+            <label class="text-zinc-600 dark:text-zinc-400">Timeout (s)</label>
+            <input type="number" name="timeout" min="0" step="0.1" class="w-20 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-zinc-800 dark:text-zinc-200 focus:border-blue-500 focus:outline-none" placeholder="none" />
           </div>
           <div class="flex items-center justify-between">
-            <label class="text-zinc-400">Theme</label>
-            <button type="button" id="theme-toggle" class="flex items-center gap-1.5 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-zinc-300 hover:bg-zinc-700">
+            <label class="text-zinc-600 dark:text-zinc-400">Theme</label>
+            <button type="button" id="theme-toggle" class="flex items-center gap-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700">
               <svg class="hidden dark:block h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
               <svg class="block dark:hidden h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
               <span class="dark:hidden">Dark</span><span class="hidden dark:inline">Light</span>
             </button>
           </div>
-          <div class="border-t border-zinc-800 pt-3">
+          <div class="border-t border-zinc-300 dark:border-zinc-800 pt-3">
             <div class="mb-2 text-[9px] font-medium uppercase tracking-wider text-zinc-500">Export</div>
             <div class="flex gap-2">
-              <button type="button" id="export-json-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-zinc-700 bg-zinc-800 py-1.5 text-zinc-300 hover:bg-zinc-700">
+              <button type="button" id="export-json-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 py-1.5 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700">
                 <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 JSON
               </button>
-              <button type="button" id="export-csv-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-zinc-700 bg-zinc-800 py-1.5 text-zinc-300 hover:bg-zinc-700">
+              <button type="button" id="export-csv-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 py-1.5 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700">
                 <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 CSV
               </button>
             </div>
           </div>
-          <div class="flex justify-end gap-2 border-t border-zinc-800 pt-3">
-            <button type="button" id="settings-cancel" class="rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Cancel</button>
+          <div class="flex justify-end gap-2 border-t border-zinc-300 dark:border-zinc-800 pt-3">
+            <button type="button" id="settings-cancel" class="rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300">Cancel</button>
             <button type="submit" class="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-500">Save</button>
           </div>
         </form>
@@ -544,7 +567,7 @@
       function setSortState(state) { _sortState = state; }
       function getColWidths() { try { return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}"); } catch { return {}; } }
       function setColWidths(map) { localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map)); }
-      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: { include: [], exclude: [] }, selectedLabels: { include: [], exclude: [] }, hasUrl: null, hasMessages: null }; }
+      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: { include: [], exclude: [] }, selectedLabels: { include: [], exclude: [] }, hasUrl: null, hasMessages: null, hasError: null }; }
       function getFilters() { return _filters; }
       function setFilters(f) { _filters = f || defaultFilters(); sessionStorage.setItem('twevals:filters', JSON.stringify(_filters)); renderActiveFilters(); applyAllFilters(); }
 
@@ -618,6 +641,7 @@
         (f.selectedDatasets?.exclude || []).forEach((ds) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300'; el.innerHTML = `✕ ${ds}<button class="ml-1 hover:text-white" onclick="removeDatasetFilter('${ds}', 'exclude')">×</button>`; ct.appendChild(el); });
         (f.selectedLabels?.include || []).forEach((la) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300'; el.innerHTML = `${la}<button class="ml-1 hover:text-white" onclick="removeLabelFilter('${la}', 'include')">×</button>`; ct.appendChild(el); });
         (f.selectedLabels?.exclude || []).forEach((la) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300'; el.innerHTML = `✕ ${la}<button class="ml-1 hover:text-white" onclick="removeLabelFilter('${la}', 'exclude')">×</button>`; ct.appendChild(el); });
+        if (f.hasError !== null) { count++; const el = document.createElement('span'); el.className = f.hasError ? 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300' : 'inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300'; el.innerHTML = `${f.hasError ? 'has' : 'no'} error<button class="ml-1 hover:text-white" onclick="removeTraceFilter('hasError')">×</button>`; ct.appendChild(el); }
         if (f.hasUrl !== null) { count++; const el = document.createElement('span'); el.className = f.hasUrl ? 'inline-flex items-center gap-1 rounded bg-cyan-500/20 px-2 py-0.5 text-[10px] text-cyan-300' : 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300'; el.innerHTML = `${f.hasUrl ? 'has' : 'no'} URL<button class="ml-1 hover:text-white" onclick="removeTraceFilter('hasUrl')">×</button>`; ct.appendChild(el); }
         if (f.hasMessages !== null) { count++; const el = document.createElement('span'); el.className = f.hasMessages ? 'inline-flex items-center gap-1 rounded bg-cyan-500/20 px-2 py-0.5 text-[10px] text-cyan-300' : 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300'; el.innerHTML = `${f.hasMessages ? 'has' : 'no'} messages<button class="ml-1 hover:text-white" onclick="removeTraceFilter('hasMessages')">×</button>`; ct.appendChild(el); }
         if (badge) { badge.textContent = count; badge.classList.toggle('active', count > 0); }
@@ -720,7 +744,7 @@
       function toggleTraceFilter(key) { const f = getFilters(); if (f[key] === null) f[key] = true; else if (f[key] === true) f[key] = false; else f[key] = null; setFilters(f); updateTraceFilterButtons(); }
       function updateTraceFilterButtons() {
         const f = getFilters();
-        [['hasUrl', 'filter-has-url'], ['hasMessages', 'filter-has-messages']].forEach(([key, id]) => {
+        [['hasError', 'filter-has-error'], ['hasUrl', 'filter-has-url'], ['hasMessages', 'filter-has-messages']].forEach(([key, id]) => {
           const btn = document.getElementById(id);
           if (!btn) return;
           btn.className = 'rounded px-2 py-0.5 text-[10px] font-medium ';
@@ -729,6 +753,7 @@
           else btn.className += 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300';
         });
       }
+      document.getElementById('filter-has-error')?.addEventListener('click', () => toggleTraceFilter('hasError'));
       document.getElementById('filter-has-url')?.addEventListener('click', () => toggleTraceFilter('hasUrl'));
       document.getElementById('filter-has-messages')?.addEventListener('click', () => toggleTraceFilter('hasMessages'));
       function updateAnnotationButton() {
@@ -797,6 +822,7 @@
         let rowLabels = []; try { rowLabels = JSON.parse(mainTr?.getAttribute('data-labels') || '[]') || []; } catch {}
         if (f.selectedLabels?.include?.length > 0) { if (!f.selectedLabels.include.some(l => rowLabels.includes(l))) return false; }
         if (f.selectedLabels?.exclude?.length > 0) { if (f.selectedLabels.exclude.some(l => rowLabels.includes(l))) return false; }
+        if (f.hasError === true) { if (mainTr?.getAttribute('data-has-error') !== 'true') return false; } else if (f.hasError === false) { if (mainTr?.getAttribute('data-has-error') === 'true') return false; }
         if (f.hasUrl === true) { if (mainTr?.getAttribute('data-has-url') !== 'true') return false; } else if (f.hasUrl === false) { if (mainTr?.getAttribute('data-has-url') === 'true') return false; }
         if (f.hasMessages === true) { if (mainTr?.getAttribute('data-has-messages') !== 'true') return false; } else if (f.hasMessages === false) { if (mainTr?.getAttribute('data-has-messages') === 'true') return false; }
         let scores = []; try { scores = JSON.parse(mainTr?.getAttribute('data-scores') || '[]') || []; } catch {}
@@ -818,7 +844,7 @@
         const tbody = table.querySelector('tbody');
         const mains = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
         const visible = mains.filter(tr => !tr.classList.contains('hidden'));
-        const hasActive = (() => { const f = getFilters(); const dsCount = (f.selectedDatasets?.include?.length || 0) + (f.selectedDatasets?.exclude?.length || 0); const lblCount = (f.selectedLabels?.include?.length || 0) + (f.selectedLabels?.exclude?.length || 0); const traceCount = (f.hasUrl !== null ? 1 : 0) + (f.hasMessages !== null ? 1 : 0); return (f.valueRules.length + f.passedRules.length + dsCount + lblCount + traceCount + (f.annotation !== 'any' ? 1 : 0)) > 0 || (document.getElementById('search-input')?.value || '').trim().length > 0; })();
+        const hasActive = (() => { const f = getFilters(); const dsCount = (f.selectedDatasets?.include?.length || 0) + (f.selectedDatasets?.exclude?.length || 0); const lblCount = (f.selectedLabels?.include?.length || 0) + (f.selectedLabels?.exclude?.length || 0); const traceCount = (f.hasError !== null ? 1 : 0) + (f.hasUrl !== null ? 1 : 0) + (f.hasMessages !== null ? 1 : 0); return (f.valueRules.length + f.passedRules.length + dsCount + lblCount + traceCount + (f.annotation !== 'any' ? 1 : 0)) > 0 || (document.getElementById('search-input')?.value || '').trim().length > 0; })();
         container.classList.toggle('hidden', !hasActive);
         if (!hasActive) return;
         document.getElementById('filtered-count-chip').textContent = `${visible.length}/${mains.length}`;

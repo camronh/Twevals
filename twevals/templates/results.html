@@ -132,7 +132,7 @@
 </div>
 
 <!-- Compact Stats Bar -->
-<div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-zinc-800 bg-zinc-900/50 px-4 py-2">
+<div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 px-4 py-2">
   <!-- Session & Run Info -->
   {% if summary.session_name or summary.run_name %}
   <div class="flex items-center gap-2">
@@ -240,28 +240,29 @@
 </div>
 
 <!-- Results Table -->
-<table id="results-table" data-run-id="{{ run_id }}" class="w-full table-fixed border-collapse text-sm text-zinc-300">
+<table id="results-table" data-run-id="{{ run_id }}" class="w-full table-fixed border-collapse text-sm text-zinc-700 dark:text-zinc-300">
   <thead>
-    <tr class="border-b border-zinc-800">
-      <th style="width:32px;" class="sticky top-[41px] z-20 bg-zinc-950 px-2 py-2 align-middle">
+    <tr class="border-b border-zinc-300 dark:border-zinc-800">
+      <th style="width:32px;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-2 py-2 align-middle">
         <input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" />
       </th>
-      <th data-col="function" style="width:15%;" class="sticky top-[41px] z-20 bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
-      <th data-col="input" style="width:18%;" class="sticky top-[41px] z-20 bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
-      <th data-col="reference" style="width:18%;" class="sticky top-[41px] z-20 bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Reference</th>
-      <th data-col="output" style="width:18%;" class="sticky top-[41px] z-20 bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Output</th>
-      <th data-col="scores" style="width:140px;" class="sticky top-[41px] z-20 bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Scores</th>
-      <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[41px] z-20 bg-zinc-950 px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-zinc-500">Time</th>
-      <th style="width:28px;" class="sticky top-[41px] z-20 bg-zinc-950 px-1 py-2"></th>
+      <th data-col="function" style="width:15%;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Function</th>
+      <th data-col="input" style="width:18%;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Input</th>
+      <th data-col="reference" style="width:18%;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Reference</th>
+      <th data-col="output" style="width:18%;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Output</th>
+      <th data-col="error" style="width:18%;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Error</th>
+      <th data-col="scores" style="width:140px;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">Scores</th>
+      <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-zinc-500">Time</th>
+      <th style="width:28px;" class="sticky top-[41px] z-20 bg-zinc-100 dark:bg-zinc-950 px-1 py-2"></th>
     </tr>
   </thead>
-  <tbody class="divide-y divide-zinc-800/50">
+  <tbody class="divide-y divide-zinc-300/50 dark:divide-zinc-800/50">
     {% for r in summary.results %}
     {% set row_id = loop.index0 %}
     {% set status = r.result.status or 'completed' %}
     {% set is_running = status == 'running' %}
     {% set is_not_started = status == 'not_started' %}
-    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" data-scores='{{ r.result.scores | tojson if r.result.scores else "null" }}' data-annotation="{{ r.result.annotation or '' }}" data-dataset="{{ r.dataset or '' }}" data-labels='{{ r.labels | tojson if r.labels else "[]" }}' data-has-url="{{ 'true' if r.result.trace_data and r.result.trace_data.trace_url else 'false' }}" data-has-messages="{{ 'true' if r.result.trace_data and r.result.trace_data.messages else 'false' }}" class="group cursor-pointer hover:bg-zinc-800/40 transition-colors{% if is_not_started %} opacity-60{% endif %}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
+    <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" data-scores='{{ r.result.scores | tojson if r.result.scores else "null" }}' data-annotation="{{ r.result.annotation or '' }}" data-dataset="{{ r.dataset or '' }}" data-labels='{{ r.labels | tojson if r.labels else "[]" }}' data-has-url="{{ 'true' if r.result.trace_data and r.result.trace_data.trace_url else 'false' }}" data-has-messages="{{ 'true' if r.result.trace_data and r.result.trace_data.messages else 'false' }}" data-has-error="{{ 'true' if r.result.error else 'false' }}" class="group cursor-pointer hover:bg-zinc-200/40 dark:hover:bg-zinc-800/40 transition-colors{% if is_not_started %} opacity-60{% endif %}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
       <td class="px-2 py-2 align-middle" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-checkbox" data-row-id="{{ row_id }}" />
       </td>
@@ -300,7 +301,7 @@
           <span class="text-zinc-600">—</span>
         {% endif %}
       </td>
-      <td data-col="output" title="{% if r.result.output %}{{ r.result.output }}{% elif r.result.error %}{{ r.result.error }}{% endif %}" class="px-3 py-2 align-middle">
+      <td data-col="output" title="{{ r.result.output }}" class="px-3 py-2 align-middle">
         {% if is_not_started %}
           <span class="text-zinc-600">—</span>
         {% elif is_running %}
@@ -310,7 +311,12 @@
           </div>
         {% elif r.result.output %}
           <div class="line-clamp-2 text-[12px] text-zinc-400">{{ r.result.output }}</div>
-        {% elif r.result.error %}
+        {% else %}
+          <span class="text-zinc-600">—</span>
+        {% endif %}
+      </td>
+      <td data-col="error" title="{{ r.result.error }}" class="px-3 py-2 align-middle">
+        {% if r.result.error %}
           <div class="line-clamp-2 text-[12px] text-rose-400">{{ r.result.error }}</div>
         {% else %}
           <span class="text-zinc-600">—</span>
