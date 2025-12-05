@@ -1177,69 +1177,6 @@
         }
       });
 
-      // Inline run name editing
-      function wireRunNameEdit() {
-        const container = document.getElementById('run-name-container');
-        const text = document.getElementById('run-name-text');
-        const input = document.getElementById('run-name-input');
-        const saveBtn = document.getElementById('run-name-save');
-        const editIcon = document.getElementById('run-name-edit-icon');
-        if (!container || !text || !input || !saveBtn) return;
-
-        const runId = container.dataset.runId;
-
-        function startEdit() {
-          input.value = text.textContent;
-          text.classList.add('hidden');
-          editIcon?.classList.add('hidden');
-          input.classList.remove('hidden');
-          saveBtn.classList.remove('hidden');
-          saveBtn.classList.add('flex');
-          input.focus();
-          input.select();
-        }
-
-        function cancelEdit() {
-          input.classList.add('hidden');
-          saveBtn.classList.add('hidden');
-          saveBtn.classList.remove('flex');
-          text.classList.remove('hidden');
-          editIcon?.classList.remove('hidden');
-        }
-
-        async function saveEdit() {
-          const newName = input.value.trim();
-          if (!newName || newName === text.textContent) {
-            cancelEdit();
-            return;
-          }
-          try {
-            const resp = await fetch(`/api/runs/${runId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ run_name: newName })
-            });
-            if (!resp.ok) throw new Error('Save failed');
-            text.textContent = newName;
-            cancelEdit();
-          } catch (e) {
-            alert('Failed to save: ' + e.message);
-          }
-        }
-
-        text.addEventListener('click', startEdit);
-        saveBtn.addEventListener('click', saveEdit);
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') saveEdit();
-          if (e.key === 'Escape') cancelEdit();
-        });
-        input.addEventListener('blur', (e) => {
-          if (!e.relatedTarget?.closest('#run-name-save')) {
-            setTimeout(cancelEdit, 100);
-          }
-        });
-      }
-
       // Export buttons in settings modal
       function wireExportButtons() {
         const table = document.getElementById('results-table');
@@ -1501,7 +1438,6 @@
           applyColumnVisibility();
           initScrollRestoration();
           wireExportButtons();
-          wireRunNameEdit();
           restoreFiltersAndSearch();
           try { populateScoreKeySelects(); populateDatasetLabelPills(); updateTraceFilterButtons(); updateAnnotationButtons(); renderActiveFilters(); applyAllFilters(); } catch {}
           syncCheckboxesToSelection();
