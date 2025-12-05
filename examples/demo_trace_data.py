@@ -1,7 +1,7 @@
 """
 TraceData Demo - Showcasing the trace_data schema for messages and observability.
 
-This file demonstrates how to use ctx.trace_data for:
+This file demonstrates how to use ctx.store() for:
 - Storing conversation messages (any format)
 - Linking to external trace viewers
 - Adding custom trace properties
@@ -30,19 +30,17 @@ async def test_conversation_tracking(ctx: EvalContext):
         },
     ]
 
-    ctx.output = messages[-1]["content"]
-    ctx.trace_data.messages = messages
-    ctx.add_score(True, "Conversation tracked")
+    ctx.store(output=messages[-1]["content"], messages=messages, scores=True)
 
 
 # =============================================================================
-# Pattern 2: Use add_messages() method
+# Pattern 2: Use messages param with tool calls
 # =============================================================================
 
 
 @eval(default_score_key="correctness")
-async def test_add_messages_method(ctx: EvalContext):
-    """Use add_messages() with tool calls (OpenAI format)"""
+async def test_messages_with_tools(ctx: EvalContext):
+    """Store messages with tool calls (OpenAI format)"""
     ctx.input = "What's the weather in NYC?"
 
     # Conversation with tool calls and tool responses
@@ -74,9 +72,11 @@ async def test_add_messages_method(ctx: EvalContext):
         },
     ]
 
-    ctx.trace_data.add_messages(conversation)
-    ctx.output = conversation[-1]["content"]
-    ctx.add_score(True, "Tool call conversation captured")
+    ctx.store(
+        messages=conversation,
+        output=conversation[-1]["content"],
+        scores=True
+    )
 
 
 # =============================================================================
@@ -92,18 +92,19 @@ async def test_trace_url_linking(ctx: EvalContext):
     # Simulate getting a trace ID from your observability platform
     trace_id = "run_abc123xyz"
 
-    ctx.trace_data.trace_url = f"https://smith.langchain.com/runs/{trace_id}"
-    ctx.trace_data.messages = [
-        {"role": "user", "content": ctx.input},
-        {"role": "assistant", "content": "Document analyzed successfully."},
-    ]
-
-    ctx.output = "Analysis complete"
-    ctx.add_score(True, "Trace URL captured for debugging")
+    ctx.store(
+        trace_url=f"https://smith.langchain.com/runs/{trace_id}",
+        messages=[
+            {"role": "user", "content": ctx.input},
+            {"role": "assistant", "content": "Document analyzed successfully."},
+        ],
+        output="Analysis complete",
+        scores=True
+    )
 
 
 # =============================================================================
-# Pattern 4: Mix messages with custom properties
+# Pattern 4: Mix messages with custom trace properties
 # =============================================================================
 
 
@@ -112,29 +113,25 @@ async def test_rag_with_trace_data(ctx: EvalContext):
     """Combine messages, trace_url, and custom trace properties"""
     ctx.input = "What is the company's refund policy?"
 
-    # Store the full conversation
-    ctx.trace_data.messages = [
-        {"role": "user", "content": ctx.input},
-        {
-            "role": "assistant",
-            "content": "Our refund policy allows returns within 30 days.",
+    ctx.store(
+        messages=[
+            {"role": "user", "content": ctx.input},
+            {"role": "assistant", "content": "Our refund policy allows returns within 30 days."},
+        ],
+        trace_url="https://langfuse.com/trace/xyz789",
+        trace_data={
+            "retrieved_docs": [
+                {"id": "doc_001", "title": "Refund Policy", "score": 0.95},
+                {"id": "doc_002", "title": "Returns FAQ", "score": 0.87},
+            ],
+            "retrieval_latency_ms": 45,
+            "generation_tokens": 128,
         },
-    ]
+        output="Our refund policy allows returns within 30 days.",
+    )
 
-    # Link to trace viewer
-    ctx.trace_data.trace_url = "https://langfuse.com/trace/xyz789"
-
-    # Add custom RAG-specific trace data
-    ctx.trace_data["retrieved_docs"] = [
-        {"id": "doc_001", "title": "Refund Policy", "score": 0.95},
-        {"id": "doc_002", "title": "Returns FAQ", "score": 0.87},
-    ]
-    ctx.trace_data["retrieval_latency_ms"] = 45
-    ctx.trace_data["generation_tokens"] = 128
-
-    ctx.output = "Our refund policy allows returns within 30 days."
     ctx.reference = "30 day return policy"
-    ctx.add_score("30 day" in ctx.output.lower(), "Contains refund timeframe")
+    ctx.store(scores="30 day" in ctx.output.lower())
 
 
 # =============================================================================
@@ -175,21 +172,22 @@ async def test_rag_with_trace_data(ctx: EvalContext):
 def test_universal_message_format(ctx: EvalContext, provider, messages):
     """Messages are stored as-is, regardless of format"""
     ctx.input = f"Test {provider} format"
-    ctx.trace_data.messages = messages  # Stored without transformation
-    ctx.trace_data["provider"] = provider
-
-    ctx.output = "Format preserved"
-    ctx.add_score(True, f"{provider} messages stored")
+    ctx.store(
+        messages=messages,
+        trace_data={"provider": provider},
+        output="Format preserved",
+        scores=True
+    )
 
 
 # =============================================================================
-# Pattern 6: Using trace_data in add_output extraction
+# Pattern 6: Using spread with agent results
 # =============================================================================
 
 
 @eval(default_score_key="correctness")
-async def test_trace_data_extraction(ctx: EvalContext):
-    """trace_data is auto-extracted from add_output dicts"""
+async def test_spread_agent_result(ctx: EvalContext):
+    """Spread agent result dict into store()"""
     ctx.input = "Process this request"
 
     # Simulate an agent that returns structured data
@@ -206,31 +204,33 @@ async def test_trace_data_extraction(ctx: EvalContext):
         },
     }
 
-    # add_output extracts trace_data automatically
-    ctx.add_output(agent_result)
+    # Spread to extract all fields
+    ctx.store(**agent_result)
 
     assert ctx.trace_data.messages is not None
     assert ctx.trace_data.trace_url == "https://example.com/trace/123"
-    ctx.add_score(True, "trace_data extracted from agent result")
+    ctx.store(scores=True)
 
 
 # =============================================================================
-# Pattern 7: Setting trace_data directly
+# Pattern 7: Setting trace_data fields directly
 # =============================================================================
 
 
 @eval
 def test_direct_trace_data(ctx: EvalContext):
-    """Set trace_data fields directly on ctx"""
-    ctx.input = "Direct input"
-    ctx.output = "Direct output"
-    ctx.add_score(True)
-    ctx.trace_data.messages = [
-        {"role": "user", "content": "Direct input"},
-        {"role": "assistant", "content": "Direct output"},
-    ]
-    ctx.trace_data.trace_url = "https://trace.example.com/abc"
-    ctx.trace_data["custom_field"] = "any value"
+    """Set trace_data fields via store()"""
+    ctx.store(
+        input="Direct input",
+        output="Direct output",
+        messages=[
+            {"role": "user", "content": "Direct input"},
+            {"role": "assistant", "content": "Direct output"},
+        ],
+        trace_url="https://trace.example.com/abc",
+        trace_data={"custom_field": "any value"},
+        scores=True
+    )
 
 
 # =============================================================================
@@ -278,9 +278,11 @@ async def test_anthropic_tool_use(ctx: EvalContext):
         },
     ]
 
-    ctx.trace_data.messages = messages
-    ctx.output = "Here are the latest AI news..."
-    ctx.add_score(True, "Anthropic tool_use format captured")
+    ctx.store(
+        messages=messages,
+        output="Here are the latest AI news...",
+        scores=True
+    )
 
 
 # =============================================================================
@@ -352,9 +354,12 @@ async def test_multi_tool_agent(ctx: EvalContext):
         },
     ]
 
-    ctx.trace_data.messages = messages
-    ctx.trace_data["tools_called"] = ["get_weather", "get_weather", "book_flight"]
-    ctx.trace_data["total_tool_calls"] = 3
-
-    ctx.output = messages[-1]["content"]
-    ctx.add_score("FLT-12345" in ctx.output, "Booking confirmed")
+    ctx.store(
+        messages=messages,
+        trace_data={
+            "tools_called": ["get_weather", "get_weather", "book_flight"],
+            "total_tool_calls": 3,
+        },
+        output=messages[-1]["content"],
+        scores="FLT-12345" in messages[-1]["content"]
+    )

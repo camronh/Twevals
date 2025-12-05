@@ -28,10 +28,12 @@ def test_positive_sentiment(ctx: EvalContext):
     - default_score_key: correctness
     - metadata: {"model": "gpt-4", "version": "v1.0"}
     """
-    ctx.input = "This product is amazing!"
-    ctx.output = "positive"
-    ctx.reference = "positive"
-    ctx.add_score(1.0)
+    ctx.store(
+        input="This product is amazing!",
+        output="positive",
+        reference="positive",
+        scores=1.0
+    )
 
 
 @eval
@@ -39,10 +41,12 @@ def test_negative_sentiment(ctx: EvalContext):
     """
     This test also inherits all file-level defaults.
     """
-    ctx.input = "This is terrible."
-    ctx.output = "negative"
-    ctx.reference = "negative"
-    ctx.add_score(1.0)
+    ctx.store(
+        input="This is terrible.",
+        output="negative",
+        reference="negative",
+        scores=1.0
+    )
 
 
 @eval(labels=["experimental"])  # Override just the labels
@@ -54,10 +58,12 @@ def test_mixed_sentiment(ctx: EvalContext):
     - default_score_key: correctness (from file)
     - metadata: {"model": "gpt-4", "version": "v1.0"} (from file)
     """
-    ctx.input = "It's okay, I guess."
-    ctx.output = "neutral"
-    ctx.reference = "neutral"
-    ctx.add_score(0.8)
+    ctx.store(
+        input="It's okay, I guess.",
+        output="neutral",
+        reference="neutral",
+        scores=0.8
+    )
 
 
 @eval(dataset="edge_cases", labels=["testing"])  # Override multiple fields
@@ -69,10 +75,12 @@ def test_empty_input(ctx: EvalContext):
     - default_score_key: correctness (from file)
     - metadata: {"model": "gpt-4", "version": "v1.0"} (from file)
     """
-    ctx.input = ""
-    ctx.output = "neutral"
-    ctx.reference = "neutral"
-    ctx.add_score(0.5)
+    ctx.store(
+        input="",
+        output="neutral",
+        reference="neutral",
+        scores=0.5
+    )
 
 
 @eval
@@ -93,7 +101,9 @@ def test_sentiment_parametrized(ctx: EvalContext, text, expected):
     # Simulate sentiment analysis
     output = expected  # In reality, this would call an LLM or model
 
-    ctx.input = text
-    ctx.output = output
-    ctx.reference = expected
-    ctx.add_score(1.0 if output == expected else 0.0)
+    ctx.store(
+        input=text,
+        output=output,
+        reference=expected,
+        scores=1.0 if output == expected else 0.0
+    )

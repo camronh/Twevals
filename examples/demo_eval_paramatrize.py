@@ -40,11 +40,13 @@ def test_sentiment_classification(ctx: EvalContext, text, expected_sentiment):
             detected = sentiment
             break
 
-    ctx.input = text
-    ctx.output = detected
-    ctx.reference = expected_sentiment
-    ctx.add_score(detected == expected_sentiment)
-    ctx.trace_data["features"] = {"contains_love": "love" in text_lower, "length": len(text)}
+    ctx.store(
+        input=text,
+        output=detected,
+        reference=expected_sentiment,
+        scores=detected == expected_sentiment,
+        trace_data={"features": {"contains_love": "love" in text_lower, "length": len(text)}}
+    )
 
 
 # Example 2: Parametrize with dictionaries for complex inputs
@@ -68,23 +70,23 @@ def test_calculator(ctx: EvalContext, operation, a, b, expected):
 
     result = operations.get(operation, lambda x, y: None)(a, b)
 
-    ctx.input = {"operation": operation, "a": a, "b": b}
-    ctx.output = result
-    ctx.reference = expected
-    ctx.add_score(result == expected)
-    ctx.trace_data.update({
-        "op": operation,
-        "args": [a, b],
-        "intermediate": {
-            "is_div_by_zero": operation == "divide" and b == 0,
-        },
-    })
+    ctx.store(
+        input={"operation": operation, "a": a, "b": b},
+        output=result,
+        reference=expected,
+        scores=result == expected,
+        trace_data={
+            "op": operation,
+            "args": [a, b],
+            "intermediate": {"is_div_by_zero": operation == "divide" and b == 0},
+        }
+    )
 
 # Example 3: Parametrize + target hook (targets see param data in ctx.input/ctx.metadata)
 def target_run_agent(ctx: EvalContext):
     ctx.trace_id = f"trace::{ctx.input['prompt']}"
-    ctx.add_output(
-        f"agent says: {ctx.input['prompt']}",
+    ctx.store(
+        output=f"agent says: {ctx.input['prompt']}",
         metadata={"trace_id": ctx.trace_id}
     )
 
@@ -131,16 +133,17 @@ def test_qa_with_ids(ctx: EvalContext, question, context, expected_answer):
             matched_key = key
             break
 
-    ctx.input = {"question": question, "context": context}
-    ctx.output = answer
-    ctx.reference = expected_answer
-    ctx.add_score(answer == expected_answer)
-    ctx.add_score(answer != "I don't know", key="relevance")
-    ctx.metadata["model"] = "mock_qa_v1"
-    ctx.trace_data["retrieval"] = {
-        "top_keys": list(simple_answers.keys()),
-        "matched": matched_key,
-    }
+    ctx.store(
+        input={"question": question, "context": context},
+        output=answer,
+        reference=expected_answer,
+        scores=[
+            {"passed": answer == expected_answer},
+            {"passed": answer != "I don't know", "key": "relevance"}
+        ],
+        metadata={"model": "mock_qa_v1"},
+        trace_data={"retrieval": {"top_keys": list(simple_answers.keys()), "matched": matched_key}}
+    )
 
 
 # Example 5: Multiple parametrize decorators (creates cartesian product)
@@ -155,13 +158,15 @@ async def test_model_temperatures(ctx: EvalContext, model, temperature):
     # Higher temperature = more creative/random
     creativity_score = temperature * 0.8 + (0.2 if "gpt-4" in model else 0.1)
 
-    ctx.input = {"model": model, "temperature": temperature}
-    ctx.output = f"Response from {model} at temp {temperature}"
-    ctx.add_score(min(creativity_score, 1.0), key="quality")
-    ctx.metadata.update({"model": model, "temperature": temperature})
-    ctx.trace_data.update({
-        "sampling": {"top_p": 0.95, "temperature": temperature},
-        "env": {"model": model},
-        "trace_url": "https://twevals.com",
-    })
+    ctx.store(
+        input={"model": model, "temperature": temperature},
+        output=f"Response from {model} at temp {temperature}",
+        scores={"value": min(creativity_score, 1.0), "key": "quality"},
+        metadata={"model": model, "temperature": temperature},
+        trace_url="https://twevals.com",
+        trace_data={
+            "sampling": {"top_p": 0.95, "temperature": temperature},
+            "env": {"model": model},
+        }
+    )
 

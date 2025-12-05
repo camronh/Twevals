@@ -110,18 +110,22 @@ def test_article_summarization(ctx: EvalContext):
     print("Ran Agent!")
     print(summary)
 
-    ctx.input = LONG_ARTICLE
-    ctx.output = summary
-    ctx.reference = "AI evaluation requires robust frameworks assessing correctness, consistency, safety and alignment."
-    ctx.add_score(0.92, key="quality")
-    ctx.add_score(True)
-    ctx.trace_data.update({
-        "model": "summarizer-v2",
-        "input_tokens": 412,
-        "output_tokens": 28,
-        "compression_ratio": 14.7,
-    })
-    ctx.latency = 1.23
+    ctx.store(
+        input=LONG_ARTICLE,
+        output=summary,
+        reference="AI evaluation requires robust frameworks assessing correctness, consistency, safety and alignment.",
+        latency=1.23,
+        scores=[
+            {"value": 0.92, "key": "quality"},
+            {"passed": True}
+        ],
+        trace_data={
+            "model": "summarizer-v2",
+            "input_tokens": 412,
+            "output_tokens": 28,
+            "compression_ratio": 14.7,
+        }
+    )
 
 
 @eval(dataset="code_review", labels=["verbose"])
@@ -165,24 +169,28 @@ def get_history(self, max_messages: int = 10) -> List[Dict[str, str]]:
 
 **Recommendation**: Approve with minor revisions"""
 
-    ctx.input = LONG_CODE_SNIPPET
-    ctx.output = review_output
-    ctx.add_score(0.88, key="quality")
-    ctx.add_score(True)
-    ctx.metadata.update({"reviewer_model": "code-review-v3", "language": "python"})
-    ctx.trace_data.update({
-        "analysis": {
-            "lines_analyzed": 45,
-            "complexity_score": 12,
-            "issues_by_severity": {"high": 0, "medium": 1, "low": 1, "info": 1},
-        },
-        "timing": {
-            "parse_time_ms": 23,
-            "analysis_time_ms": 156,
-            "generation_time_ms": 892,
-        },
-    })
-    ctx.latency = 1.07
+    ctx.store(
+        input=LONG_CODE_SNIPPET,
+        output=review_output,
+        latency=1.07,
+        scores=[
+            {"value": 0.88, "key": "quality"},
+            {"passed": True}
+        ],
+        metadata={"reviewer_model": "code-review-v3", "language": "python"},
+        trace_data={
+            "analysis": {
+                "lines_analyzed": 45,
+                "complexity_score": 12,
+                "issues_by_severity": {"high": 0, "medium": 1, "low": 1, "info": 1},
+            },
+            "timing": {
+                "parse_time_ms": 23,
+                "analysis_time_ms": 156,
+                "generation_time_ms": 892,
+            },
+        }
+    )
 
 
 @eval(dataset="technical_qa", labels=["verbose"])
@@ -194,29 +202,33 @@ We have about 15 services communicating via REST and message queues. Currently w
 
 What patterns and practices would you recommend for making our system more resilient? Please include code examples if possible."""
 
-    ctx.input = question
-    ctx.output = LONG_RESPONSE
-    ctx.add_score(0.94, key="accuracy")
-    ctx.add_score(True, key="relevance")
-    ctx.metadata.update({"domain": "distributed_systems", "complexity": "advanced"})
-    ctx.trace_data.update({
-        "retrieval": {
-            "documents_searched": 142,
-            "relevant_docs": 8,
-            "top_sources": [
-                "microservices-patterns.pdf",
-                "distributed-systems-guide.md",
-                "circuit-breaker-impl.py",
-            ],
-        },
-        "generation": {
-            "model": "gpt-4-turbo",
-            "temperature": 0.3,
-            "max_tokens": 2048,
-            "actual_tokens": 487,
-        },
-    })
-    ctx.latency = 3.45
+    ctx.store(
+        input=question,
+        output=LONG_RESPONSE,
+        latency=3.45,
+        scores=[
+            {"value": 0.94, "key": "accuracy"},
+            {"passed": True, "key": "relevance"}
+        ],
+        metadata={"domain": "distributed_systems", "complexity": "advanced"},
+        trace_data={
+            "retrieval": {
+                "documents_searched": 142,
+                "relevant_docs": 8,
+                "top_sources": [
+                    "microservices-patterns.pdf",
+                    "distributed-systems-guide.md",
+                    "circuit-breaker-impl.py",
+                ],
+            },
+            "generation": {
+                "model": "gpt-4-turbo",
+                "temperature": 0.3,
+                "max_tokens": 2048,
+                "actual_tokens": 487,
+            },
+        }
+    )
 
 
 @eval(dataset="conversation_eval", labels=["verbose"])
@@ -317,21 +329,25 @@ This implementation includes:
 
 Would you like me to show you the JWT token generation and the login endpoint next?"""
 
-    ctx.input = conversation_input
-    ctx.output = final_response
-    ctx.add_score(0.95, "Correctly referenced all user requirements from conversation", key="quality")
-    ctx.add_score(True)
-    ctx.metadata.update({
-        "conversation_turns": 5,
-        "total_tokens": 1847,
-        "model": "claude-3-sonnet",
-    })
-    ctx.trace_data.update({
-        "trace": conversation_input["messages"] + [{"role": "assistant", "content": final_response[:100] + "..."}],
-        "context_window_usage": 0.23,
-        "cached_tokens": 412,
-    })
-    ctx.latency = 2.89
+    ctx.store(
+        input=conversation_input,
+        output=final_response,
+        latency=2.89,
+        scores=[
+            {"value": 0.95, "notes": "Correctly referenced all user requirements from conversation", "key": "quality"},
+            {"passed": True}
+        ],
+        metadata={
+            "conversation_turns": 5,
+            "total_tokens": 1847,
+            "model": "claude-3-sonnet",
+        },
+        trace_data={
+            "trace": conversation_input["messages"] + [{"role": "assistant", "content": final_response[:100] + "..."}],
+            "context_window_usage": 0.23,
+            "cached_tokens": 412,
+        }
+    )
 
 
 STRUCTURED_SCENARIOS = [
@@ -388,13 +404,17 @@ def test_structured_data_processing(ctx: EvalContext, scenario_idx):
         "transformed_data": {"...": "transformed version of input"},
     }
 
-    ctx.input = scenario["input_data"]
-    ctx.output = output
-    ctx.add_score(True, key="correctness")
-    ctx.add_score(0.99, key="quality")
-    ctx.trace_data.update({
-        "input_depth": 4,
-        "total_fields": 25,
-        "processing_steps": ["validate", "transform", "enrich", "output"],
-    })
-    ctx.latency = 0.34
+    ctx.store(
+        input=scenario["input_data"],
+        output=output,
+        latency=0.34,
+        scores=[
+            {"passed": True, "key": "correctness"},
+            {"value": 0.99, "key": "quality"}
+        ],
+        trace_data={
+            "input_depth": 4,
+            "total_fields": 25,
+            "processing_steps": ["validate", "transform", "enrich", "output"],
+        }
+    )

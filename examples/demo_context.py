@@ -57,12 +57,11 @@ async def test_simple_context(ctx: EvalContext):
     ctx.input = "I want a refund"
     ctx.reference = fetch_ground_truth(ctx.input)
 
-    # Smart add_output extracts output, latency, and trace_data
-    ctx.add_output(await run_agent(ctx.input))
+    # Spread agent result to extract output, latency, and trace_data
+    ctx.store(**await run_agent(ctx.input))
 
     # Simple boolean score with default key
-    # But we need a default_score_key! Let's fix this in next example
-    ctx.add_score(ctx.output == ctx.reference, "Output matches reference")
+    ctx.store(scores=ctx.output == ctx.reference)
 
 
 # ============================================================================
@@ -78,10 +77,10 @@ async def test_with_defaults(ctx: EvalContext):
     """Using decorator to set defaults - super clean!"""
     ctx.input = "I want a refund"
     ctx.reference = fetch_ground_truth(ctx.input)
-    ctx.add_output(await run_agent(ctx.input))
+    ctx.store(**await run_agent(ctx.input))
 
     # No key needed - uses default_score_key!
-    ctx.add_score(ctx.output == ctx.reference, "Output matches")
+    ctx.store(scores=ctx.output == ctx.reference)
 
 
 # ============================================================================
@@ -97,12 +96,12 @@ async def test_with_defaults(ctx: EvalContext):
 )
 async def test_input_in_decorator(ctx: EvalContext):
     """Set input and reference in decorator - ctx auto-populated!"""
-    # ctx.input and ctx.reference already set by decorator! ✨
+    # ctx.input and ctx.reference already set by decorator!
 
-    ctx.add_output(await run_agent(ctx.input))
+    ctx.store(**await run_agent(ctx.input))
 
     # Just validate!
-    ctx.add_score(ctx.output == ctx.reference, "Output matches")
+    ctx.store(scores=ctx.output == ctx.reference)
 
 
 # ============================================================================
@@ -118,8 +117,8 @@ async def test_context_manager():
         metadata={"model": AGENT_MODEL}
     ) as ctx:
         ctx.reference = fetch_ground_truth(ctx.input)
-        ctx.add_output(await run_agent(ctx.input))
-        ctx.add_score(ctx.output == ctx.reference, "Validation")
+        ctx.store(**await run_agent(ctx.input))
+        ctx.store(scores=ctx.output == ctx.reference)
         return ctx  # Return the context (decorator converts to EvalResult)
 
 
@@ -135,7 +134,7 @@ async def test_context_manager():
 ])
 def test_parametrize_auto_mapping(ctx: EvalContext):
     """Parametrize fields named 'input' and 'reference' auto-populate ctx!"""
-    # ctx.input and ctx.reference already set by parametrize! ✨
+    # ctx.input and ctx.reference already set by parametrize!
 
     # Simulate sentiment analysis
     sentiment_map = {
@@ -150,8 +149,7 @@ def test_parametrize_auto_mapping(ctx: EvalContext):
             detected = sentiment
             break
 
-    ctx.add_output(detected)
-    ctx.add_score(ctx.output == ctx.reference, f"Detected: {detected}")
+    ctx.store(output=detected, scores=ctx.output == ctx.reference)
 
 
 # ============================================================================
@@ -178,8 +176,7 @@ def test_calculator(ctx: EvalContext, operation, a, b, expected):
     }
     result = operations[operation](a, b)
 
-    ctx.add_output(result)
-    ctx.add_score(result == expected, f"{a} {operation} {b} = {result}")
+    ctx.store(output=result, scores=result == expected)
 
 
 # ============================================================================
@@ -191,15 +188,15 @@ async def test_multiple_scores(ctx: EvalContext):
     """Show different score types in one eval"""
     ctx.input = "What is the capital of France?"
     ctx.reference = "Paris"
-    ctx.add_output(await run_agent(ctx.input))
+    ctx.store(**await run_agent(ctx.input))
 
     # Boolean score with default key
     exact_match = ctx.reference.lower() in ctx.output.lower()
-    ctx.add_score(exact_match, "Exact match check")
+    ctx.store(scores=exact_match)
 
     # Numeric score with custom key
     similarity = 0.95 if exact_match else 0.3
-    ctx.add_score(similarity, "Similarity score", key="accuracy")
+    ctx.store(scores={"value": similarity, "key": "accuracy"})
 
 
 # ============================================================================
@@ -214,7 +211,7 @@ async def test_assertion_preservation(ctx: EvalContext):
     ctx.metadata = {"model": AGENT_MODEL}
 
     result = await run_agent(ctx.input)
-    ctx.add_output(result)
+    ctx.store(**result)
 
     # If this assertion fails, the decorator will catch it and return
     # an EvalResult with all the ctx data preserved (input, output, reference, metadata)
@@ -224,7 +221,7 @@ async def test_assertion_preservation(ctx: EvalContext):
     assert ctx.output == ctx.reference, "Output does not match reference"
 
     # Only reached if assertion passes
-    ctx.add_score(True, "All validations passed")
+    ctx.store(scores=True)
 
 
 # ============================================================================
@@ -239,11 +236,10 @@ async def test_assertion_preservation(ctx: EvalContext):
 async def test_track_params(ctx: EvalContext, model, temperature):
     """Store parameters in metadata for tracking"""
     ctx.input = f"Test with {model}"
-    ctx.metadata["model"] = model
-    ctx.metadata["temperature"] = temperature
+    ctx.store(metadata={"model": model, "temperature": temperature})
 
     ctx.output = await run_agent(ctx.input)
-    ctx.add_score(True, "Model executed successfully")
+    ctx.store(scores=True)
 
 
 # ============================================================================
@@ -258,8 +254,7 @@ async def test_track_params(ctx: EvalContext, model, temperature):
 def test_ultra_minimal(ctx: EvalContext):
     """The absolute shortest possible eval - 2 lines!"""
     sentiment = "positive" if "love" in ctx.input.lower() else "negative"
-    ctx.add_output(sentiment)
-    ctx.add_score(ctx.output == ctx.reference)  # Just True/False!
+    ctx.store(output=sentiment, scores=ctx.output == ctx.reference)
 
 
 # ============================================================================
@@ -270,8 +265,8 @@ def test_ultra_minimal(ctx: EvalContext):
 async def test_explicit_return(ctx: EvalContext):
     """You can still explicitly return ctx if you want"""
     ctx.input = "test"
-    ctx.add_output(await run_agent(ctx.input))
-    ctx.add_score(True, "Passed")
+    ctx.store(**await run_agent(ctx.input))
+    ctx.store(scores=True)
 
     return ctx  # Explicit return - decorator converts to EvalResult
 
@@ -284,9 +279,5 @@ async def test_explicit_return(ctx: EvalContext):
 async def test_auto_return(ctx: EvalContext):
     """No return statement - decorator auto-returns ctx.build()"""
     ctx.input = "test"
-    ctx.add_output(await run_agent(ctx.input))
-    ctx.add_score(True, "Passed")
-    ctx.trace_data["trace_url"] = "https://twevals.com"
+    ctx.store(**await run_agent(ctx.input), scores=True, trace_url="https://twevals.com")
     # No return! Decorator handles it
-
-
