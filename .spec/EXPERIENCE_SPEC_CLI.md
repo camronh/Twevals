@@ -167,6 +167,17 @@ Scenario: Custom port
 Scenario: Filter in UI
   When the user runs `twevals serve evals/ --dataset qa --label production`
   Then only matching evaluations appear in UI
+
+Scenario: Auto-run evaluations on startup
+  When the user runs `twevals serve evals/ --run`
+  Then server starts and browser opens
+  And evaluations automatically start running (same as clicking Run)
+  And results stream in real-time
+
+Scenario: Auto-run with filters
+  When the user runs `twevals serve evals/ --dataset testing --run`
+  Then only evaluations with dataset="testing" appear in UI
+  And only those filtered evaluations auto-run
 ```
 
 ---
@@ -250,4 +261,5 @@ Scenario: Concurrency set to zero
 | `--session` | str | auto | Session name |
 | `--run-name` | str | auto | Run name |
 | `--results-dir` | path | .twevals/runs | Results directory |
+| `--run` | flag | false | Auto-run all evals on startup |
 

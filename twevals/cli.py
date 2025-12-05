@@ -140,6 +140,7 @@ def cli():
 @click.option('--results-dir', default=None, help='Directory for JSON results storage')
 @click.option('--port', default=None, type=int, help='Port for the web server')
 @click.option('--session', default=None, help='Name for this evaluation session')
+@click.option('--run', 'auto_run', is_flag=True, help='Automatically run all evals on startup')
 def serve_cmd(
     path: str,
     dataset: Optional[str],
@@ -147,6 +148,7 @@ def serve_cmd(
     results_dir: Optional[str],
     port: Optional[int],
     session: Optional[str],
+    auto_run: bool,
 ):
     """Start the web UI to browse and run evaluations."""
     from pathlib import Path as PathLib
@@ -178,6 +180,7 @@ def serve_cmd(
         results_dir=results_dir,
         port=port,
         session_name=session,
+        auto_run=auto_run,
     )
 
 
@@ -318,6 +321,7 @@ def _serve(
     results_dir: str,
     port: int,
     session_name: Optional[str] = None,
+    auto_run: bool = False,
 ):
     """Serve a web UI to browse and run evaluations."""
     try:
@@ -354,7 +358,10 @@ def _serve(
 
     url = f"http://127.0.0.1:{port}"
     console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
-    console.print(f"[cyan]Found {len(functions)} evaluation(s). Click Run to start.[/cyan]")
+    if auto_run:
+        console.print(f"[cyan]Auto-running {len(functions)} evaluation(s)...[/cyan]")
+    else:
+        console.print(f"[cyan]Found {len(functions)} evaluation(s). Click Run to start.[/cyan]")
     console.print("Press Esc to stop (or Ctrl+C)\n")
 
     Thread(target=lambda: (time.sleep(0.5), webbrowser.open(url)), daemon=True).start()
@@ -364,6 +371,23 @@ def _serve(
 
     server_thread = Thread(target=server.run)
     server_thread.start()
+
+    # Auto-run evals if --run flag was passed
+    if auto_run:
+        def trigger_auto_run():
+            import urllib.request
+            time.sleep(0.5)  # Wait for server to be ready
+            try:
+                req = urllib.request.Request(
+                    f"http://127.0.0.1:{port}/api/runs/rerun",
+                    data=b'{}',
+                    headers={'Content-Type': 'application/json'},
+                    method='POST'
+                )
+                urllib.request.urlopen(req, timeout=5)
+            except Exception:
+                pass  # Server not ready yet, user can click Run manually
+        Thread(target=trigger_auto_run, daemon=True).start()
 
     def wait_for_stop_signal():
         """Wait for Esc or Ctrl+C while preserving log output formatting."""
