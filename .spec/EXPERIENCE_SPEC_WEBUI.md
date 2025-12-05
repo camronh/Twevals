@@ -183,6 +183,63 @@ Plus per-score-key chips:
 
 ---
 
+## Filtering
+
+### Three-State Filters
+
+Dataset, label, annotation, and trace data filters use a cycling toggle pattern:
+
+| Click | State | Visual | Behavior |
+|-------|-------|--------|----------|
+| 1st | Include | Blue | Show only matching rows |
+| 2nd | Exclude | Rose | Hide matching rows |
+| 3rd | Any | Gray | No filter applied |
+
+```gherkin
+Scenario: Filter by dataset (include)
+  Given the filter menu is open
+  When the user clicks a dataset pill once
+  Then the pill turns blue
+  And only rows with that dataset are shown
+
+Scenario: Filter by dataset (exclude)
+  Given a dataset pill is blue (included)
+  When the user clicks the pill again
+  Then the pill turns rose with ✕ prefix
+  And rows with that dataset are hidden
+
+Scenario: Clear dataset filter
+  Given a dataset pill is rose (excluded)
+  When the user clicks the pill again
+  Then the pill turns gray
+  And all rows are shown (no dataset filter)
+```
+
+### Filter Types
+
+| Filter | States | Description |
+|--------|--------|-------------|
+| Dataset | include / exclude / any | Filter by dataset name |
+| Labels | include / exclude / any | Filter by label |
+| Annotation | has / no / any | Filter by presence of annotation |
+| Has URL | has / no / any | Filter by trace_data.url presence |
+| Has Messages | has / no / any | Filter by trace_data.messages presence |
+| Score Value | numeric rules | Filter by score values |
+| Score Passed | boolean rules | Filter by pass/fail status |
+
+### Filter Persistence
+
+```gherkin
+Scenario: Filters persist on navigation
+  Given filters are applied
+  When the user navigates to detail view and back
+  Then the same filters are still applied
+```
+
+Filters are stored in sessionStorage and restored on page load.
+
+---
+
 ## REST API Endpoints
 
 The UI is backed by these REST endpoints, also available programmatically.
@@ -322,3 +379,5 @@ Results are stored in `.twevals/runs/`:
 | CSV export | Partially tested |
 | Inline editing | Annotation editing tested, others minimal |
 | Keyboard navigation | Not tested |
+| Three-state filtering | Not tested |
+| Filter persistence | Not tested |
