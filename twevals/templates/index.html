@@ -243,6 +243,14 @@
                 <div id="label-pills" class="flex flex-wrap gap-2"></div>
               </div>
 
+              <div class="filter-section mb-4">
+                <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700/70 dark:text-zinc-400">Trace Data</div>
+                <div class="flex flex-wrap gap-2">
+                  <button id="filter-has-url" class="rounded-full px-3 py-1 text-xs font-medium transition bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">Has URL</button>
+                  <button id="filter-has-messages" class="rounded-full px-3 py-1 text-xs font-medium transition bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">Has Messages</button>
+                </div>
+              </div>
+
               <div class="filter-section">
                 <div class="filter-label mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Active Filters</div>
                 <div id="active-filters" class="active-filters flex min-h-[28px] flex-wrap gap-2"></div>
@@ -431,7 +439,7 @@
         try { return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}"); } catch { return {}; }
       }
       function setColWidths(map) { localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map)); }
-      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: [], selectedLabels: [] }; }
+      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: [], selectedLabels: [], hasUrl: null, hasMessages: null }; }
       function getFilters() { return _filters; }
       function setFilters(f) {
         _filters = f || defaultFilters();
@@ -576,6 +584,22 @@
           ct.appendChild(el);
         });
 
+        if (f.hasUrl !== null) {
+          count++;
+          const el = document.createElement('span');
+          el.className = f.hasUrl ? 'inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-200' : 'inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-200';
+          el.innerHTML = `${f.hasUrl ? 'has' : 'no'} URL<button class="ml-1" onclick="removeTraceFilter('hasUrl')">×</button>`;
+          ct.appendChild(el);
+        }
+
+        if (f.hasMessages !== null) {
+          count++;
+          const el = document.createElement('span');
+          el.className = f.hasMessages ? 'inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-200' : 'inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-200';
+          el.innerHTML = `${f.hasMessages ? 'has' : 'no'} messages<button class="ml-1" onclick="removeTraceFilter('hasMessages')">×</button>`;
+          ct.appendChild(el);
+        }
+
         if (badge) {
           badge.textContent = count;
           badge.classList.toggle('active', count > 0);
@@ -587,6 +611,7 @@
       window.removeAnnotationFilter = () => { const f = getFilters(); f.annotation = 'any'; setFilters(f); };
       window.removeDatasetFilter = (idx) => { const f = getFilters(); f.selectedDatasets.splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
       window.removeLabelFilter = (idx) => { const f = getFilters(); f.selectedLabels.splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
+      window.removeTraceFilter = (key) => { const f = getFilters(); f[key] = null; setFilters(f); updateTraceFilterButtons(); };
 
       // Column visibility
       function applyColumnVisibility() {
@@ -794,6 +819,36 @@
         populateDatasetLabelPills();
       }
 
+      // Trace data filter toggles (cycles: null -> true -> false -> null)
+      function toggleTraceFilter(key) {
+        const f = getFilters();
+        if (f[key] === null) f[key] = true;
+        else if (f[key] === true) f[key] = false;
+        else f[key] = null;
+        setFilters(f);
+        updateTraceFilterButtons();
+      }
+
+      function updateTraceFilterButtons() {
+        const f = getFilters();
+        const urlBtn = document.getElementById('filter-has-url');
+        const msgBtn = document.getElementById('filter-has-messages');
+        [['hasUrl', urlBtn], ['hasMessages', msgBtn]].forEach(([key, btn]) => {
+          if (!btn) return;
+          btn.className = 'rounded-full px-3 py-1 text-xs font-medium transition ';
+          if (f[key] === true) {
+            btn.className += 'bg-blue-500 text-white';
+          } else if (f[key] === false) {
+            btn.className += 'bg-rose-500/20 text-rose-600 dark:text-rose-400';
+          } else {
+            btn.className += 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700';
+          }
+        });
+      }
+
+      document.getElementById('filter-has-url')?.addEventListener('click', () => toggleTraceFilter('hasUrl'));
+      document.getElementById('filter-has-messages')?.addEventListener('click', () => toggleTraceFilter('hasMessages'));
+
       // Sorting
       const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
@@ -992,6 +1047,17 @@
           try { rowLabels = JSON.parse(mainTr?.getAttribute('data-labels') || '[]') || []; } catch {}
           const hasMatch = f.selectedLabels.some(l => rowLabels.includes(l));
           if (!hasMatch) return false;
+        }
+        // Trace data filters
+        if (f.hasUrl === true) {
+          if (mainTr?.getAttribute('data-has-url') !== 'true') return false;
+        } else if (f.hasUrl === false) {
+          if (mainTr?.getAttribute('data-has-url') === 'true') return false;
+        }
+        if (f.hasMessages === true) {
+          if (mainTr?.getAttribute('data-has-messages') !== 'true') return false;
+        } else if (f.hasMessages === false) {
+          if (mainTr?.getAttribute('data-has-messages') === 'true') return false;
         }
         let scores = [];
         try { scores = JSON.parse(mainTr?.getAttribute('data-scores') || '[]') || []; } catch {}
@@ -1367,7 +1433,7 @@
           initScrollRestoration();
           wireExportButtons();
           restoreFiltersAndSearch();
-          try { populateScoreKeySelects(); populateDatasetLabelPills(); renderActiveFilters(); applyAllFilters(); } catch {}
+          try { populateScoreKeySelects(); populateDatasetLabelPills(); updateTraceFilterButtons(); renderActiveFilters(); applyAllFilters(); } catch {}
           syncCheckboxesToSelection();
           checkRunningState();
           scheduleLiveRefresh();
