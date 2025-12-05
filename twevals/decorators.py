@@ -112,14 +112,14 @@ class EvalFunction:
             return
 
         if isinstance(target_result, EvalResult):
-            context.add_output({
-                "output": target_result.output,
-                "latency": target_result.latency,
-                "trace_data": target_result.trace_data,
-                "metadata": target_result.metadata,
-            })
+            context.store(
+                output=target_result.output,
+                latency=target_result.latency,
+                trace_data=target_result.trace_data,
+                metadata=target_result.metadata,
+            )
         else:
-            context.add_output(target_result)
+            context.store(output=target_result)
 
     def _run_target_sync(self, context: EvalContext) -> Optional[EvalResult]:
         """Run target function synchronously; return EvalResult on error"""
@@ -200,7 +200,7 @@ class EvalFunction:
 
         if context is not None:
             if isinstance(e, AssertionError):
-                context.add_score(False, notes=str(e) or "Assertion failed")
+                context.store(scores={"passed": False, "notes": str(e) or "Assertion failed"})
                 return context.build()
             return context.build_with_error(error_with_trace)
         return EvalResult(
