@@ -7,7 +7,7 @@ This file demonstrates how to use ctx.trace_data for:
 - Adding custom trace properties
 """
 
-from twevals import eval, EvalContext, EvalResult, parametrize
+from twevals import eval, EvalContext, parametrize
 
 
 # =============================================================================
@@ -15,7 +15,7 @@ from twevals import eval, EvalContext, EvalResult, parametrize
 # =============================================================================
 
 
-@eval(default_score_key="coherence")
+@eval(default_score_key="correctness")
 async def test_conversation_tracking(ctx: EvalContext):
     """Track full conversation in trace_data"""
     ctx.input = "What's the weather like?"
@@ -40,7 +40,7 @@ async def test_conversation_tracking(ctx: EvalContext):
 # =============================================================================
 
 
-@eval(default_score_key="success")
+@eval(default_score_key="correctness")
 async def test_add_messages_method(ctx: EvalContext):
     """Use add_messages() with tool calls (OpenAI format)"""
     ctx.input = "What's the weather in NYC?"
@@ -84,7 +84,7 @@ async def test_add_messages_method(ctx: EvalContext):
 # =============================================================================
 
 
-@eval(default_score_key="traced")
+@eval(default_score_key="correctness")
 async def test_trace_url_linking(ctx: EvalContext):
     """Link to LangSmith, Langfuse, or other trace viewers"""
     ctx.input = "Analyze this document"
@@ -107,7 +107,7 @@ async def test_trace_url_linking(ctx: EvalContext):
 # =============================================================================
 
 
-@eval(default_score_key="accuracy")
+@eval(default_score_key="correctness")
 async def test_rag_with_trace_data(ctx: EvalContext):
     """Combine messages, trace_url, and custom trace properties"""
     ctx.input = "What is the company's refund policy?"
@@ -179,7 +179,7 @@ def test_universal_message_format(ctx: EvalContext, provider, messages):
     ctx.trace_data["provider"] = provider
 
     ctx.output = "Format preserved"
-    ctx.add_score(True, f"{provider} messages stored", key="format_ok")
+    ctx.add_score(True, f"{provider} messages stored")
 
 
 # =============================================================================
@@ -187,7 +187,7 @@ def test_universal_message_format(ctx: EvalContext, provider, messages):
 # =============================================================================
 
 
-@eval(default_score_key="extracted")
+@eval(default_score_key="correctness")
 async def test_trace_data_extraction(ctx: EvalContext):
     """trace_data is auto-extracted from add_output dicts"""
     ctx.input = "Process this request"
@@ -215,26 +215,22 @@ async def test_trace_data_extraction(ctx: EvalContext):
 
 
 # =============================================================================
-# Pattern 7: Return EvalResult with trace_data
+# Pattern 7: Setting trace_data directly
 # =============================================================================
 
 
 @eval
-def test_evalresult_with_trace_data():
-    """Return EvalResult directly with trace_data dict"""
-    return EvalResult(
-        input="Direct input",
-        output="Direct output",
-        scores=[{"key": "direct", "passed": True}],
-        trace_data={
-            "messages": [
-                {"role": "user", "content": "Direct input"},
-                {"role": "assistant", "content": "Direct output"},
-            ],
-            "trace_url": "https://trace.example.com/abc",
-            "custom_field": "any value",
-        },
-    )
+def test_direct_trace_data(ctx: EvalContext):
+    """Set trace_data fields directly on ctx"""
+    ctx.input = "Direct input"
+    ctx.output = "Direct output"
+    ctx.add_score(True)
+    ctx.trace_data.messages = [
+        {"role": "user", "content": "Direct input"},
+        {"role": "assistant", "content": "Direct output"},
+    ]
+    ctx.trace_data.trace_url = "https://trace.example.com/abc"
+    ctx.trace_data["custom_field"] = "any value"
 
 
 # =============================================================================
@@ -242,7 +238,7 @@ def test_evalresult_with_trace_data():
 # =============================================================================
 
 
-@eval(default_score_key="tool_use")
+@eval(default_score_key="correctness")
 async def test_anthropic_tool_use(ctx: EvalContext):
     """Track Anthropic-style tool_use and tool_result blocks"""
     ctx.input = "Search for recent news about AI"
@@ -292,7 +288,7 @@ async def test_anthropic_tool_use(ctx: EvalContext):
 # =============================================================================
 
 
-@eval(default_score_key="agent_success")
+@eval(default_score_key="correctness")
 async def test_multi_tool_agent(ctx: EvalContext):
     """Agent making multiple parallel tool calls"""
     ctx.input = "Compare weather in NYC and LA, then book the warmer one"

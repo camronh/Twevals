@@ -1,6 +1,6 @@
 import time
 import asyncio
-from twevals import eval, EvalResult
+from twevals import eval, EvalResult, EvalContext
 import random
 
 async def run_agent(prompt):
@@ -44,7 +44,7 @@ async def test_refund_requests():
             **result, # Populate input, output, and latency
             reference=expected_keyword,
             scores={
-                "key": "keyword_match",
+                "key": "correctness",
                 "passed": expected_keyword in result["output"].lower(),
                 "notes": f"Expected keyword '{expected_keyword}' not found in output" if expected_keyword not in result["output"].lower() else None
             },
@@ -82,8 +82,8 @@ def test_greeting_responses():
             input=greeting,
             output=response,
             scores=[
-                {"key": "politeness", "value": 0.95},
-                {"key": "response_time", "passed": True}
+                {"key": "quality", "value": 0.95},
+                {"key": "correctness", "passed": True}
             ],
             metadata={"model": "gpt-4", "temperature": 0.7},
             latency=0.05,  # Override latency for testing
@@ -101,47 +101,32 @@ def test_greeting_responses():
 # No scoring
 # No explicit dataset or labels (should be inferred from filename)
 @eval
-def test_single_case():
-    input = "Hi there"
-    output = "Hello! How can I help you today?"
-    
-    return EvalResult(
-        input=input,
-        output=output,
-        trace_data={"debug": {"echo": True, "reason": "static demo"}},
-    )
+def test_single_case(ctx: EvalContext):
+    ctx.input = "Hi there"
+    ctx.output = "Hello! How can I help you today?"
+    ctx.trace_data["debug"] = {"echo": True, "reason": "static demo"}
 
 
 # Test assertion handling - with failure
 @eval(labels=["assert"])
-def test_assertion_failure():
-    input = "Hi there"
-    output = "Hello! How can I help you today?"
+def test_assertion_failure(ctx: EvalContext):
+    ctx.input = "Hi there"
+    ctx.output = "Hello! How can I help you today?"
+    ctx.trace_data["note"] = "this will not run due to assertion"
 
     # Test assertion handling
     # Should result in an errored test with the error message
-    assert output == input, "Output does not match input"
-
-    return EvalResult(
-        input=input,
-        output=output,
-        trace_data={"note": "this will not run due to assertion"},
-    )
+    assert ctx.output == ctx.input, "Output does not match input"
 
 
 # Test that passes with just assertions (no explicit add_score needed)
 @eval(labels=["assert"])
-def test_assertion_pass():
-    input = "Hi there"
-    output = "Hello! How can I help you today?"
+def test_assertion_pass(ctx: EvalContext):
+    ctx.input = "Hi there"
+    ctx.output = "Hello! How can I help you today?"
+    ctx.trace_data["note"] = "passed all assertions, auto-scored as passed"
 
     # Just assertions - if we get through all asserts, test passes automatically
-    assert output is not None
-    assert len(output) > 0
-    assert "hello" in output.lower()
-
-    return EvalResult(
-        input=input,
-        output=output,
-        trace_data={"note": "passed all assertions, auto-scored as passed"},
-    )
+    assert ctx.output is not None
+    assert len(ctx.output) > 0
+    assert "hello" in ctx.output.lower()

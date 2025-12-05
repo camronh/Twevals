@@ -104,32 +104,28 @@ Would you like me to elaborate on any of these patterns or provide more detailed
 
 
 @eval(dataset="long_text_analysis", labels=["verbose"])
-def test_article_summarization():
+def test_article_summarization(ctx: EvalContext):
     """Test summarization of a long article"""
     summary = "AI advancement transforms software development. Challenges include evaluating accuracy, bias, and safety. AI evaluation combines ML, statistics, and software engineering techniques."
     print("Ran Agent!")
     print(summary)
-    return EvalResult(
-        input=LONG_ARTICLE,
-        output=summary,
-        reference="AI evaluation requires robust frameworks assessing correctness, consistency, safety and alignment.",
-        scores=[
-            {"key": "coherence", "value": 0.92},
-            {"key": "coverage", "value": 0.85},
-            {"key": "conciseness", "passed": True},
-        ],
-        trace_data={
-            "model": "summarizer-v2",
-            "input_tokens": 412,
-            "output_tokens": 28,
-            "compression_ratio": 14.7,
-        },
-        latency=1.23,
-    )
+
+    ctx.input = LONG_ARTICLE
+    ctx.output = summary
+    ctx.reference = "AI evaluation requires robust frameworks assessing correctness, consistency, safety and alignment."
+    ctx.add_score(0.92, key="quality")
+    ctx.add_score(True)
+    ctx.trace_data.update({
+        "model": "summarizer-v2",
+        "input_tokens": 412,
+        "output_tokens": 28,
+        "compression_ratio": 14.7,
+    })
+    ctx.latency = 1.23
 
 
 @eval(dataset="code_review", labels=["verbose"])
-def test_code_review_feedback():
+def test_code_review_feedback(ctx: EvalContext):
     """Test code review with detailed feedback"""
     review_output = """## Code Review Summary
 
@@ -169,33 +165,28 @@ def get_history(self, max_messages: int = 10) -> List[Dict[str, str]]:
 
 **Recommendation**: Approve with minor revisions"""
 
-    return EvalResult(
-        input=LONG_CODE_SNIPPET,
-        output=review_output,
-        scores=[
-            {"key": "issue_detection", "value": 0.88},
-            {"key": "actionable_feedback", "passed": True},
-            {"key": "false_positive_rate", "value": 0.05},
-        ],
-        metadata={"reviewer_model": "code-review-v3", "language": "python"},
-        trace_data={
-            "analysis": {
-                "lines_analyzed": 45,
-                "complexity_score": 12,
-                "issues_by_severity": {"high": 0, "medium": 1, "low": 1, "info": 1},
-            },
-            "timing": {
-                "parse_time_ms": 23,
-                "analysis_time_ms": 156,
-                "generation_time_ms": 892,
-            },
+    ctx.input = LONG_CODE_SNIPPET
+    ctx.output = review_output
+    ctx.add_score(0.88, key="quality")
+    ctx.add_score(True)
+    ctx.metadata.update({"reviewer_model": "code-review-v3", "language": "python"})
+    ctx.trace_data.update({
+        "analysis": {
+            "lines_analyzed": 45,
+            "complexity_score": 12,
+            "issues_by_severity": {"high": 0, "medium": 1, "low": 1, "info": 1},
         },
-        latency=1.07,
-    )
+        "timing": {
+            "parse_time_ms": 23,
+            "analysis_time_ms": 156,
+            "generation_time_ms": 892,
+        },
+    })
+    ctx.latency = 1.07
 
 
 @eval(dataset="technical_qa", labels=["verbose"])
-def test_technical_question_answer():
+def test_technical_question_answer(ctx: EvalContext):
     """Test detailed technical Q&A"""
     question = """I'm building a distributed microservices architecture and need advice on error handling.
 
@@ -203,39 +194,33 @@ We have about 15 services communicating via REST and message queues. Currently w
 
 What patterns and practices would you recommend for making our system more resilient? Please include code examples if possible."""
 
-    return EvalResult(
-        input=question,
-        output=LONG_RESPONSE,
-        scores=[
-            {"key": "technical_accuracy", "value": 0.94},
-            {"key": "completeness", "value": 0.91},
-            {"key": "code_quality", "value": 0.87},
-            {"key": "actionable", "passed": True},
-        ],
-        metadata={"domain": "distributed_systems", "complexity": "advanced"},
-        trace_data={
-            "retrieval": {
-                "documents_searched": 142,
-                "relevant_docs": 8,
-                "top_sources": [
-                    "microservices-patterns.pdf",
-                    "distributed-systems-guide.md",
-                    "circuit-breaker-impl.py",
-                ],
-            },
-            "generation": {
-                "model": "gpt-4-turbo",
-                "temperature": 0.3,
-                "max_tokens": 2048,
-                "actual_tokens": 487,
-            },
+    ctx.input = question
+    ctx.output = LONG_RESPONSE
+    ctx.add_score(0.94, key="accuracy")
+    ctx.add_score(True, key="relevance")
+    ctx.metadata.update({"domain": "distributed_systems", "complexity": "advanced"})
+    ctx.trace_data.update({
+        "retrieval": {
+            "documents_searched": 142,
+            "relevant_docs": 8,
+            "top_sources": [
+                "microservices-patterns.pdf",
+                "distributed-systems-guide.md",
+                "circuit-breaker-impl.py",
+            ],
         },
-        latency=3.45,
-    )
+        "generation": {
+            "model": "gpt-4-turbo",
+            "temperature": 0.3,
+            "max_tokens": 2048,
+            "actual_tokens": 487,
+        },
+    })
+    ctx.latency = 3.45
 
 
 @eval(dataset="conversation_eval", labels=["verbose"])
-def test_multi_turn_conversation():
+def test_multi_turn_conversation(ctx: EvalContext):
     """Test evaluation of a multi-turn conversation"""
     conversation_input = {
         "system_prompt": "You are a helpful coding assistant specializing in Python and web development.",
@@ -332,27 +317,21 @@ This implementation includes:
 
 Would you like me to show you the JWT token generation and the login endpoint next?"""
 
-    return EvalResult(
-        input=conversation_input,
-        output=final_response,
-        scores=[
-            {"key": "context_retention", "value": 0.95, "notes": "Correctly referenced all user requirements from conversation"},
-            {"key": "code_correctness", "value": 0.92},
-            {"key": "completeness", "value": 0.88, "notes": "Could include more error handling examples"},
-            {"key": "follows_best_practices", "passed": True},
-        ],
-        metadata={
-            "conversation_turns": 5,
-            "total_tokens": 1847,
-            "model": "claude-3-sonnet",
-        },
-        trace_data={
-            "trace": conversation_input["messages"] + [{"role": "assistant", "content": final_response[:100] + "..."}],
-            "context_window_usage": 0.23,
-            "cached_tokens": 412,
-        },
-        latency=2.89,
-    )
+    ctx.input = conversation_input
+    ctx.output = final_response
+    ctx.add_score(0.95, "Correctly referenced all user requirements from conversation", key="quality")
+    ctx.add_score(True)
+    ctx.metadata.update({
+        "conversation_turns": 5,
+        "total_tokens": 1847,
+        "model": "claude-3-sonnet",
+    })
+    ctx.trace_data.update({
+        "trace": conversation_input["messages"] + [{"role": "assistant", "content": final_response[:100] + "..."}],
+        "context_window_usage": 0.23,
+        "cached_tokens": 412,
+    })
+    ctx.latency = 2.89
 
 
 STRUCTURED_SCENARIOS = [
@@ -411,8 +390,8 @@ def test_structured_data_processing(ctx: EvalContext, scenario_idx):
 
     ctx.input = scenario["input_data"]
     ctx.output = output
-    ctx.add_score(True, key="schema_validation")
-    ctx.add_score(0.99, key="processing_accuracy")
+    ctx.add_score(True, key="correctness")
+    ctx.add_score(0.99, key="quality")
     ctx.trace_data.update({
         "input_depth": 4,
         "total_fields": 25,

@@ -3,9 +3,9 @@ from twevals import eval, EvalResult, parametrize, EvalContext
 def custom_evaluator(result: EvalResult):
     """Custom evaluator to check if the reference output is in the output"""
     if result.reference in result.output.lower():
-        return {"key": "reference_match", "passed": True}
+        return {"key": "correctness", "passed": True}
     else:
-        return {"key": "reference_match", "passed": False, "notes": f"Expected reference '{result.reference}' not found in output"}
+        return {"key": "correctness", "passed": False, "notes": f"Expected reference '{result.reference}' not found in output"}
 
 
 # Example 1: Simple parametrization with multiple test cases
@@ -18,20 +18,20 @@ def custom_evaluator(result: EvalResult):
     ("Amazing experience, highly recommend!", "positive"),
     ("Waste of money", "negative"),
 ])
-def test_sentiment_classification(text, expected_sentiment):
+def test_sentiment_classification(ctx: EvalContext, text, expected_sentiment):
     """Test sentiment analysis with parametrized inputs"""
     print(f"Analyzing: {text}")
-    
+
     # Simulate sentiment analysis
     sentiment_map = {
         "love": "positive",
-        "amazing": "positive", 
+        "amazing": "positive",
         "recommend": "positive",
         "terrible": "negative",
         "waste": "negative",
         "okay": "neutral"
     }
-    
+
     # Simple mock sentiment detection
     detected = "neutral"
     text_lower = text.lower()
@@ -39,19 +39,12 @@ def test_sentiment_classification(text, expected_sentiment):
         if keyword in text_lower:
             detected = sentiment
             break
-    
-    return EvalResult(
-        input=text,
-        output=detected,
-        reference=expected_sentiment,
-        scores={
-            "key": "accuracy",
-            "passed": detected == expected_sentiment
-        },
-        trace_data={
-            "features": {"contains_love": "love" in text_lower, "length": len(text)},
-        },
-    )
+
+    ctx.input = text
+    ctx.output = detected
+    ctx.reference = expected_sentiment
+    ctx.add_score(detected == expected_sentiment)
+    ctx.trace_data["features"] = {"contains_love": "love" in text_lower, "length": len(text)}
 
 
 # Example 2: Parametrize with dictionaries for complex inputs
@@ -62,9 +55,9 @@ def test_sentiment_classification(text, expected_sentiment):
     {"operation": "subtract", "a": 10, "b": 3, "expected": 7},
     {"operation": "divide", "a": 15, "b": 3, "expected": 5},
 ])
-def test_calculator(operation, a, b, expected):
+def test_calculator(ctx: EvalContext, operation, a, b, expected):
     """Test calculator operations with different inputs"""
-    
+
     # Simulate calculator
     operations = {
         "add": lambda x, y: x + y,
@@ -72,25 +65,20 @@ def test_calculator(operation, a, b, expected):
         "subtract": lambda x, y: x - y,
         "divide": lambda x, y: x / y if y != 0 else None
     }
-    
+
     result = operations.get(operation, lambda x, y: None)(a, b)
-    
-    return EvalResult(
-        input={"operation": operation, "a": a, "b": b},
-        output=result,
-        reference=expected,
-        scores={
-            "key": "correctness",
-            "passed": result == expected
+
+    ctx.input = {"operation": operation, "a": a, "b": b}
+    ctx.output = result
+    ctx.reference = expected
+    ctx.add_score(result == expected)
+    ctx.trace_data.update({
+        "op": operation,
+        "args": [a, b],
+        "intermediate": {
+            "is_div_by_zero": operation == "divide" and b == 0,
         },
-        trace_data={
-            "op": operation,
-            "args": [a, b],
-            "intermediate": {
-                "is_div_by_zero": operation == "divide" and b == 0,
-            },
-        },
-    )
+    })
 
 # Example 3: Parametrize + target hook (targets see param data in ctx.input/ctx.metadata)
 def target_run_agent(ctx: EvalContext):
@@ -125,38 +113,34 @@ def test_agent_target(ctx: EvalContext, prompt, expected_keyword):
     ],
     ids=["geography", "literature", "math"]  # Optional: name each test case
 )
-def test_qa_with_ids(question, context, expected_answer):
+def test_qa_with_ids(ctx: EvalContext, question, context, expected_answer):
     """Test Q&A system with named test cases"""
-    
+
     # Simulate Q&A system
     simple_answers = {
         "capital of France": "Paris",
         "Romeo and Juliet": "Shakespeare",
         "2+2": "4"
     }
-    
+
     answer = "I don't know"
+    matched_key = None
     for key, value in simple_answers.items():
         if key in question:
             answer = value
+            matched_key = key
             break
-    
-    return EvalResult(
-        input={"question": question, "context": context},
-        output=answer,
-        reference=expected_answer,
-        scores=[
-            {"key": "exact_match", "passed": answer == expected_answer},
-            {"key": "confidence", "value": 0.8 if answer != "I don't know" else 0.2}
-        ],
-        metadata={"model": "mock_qa_v1"},
-        trace_data={
-            "retrieval": {
-                "top_keys": list(simple_answers.keys()),
-                "matched": key if answer != "I don't know" else None,
-            }
-        }
-    )
+
+    ctx.input = {"question": question, "context": context}
+    ctx.output = answer
+    ctx.reference = expected_answer
+    ctx.add_score(answer == expected_answer)
+    ctx.add_score(answer != "I don't know", key="relevance")
+    ctx.metadata["model"] = "mock_qa_v1"
+    ctx.trace_data["retrieval"] = {
+        "top_keys": list(simple_answers.keys()),
+        "matched": matched_key,
+    }
 
 
 # Example 5: Multiple parametrize decorators (creates cartesian product)
@@ -164,25 +148,20 @@ def test_qa_with_ids(question, context, expected_answer):
 @eval(dataset="model_comparison")
 @parametrize("model", ["gpt-3.5", "gpt-4", "claude"])
 @parametrize("temperature", [0.0, 0.5, 1.0])
-async def test_model_temperatures(model, temperature):
+async def test_model_temperatures(ctx: EvalContext, model, temperature):
     """Test different models at different temperatures"""
-    
+
     # Simulate model behavior at different temperatures
     # Higher temperature = more creative/random
     creativity_score = temperature * 0.8 + (0.2 if "gpt-4" in model else 0.1)
-    
-    return EvalResult(
-        input={"model": model, "temperature": temperature},
-        output=f"Response from {model} at temp {temperature}",
-        scores={
-            "key": "creativity",
-            "value": min(creativity_score, 1.0)
-        },
-        metadata={"model": model, "temperature": temperature},
-        trace_data={
-            "sampling": {"top_p": 0.95, "temperature": temperature},
-            "env": {"model": model},
-            "trace_url": "https://twevals.com",
-        }
-    )
+
+    ctx.input = {"model": model, "temperature": temperature}
+    ctx.output = f"Response from {model} at temp {temperature}"
+    ctx.add_score(min(creativity_score, 1.0), key="quality")
+    ctx.metadata.update({"model": model, "temperature": temperature})
+    ctx.trace_data.update({
+        "sampling": {"top_p": 0.95, "temperature": temperature},
+        "env": {"model": model},
+        "trace_url": "https://twevals.com",
+    })
 

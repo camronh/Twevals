@@ -62,7 +62,7 @@ async def test_simple_context(ctx: EvalContext):
 
     # Simple boolean score with default key
     # But we need a default_score_key! Let's fix this in next example
-    ctx.add_score(ctx.output == ctx.reference, "Output matches reference", key="correctness")
+    ctx.add_score(ctx.output == ctx.reference, "Output matches reference")
 
 
 # ============================================================================
@@ -109,12 +109,12 @@ async def test_input_in_decorator(ctx: EvalContext):
 # Pattern 4: Context Manager (Explicit Return)
 # ============================================================================
 
-@eval(dataset="customer_service", default_score_key="accuracy")
+@eval(dataset="customer_service", default_score_key="correctness")
 async def test_context_manager():
     """Context manager pattern - explicit return of context"""
     with EvalContext(
         input="I want a refund",
-        default_score_key="accuracy",
+        default_score_key="correctness",
         metadata={"model": AGENT_MODEL}
     ) as ctx:
         ctx.reference = fetch_ground_truth(ctx.input)
@@ -127,7 +127,7 @@ async def test_context_manager():
 # Pattern 5: Parametrize with Auto-Mapping (MAGICAL!)
 # ============================================================================
 
-@eval(dataset="sentiment_analysis", default_score_key="accuracy")
+@eval(dataset="sentiment_analysis", default_score_key="correctness")
 @parametrize("input,reference", [
     ("I love this product!", "positive"),
     ("This is terrible", "negative"),
@@ -186,7 +186,7 @@ def test_calculator(ctx: EvalContext, operation, a, b, expected):
 # Pattern 7: Multiple Score Types
 # ============================================================================
 
-@eval(dataset="qa_system", default_score_key="exact_match")
+@eval(dataset="qa_system", default_score_key="correctness")
 async def test_multiple_scores(ctx: EvalContext):
     """Show different score types in one eval"""
     ctx.input = "What is the capital of France?"
@@ -199,15 +199,7 @@ async def test_multiple_scores(ctx: EvalContext):
 
     # Numeric score with custom key
     similarity = 0.95 if exact_match else 0.3
-    ctx.add_score(similarity, "Similarity score", key="similarity")
-
-    # Full control pattern
-    ctx.add_score(
-        key="confidence",
-        value=0.9,
-        passed=True,
-        notes="High confidence prediction"
-    )
+    ctx.add_score(similarity, "Similarity score", key="accuracy")
 
 
 # ============================================================================
@@ -251,14 +243,14 @@ async def test_track_params(ctx: EvalContext, model, temperature):
     ctx.metadata["temperature"] = temperature
 
     ctx.output = await run_agent(ctx.input)
-    ctx.add_score(True, "Model executed successfully", key="execution")
+    ctx.add_score(True, "Model executed successfully")
 
 
 # ============================================================================
 # Pattern 10: Ultra-Minimal (THE DREAM!)
 # ============================================================================
 
-@eval(dataset="sentiment", default_score_key="accuracy")
+@eval(dataset="sentiment", default_score_key="correctness")
 @parametrize("input,reference", [
     ("I love this!", "positive"),
     ("Terrible!", "negative"),
