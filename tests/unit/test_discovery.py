@@ -3,8 +3,8 @@ import tempfile
 import os
 from pathlib import Path
 
-from twevals.discovery import EvalDiscovery
-from twevals.decorators import EvalFunction
+from ezvals.discovery import EvalDiscovery
+from ezvals.decorators import EvalFunction
 
 
 class TestEvalDiscovery:
@@ -114,7 +114,7 @@ class TestEvalDiscovery:
         # Create a file with import error
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
             f.write("import non_existent_module\n")
-            f.write("from twevals import eval, EvalResult\n")
+            f.write("from ezvals import eval, EvalResult\n")
             f.write("@eval()\n")
             f.write("def test_func():\n")
             f.write("    return EvalResult(input='t', output='o')\n")

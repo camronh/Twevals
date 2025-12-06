@@ -5,23 +5,23 @@ description: Command-line interface for running evaluations
 
 ## Commands
 
-Twevals has two main commands:
+EZVals has two main commands:
 
-- `twevals serve` - Start the web UI to browse and run evaluations interactively
-- `twevals run` - Run evaluations headlessly (for CI/CD pipelines)
+- `ezvals serve` - Start the web UI to browse and run evaluations interactively
+- `ezvals run` - Run evaluations headlessly (for CI/CD pipelines)
 
-## twevals serve
+## ezvals serve
 
 Start the web UI to discover and run evaluations interactively.
 
 ```bash
-twevals serve PATH [OPTIONS]
+ezvals serve PATH [OPTIONS]
 ```
 
 Where `PATH` can be:
-- A directory: `twevals serve evals/`
-- A file: `twevals serve evals/customer_service.py`
-- A specific function: `twevals serve evals.py::test_refund`
+- A directory: `ezvals serve evals/`
+- A file: `ezvals serve evals/customer_service.py`
+- A specific function: `ezvals serve evals.py::test_refund`
 
 The UI opens automatically in your browser. Evaluations are discovered and displayed but not run until you click the Run button.
 
@@ -32,7 +32,7 @@ The UI opens automatically in your browser. Evaluations are discovered and displ
 </ParamField>
 
 ```bash
-twevals serve evals/ --dataset customer_service
+ezvals serve evals/ --dataset customer_service
 ```
 
 <ParamField path="-l, --label" type="string" default="all">
@@ -40,15 +40,15 @@ twevals serve evals/ --dataset customer_service
 </ParamField>
 
 ```bash
-twevals serve evals/ --label production -l critical
+ezvals serve evals/ --label production -l critical
 ```
 
-<ParamField path="--results-dir" type="string" default=".twevals/runs">
+<ParamField path="--results-dir" type="string" default=".ezvals/runs">
   Directory for JSON results storage.
 </ParamField>
 
 ```bash
-twevals serve evals/ --results-dir ./my-results
+ezvals serve evals/ --results-dir ./my-results
 ```
 
 <ParamField path="--port" type="integer" default="8000">
@@ -56,7 +56,7 @@ twevals serve evals/ --results-dir ./my-results
 </ParamField>
 
 ```bash
-twevals serve evals/ --port 3000
+ezvals serve evals/ --port 3000
 ```
 
 <ParamField path="--session" type="string">
@@ -64,7 +64,7 @@ twevals serve evals/ --port 3000
 </ParamField>
 
 ```bash
-twevals serve evals/ --session model-comparison
+ezvals serve evals/ --session model-comparison
 ```
 
 <ParamField path="--run" type="flag">
@@ -72,22 +72,22 @@ twevals serve evals/ --session model-comparison
 </ParamField>
 
 ```bash
-twevals serve evals/ --run
+ezvals serve evals/ --run
 ```
 
-## twevals run
+## ezvals run
 
 Run evaluations headlessly. Outputs minimal text by default (optimized for LLM agents). Use `--visual` for rich table output.
 
 ```bash
-twevals run PATH [OPTIONS]
+ezvals run PATH [OPTIONS]
 ```
 
 Where `PATH` can be:
-- A directory: `twevals run evals/`
-- A file: `twevals run evals/customer_service.py`
-- A specific function: `twevals run evals.py::test_refund`
-- A parametrized variant: `twevals run evals.py::test_math[2-3-5]`
+- A directory: `ezvals run evals/`
+- A file: `ezvals run evals/customer_service.py`
+- A specific function: `ezvals run evals.py::test_refund`
+- A parametrized variant: `ezvals run evals.py::test_math[2-3-5]`
 
 ### Filtering Options
 
@@ -96,8 +96,8 @@ Where `PATH` can be:
 </ParamField>
 
 ```bash
-twevals run evals/ --dataset customer_service
-twevals run evals/ -d customer_service -d technical_support
+ezvals run evals/ --dataset customer_service
+ezvals run evals/ -d customer_service -d technical_support
 ```
 
 <ParamField path="-l, --label" type="string" default="all">
@@ -105,8 +105,8 @@ twevals run evals/ -d customer_service -d technical_support
 </ParamField>
 
 ```bash
-twevals run evals/ --label production
-twevals run evals/ -l production -l critical
+ezvals run evals/ --label production
+ezvals run evals/ -l production -l critical
 ```
 
 <ParamField path="--limit" type="integer">
@@ -114,7 +114,7 @@ twevals run evals/ -l production -l critical
 </ParamField>
 
 ```bash
-twevals run evals/ --limit 10
+ezvals run evals/ --limit 10
 ```
 
 ### Execution Options
@@ -125,8 +125,8 @@ twevals run evals/ --limit 10
 
 ```bash
 # Run 4 evaluations in parallel
-twevals run evals/ --concurrency 4
-twevals run evals/ -c 4
+ezvals run evals/ --concurrency 4
+ezvals run evals/ -c 4
 ```
 
 <ParamField path="--timeout" type="float">
@@ -134,7 +134,7 @@ twevals run evals/ -c 4
 </ParamField>
 
 ```bash
-twevals run evals/ --timeout 30.0
+ezvals run evals/ --timeout 30.0
 ```
 
 ### Output Options
@@ -144,8 +144,8 @@ twevals run evals/ --timeout 30.0
 </ParamField>
 
 ```bash
-twevals run evals/ --verbose
-twevals run evals/ -v
+ezvals run evals/ --verbose
+ezvals run evals/ -v
 ```
 
 <ParamField path="--visual" type="flag">
@@ -153,16 +153,16 @@ twevals run evals/ -v
 </ParamField>
 
 ```bash
-twevals run evals/ --visual
+ezvals run evals/ --visual
 ```
 
 <ParamField path="-o, --output" type="string">
-  Override the default results path. When specified, results are saved only to this path (not to `.twevals/runs/`).
+  Override the default results path. When specified, results are saved only to this path (not to `.ezvals/runs/`).
 </ParamField>
 
 ```bash
-twevals run evals/ --output results.json
-twevals run evals/ -o results.json
+ezvals run evals/ --output results.json
+ezvals run evals/ -o results.json
 ```
 
 <ParamField path="--no-save" type="flag">
@@ -171,7 +171,7 @@ twevals run evals/ -o results.json
 
 ```bash
 # Get results as JSON without writing to disk
-twevals run evals/ --no-save | jq '.passed'
+ezvals run evals/ --no-save | jq '.passed'
 ```
 
 ### Session Options
@@ -181,7 +181,7 @@ twevals run evals/ --no-save | jq '.passed'
 </ParamField>
 
 ```bash
-twevals run evals/ --session model-comparison
+ezvals run evals/ --session model-comparison
 ```
 
 <ParamField path="--run-name" type="string">
@@ -189,7 +189,7 @@ twevals run evals/ --session model-comparison
 </ParamField>
 
 ```bash
-twevals run evals/ --session model-comparison --run-name gpt4-baseline
+ezvals run evals/ --session model-comparison --run-name gpt4-baseline
 ```
 
 ## Examples
@@ -198,95 +198,95 @@ twevals run evals/ --session model-comparison --run-name gpt4-baseline
 
 ```bash
 # Discover evals in a directory and open the UI
-twevals serve evals/
+ezvals serve evals/
 
 # Start UI on a custom port
-twevals serve evals/ --port 8080
+ezvals serve evals/ --port 8080
 
 # Filter what's shown in the UI
-twevals serve evals/ --dataset qa --label production
+ezvals serve evals/ --dataset qa --label production
 ```
 
 ### Run All Evaluations
 
 ```bash
-twevals run evals/
+ezvals run evals/
 ```
 
 ### Run Specific File
 
 ```bash
-twevals run evals/customer_service.py
+ezvals run evals/customer_service.py
 ```
 
 ### Run Specific Function
 
 ```bash
-twevals run evals/customer_service.py::test_refund
+ezvals run evals/customer_service.py::test_refund
 ```
 
 ### Run Parametrized Variant
 
 ```bash
-twevals run evals/math.py::test_addition[2-3-5]
+ezvals run evals/math.py::test_addition[2-3-5]
 ```
 
 ### Filter by Dataset and Label
 
 ```bash
-twevals run evals/ --dataset qa --label production
+ezvals run evals/ --dataset qa --label production
 ```
 
 ### Run with Concurrency and Timeout
 
 ```bash
-twevals run evals/ -c 8 --timeout 60.0
+ezvals run evals/ -c 8 --timeout 60.0
 ```
 
 ### Export Results
 
 ```bash
-# Results auto-save to .twevals/runs/ by default
-twevals run evals/
+# Results auto-save to .ezvals/runs/ by default
+ezvals run evals/
 
 # Override output path
-twevals run evals/ -o results.json
+ezvals run evals/ -o results.json
 ```
 
 ### Verbose Debug Run
 
 ```bash
 # Show eval stdout and rich output
-twevals run evals/ -v --visual --limit 5
+ezvals run evals/ -v --visual --limit 5
 ```
 
 ### Production CI Pipeline
 
 ```bash
 # Minimal output for LLM agents/CI
-twevals run evals/ -c 16 --timeout 120
+ezvals run evals/ -c 16 --timeout 120
 ```
 
 ### Session Tracking
 
 ```bash
 # Group runs under a session
-twevals run evals/ --session model-comparison --run-name baseline
+ezvals run evals/ --session model-comparison --run-name baseline
 
 # Continue the session with another run
-twevals run evals/ --session model-comparison --run-name improved
+ezvals run evals/ --session model-comparison --run-name improved
 ```
 
 ## Configuration File
 
-Twevals supports a `twevals.json` config file for persisting default CLI options. The file is auto-generated in your project root on first run.
+EZVals supports a `ezvals.json` config file for persisting default CLI options. The file is auto-generated in your project root on first run.
 
 ### Default Config
 
 ```json
 {
   "concurrency": 1,
-  "results_dir": ".twevals/runs"
+  "results_dir": ".ezvals/runs"
 }
 ```
 
@@ -306,12 +306,12 @@ CLI flags always override config values:
 
 ```bash
 # Config has concurrency: 1, but this uses 4
-twevals run evals/ -c 4
+ezvals run evals/ -c 4
 ```
 
 ### Editing via UI
 
-Click the settings icon in the web UI header to view and edit config values. Changes are saved to `twevals.json`.
+Click the settings icon in the web UI header to view and edit config values. Changes are saved to `ezvals.json`.
 
 ## Exit Codes
 
@@ -328,18 +328,18 @@ The CLI does not currently set non-zero exit codes for failed evaluations—only
 
 | Variable | Description |
 |----------|-------------|
-| `TWEVALS_CONCURRENCY` | Default concurrency level |
-| `TWEVALS_TIMEOUT` | Default timeout in seconds |
+| `EZVALS_CONCURRENCY` | Default concurrency level |
+| `EZVALS_TIMEOUT` | Default timeout in seconds |
 
 ## Output Format
 
 ### Minimal Output (Default)
 
-By default, `twevals run` outputs minimal text optimized for LLM agents and CI pipelines:
+By default, `ezvals run` outputs minimal text optimized for LLM agents and CI pipelines:
 
 ```
 Running...
-Results saved to .twevals/runs/swift-falcon_2024-01-15T10-30-00Z.json
+Results saved to .ezvals/runs/swift-falcon_2024-01-15T10-30-00Z.json
 ```
 
 ### Visual Output (--visual)
@@ -364,7 +364,7 @@ Summary: 1/2 passed (50.0%)
 
 ### JSON File Output
 
-Results are always saved as JSON to `.twevals/runs/` (or custom path via `-o`):
+Results are always saved as JSON to `.ezvals/runs/` (or custom path via `-o`):
 
 ```json
 {

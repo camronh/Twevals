@@ -3,38 +3,38 @@ title: Web UI
 description: Run evals and review results in your browser
 ---
 
-Start the web UI with `twevals serve`:
+Start the web UI with `ezvals serve`:
 
 ```bash
-twevals serve evals.py
+ezvals serve evals.py
 ```
 
 <img
   className="block dark:hidden"
   src="/assets/ui-screenshot-light.png"
-  alt="Twevals Web UI"
+  alt="EZVals Web UI"
 />
 <img
   className="hidden dark:block"
   src="/assets/ui-screenshot-dark.png"
-  alt="Twevals Web UI"
+  alt="EZVals Web UI"
 />
 
 ## How It Works
 
 The UI discovers all `@eval` decorated functions in your file but doesn't run them until you click **Run**. Results stream in real-time as each evaluation completes.
 
-Results are saved to `.twevals/runs/` as JSON files. The UI loads from `latest.json` by default, which is a copy of the most recent run.
+Results are saved to `.ezvals/runs/` as JSON files. The UI loads from `latest.json` by default, which is a copy of the most recent run.
 
 ## Results Storage
 
 ```
-.twevals/
+.ezvals/
 ├── runs/
 │   ├── gpt5-baseline_2024-01-15T10-30-00Z.json
 │   ├── swift-falcon_2024-01-15T14-45-00Z.json
 │   └── latest.json
-└── twevals.json  # Configuration
+└── ezvals.json  # Configuration
 ```
 
 Each run file includes session metadata:
@@ -83,5 +83,5 @@ Changes are saved to the results file.
 ## Custom Port
 
 ```bash
-twevals serve evals.py --port 3000
+ezvals serve evals.py --port 3000
 ```

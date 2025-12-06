@@ -1,9 +1,9 @@
 import asyncio
 import pytest
 
-from twevals import EvalContext
-from twevals.decorators import eval
-from twevals.schemas import EvalResult
+from ezvals import EvalContext
+from ezvals.decorators import eval
+from ezvals.schemas import EvalResult
 
 
 def test_target_injects_output_and_custom_attrs():

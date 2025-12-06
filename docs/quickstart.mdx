@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Get up and running with Twevals in under 5 minutes
+description: Get up and running with EZVals in under 5 minutes
 ---
 
 ## Your First Evaluation
@@ -19,7 +19,7 @@ Using a `target` function function comes with the added benefits of:
 - **Prepopulates Context** - Useful for injecting data into the context (similar to `beforeEach`)
 
 ```python
-from twevals import eval, EvalContext
+from ezvals import eval, EvalContext
 
 async def my_agent_target(ctx: EvalContext):
     # Run your agent using your own custom logic.
@@ -58,7 +58,7 @@ Non-assertion errors are caught as errors.
 Start the web UI to run evals and review results:
 
 ```bash
-twevals serve evals.py
+ezvals serve evals.py
 ```
 
 This opens a browser at `http://127.0.0.1:8000` where you can:
@@ -68,14 +68,14 @@ This opens a browser at `http://127.0.0.1:8000` where you can:
 - Annotate results inline
 - Export results to JSON or CSV
 
-<img src="/assets/ui-screenshot.png" alt="Twevals Web UI" />
+<img src="/assets/ui-screenshot.png" alt="EZVals Web UI" />
 
 ### Agent Mode
 
 When coding agent needs to run evals programmatically, use `run`:
 
 ```bash
-twevals run evals.py
+ezvals run evals.py
 ```
 
 This outputs compact results to stdout—perfect for when an AI agent needs to parse results.
@@ -90,7 +90,7 @@ This outputs compact results to stdout—perfect for when an AI agent needs to p
 Use `@parametrize` to generate multiple evaluations from one function:
 
 ```python
-from twevals import eval, parametrize, EvalContext
+from ezvals import eval, parametrize, EvalContext
 
 @eval(
   dataset="greetings", 
@@ -114,22 +114,22 @@ Use sessions to group related runs together—useful for comparing models, track
 
 ```bash
 # Name your session and run
-twevals serve evals.py --session model-upgrade --run-name baseline
+ezvals serve evals.py --session model-upgrade --run-name baseline
 
 # Continue the session with another run
-twevals serve evals.py --session model-upgrade --run-name after-tuning
+ezvals serve evals.py --session model-upgrade --run-name after-tuning
 ```
 
-Results are saved to `.twevals/runs/` with session metadata, so you can compare runs over time.
+Results are saved to `.ezvals/runs/` with session metadata, so you can compare runs over time.
 
-## Configuration with twevals.json
+## Configuration with ezvals.json
 
-Create a `twevals.json` in your project root to set defaults:
+Create a `ezvals.json` in your project root to set defaults:
 
 ```json
 {
   "concurrency": 4,
-  "results_dir": ".twevals/runs"
+  "results_dir": ".ezvals/runs"
 }
 ```
 
@@ -139,16 +139,16 @@ This saves you from passing the same flags repeatedly.
 
 ```bash
 # Run a specific function
-twevals serve evals.py::test_greeting
+ezvals serve evals.py::test_greeting
 
 # Filter by dataset
-twevals serve evals.py --dataset greetings
+ezvals serve evals.py --dataset greetings
 
 # Filter by labels
-twevals serve evals.py --label production
+ezvals serve evals.py --label production
 
 # Run with concurrency
-twevals serve evals.py --concurrency 4
+ezvals serve evals.py --concurrency 4
 ```
 
 
@@ -156,7 +156,7 @@ twevals serve evals.py --concurrency 4
 
 <CardGroup cols={2}>
   <Card title="EvalContext" icon="code" href="/core-concepts/eval-context">
-    Learn about the builder pattern that powers Twevals
+    Learn about the builder pattern that powers EZVals
   </Card>
   <Card title="Decorators" icon="at" href="/core-concepts/decorators">
     Master the @eval decorator and its options

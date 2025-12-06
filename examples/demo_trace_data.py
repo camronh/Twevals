@@ -7,7 +7,7 @@ This file demonstrates how to use ctx.store() for:
 - Adding custom trace properties
 """
 
-from twevals import eval, EvalContext, parametrize
+from ezvals import eval, EvalContext, parametrize
 
 
 # =============================================================================

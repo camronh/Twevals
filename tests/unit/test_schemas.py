@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from twevals.schemas import Score, EvalResult
+from ezvals.schemas import Score, EvalResult
 
 
 class TestScore:

@@ -6,8 +6,8 @@ import time
 from playwright.sync_api import sync_playwright, expect
 import uvicorn
 
-from twevals.server import create_app
-from twevals.storage import ResultsStore
+from ezvals.server import create_app
+from ezvals.storage import ResultsStore
 
 
 def run_server(app, host: str = "127.0.0.1", port: int = 8767):

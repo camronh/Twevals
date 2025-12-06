@@ -1,6 +1,6 @@
 import pytest
 from click.testing import CliRunner
-from twevals.cli import cli
+from ezvals.cli import cli
 
 class TestCLIProgress:
     def setup_method(self):
@@ -11,7 +11,7 @@ class TestCLIProgress:
         with self.runner.isolated_filesystem():
             with open('test_pass.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_pass():
@@ -35,7 +35,7 @@ def test_pass():
         with self.runner.isolated_filesystem():
             with open('test_fail.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_fail():
@@ -60,7 +60,7 @@ def test_fail():
         with self.runner.isolated_filesystem():
             with open('test_error.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_error():

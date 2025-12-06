@@ -1,5 +1,5 @@
 """
-EvalContext Demo - The NEW Twevals API!
+EvalContext Demo - The NEW EZVals API!
 
 This file demonstrates the magic of EvalContext - a mutable builder
 that makes evaluations incredibly clean and intuitive.
@@ -7,7 +7,7 @@ that makes evaluations incredibly clean and intuitive.
 
 import time
 import asyncio
-from twevals import eval, EvalContext, parametrize
+from ezvals import eval, EvalContext, parametrize
 import random
 
 
@@ -279,5 +279,5 @@ async def test_explicit_return(ctx: EvalContext):
 async def test_auto_return(ctx: EvalContext):
     """No return statement - decorator auto-returns ctx.build()"""
     ctx.input = "test"
-    ctx.store(**await run_agent(ctx.input), scores=True, trace_url="https://twevals.com")
+    ctx.store(**await run_agent(ctx.input), scores=True, trace_url="https://ezvals.com")
     # No return! Decorator handles it

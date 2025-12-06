@@ -1,6 +1,6 @@
 import pytest
 from click.testing import CliRunner
-from twevals.cli import cli
+from ezvals.cli import cli
 
 
 class TestCLIFiltering:
@@ -10,7 +10,7 @@ class TestCLIFiltering:
         with runner.isolated_filesystem():
             with open('test_cli_filter.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 @eval()
 def func_a(): return EvalResult(input='a', output='a')
 @eval()
@@ -28,7 +28,7 @@ def func_b(): return EvalResult(input='b', output='b')
         with runner.isolated_filesystem():
             with open('test_cli_param.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult, parametrize
+from ezvals import eval, EvalResult, parametrize
 
 @parametrize("val", [1, 2])
 @eval()
@@ -53,7 +53,7 @@ def param_func(val): return EvalResult(input=str(val), output=str(val))
         with runner.isolated_filesystem():
             with open('test_cli_nonexistent.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 @eval()
 def existing_func(): return EvalResult(input='a', output='b')
 """)
@@ -75,7 +75,7 @@ def existing_func(): return EvalResult(input='a', output='b')
         with runner.isolated_filesystem():
             with open('test_cli_combo.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="ds1")
 def func_a(): return EvalResult(input='a', output='a')
@@ -98,7 +98,7 @@ def func_b(): return EvalResult(input='b', output='b')
         with runner.isolated_filesystem():
             with open('test_and_filter.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="prod", labels=["fast"])
 def func_a(): return EvalResult(input='a', output='a')

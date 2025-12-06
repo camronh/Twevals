@@ -2,8 +2,8 @@
 
 import pytest
 import asyncio
-from twevals import eval, EvalContext, parametrize, EvalResult
-from twevals.parametrize import generate_eval_functions
+from ezvals import eval, EvalContext, parametrize, EvalResult
+from ezvals.parametrize import generate_eval_functions
 
 
 class TestSimpleContextUsage:

@@ -1,6 +1,6 @@
 """Tests to ensure all patterns in demo_eval.py are covered"""
 import pytest
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 
 class TestDemoPatterns:

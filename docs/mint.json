@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Twevals",
+  "name": "EZVals",
   "logo": {
     "dark": "/assets/logo.png",
     "light": "/assets/logo.png"
@@ -18,7 +18,7 @@
   "topbarLinks": [
     {
       "name": "GitHub",
-      "url": "https://github.com/camronh/Twevals"
+      "url": "https://github.com/camronh/EZVals"
     }
   ],
   "topbarCtaButton": {
@@ -29,12 +29,12 @@
     {
       "name": "GitHub",
       "icon": "github",
-      "url": "https://github.com/camronh/Twevals"
+      "url": "https://github.com/camronh/EZVals"
     },
     {
       "name": "PyPI",
       "icon": "python",
-      "url": "https://pypi.org/project/twevals"
+      "url": "https://pypi.org/project/ezvals"
     }
   ],
   "navigation": [
@@ -78,6 +78,6 @@
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/camronh/Twevals"
+    "github": "https://github.com/camronh/EZVals"
   }
 }

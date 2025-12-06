@@ -1,6 +1,6 @@
 import pytest
-from twevals.discovery import EvalDiscovery
-from twevals.decorators import EvalFunction
+from ezvals.discovery import EvalDiscovery
+from ezvals.decorators import EvalFunction
 
 
 class TestFunctionFiltering:
@@ -9,7 +9,7 @@ class TestFunctionFiltering:
         # Setup mock file
         d = tmp_path / "test_filter.py"
         d.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 @eval()
 def target_func(): return EvalResult(input='a', output='b')
 @eval()
@@ -26,7 +26,7 @@ def other_func(): return EvalResult(input='c', output='d')
         """Test filtering parametrized function by base name returns all variants"""
         d = tmp_path / "test_param.py"
         d.write_text("""
-from twevals import eval, EvalResult, parametrize
+from ezvals import eval, EvalResult, parametrize
 
 @parametrize("val", [1, 2])
 @eval()
@@ -44,7 +44,7 @@ def param_func(val): return EvalResult(input=str(val), output=str(val))
         """Test filtering parametrized function by specific variant name"""
         d = tmp_path / "test_param_specific.py"
         d.write_text("""
-from twevals import eval, EvalResult, parametrize
+from ezvals import eval, EvalResult, parametrize
 
 @parametrize("val", [1, 2])
 @eval()
@@ -62,7 +62,7 @@ def param_func(val): return EvalResult(input=str(val), output=str(val))
         """Test filtering with non-existent function name returns empty list"""
         d = tmp_path / "test_none.py"
         d.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 @eval()
 def my_func(): return EvalResult(input='a', output='b')
 """)
@@ -76,7 +76,7 @@ def my_func(): return EvalResult(input='a', output='b')
         """Test function name filter combined with dataset filter"""
         d = tmp_path / "test_combined.py"
         d.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="ds1")
 def func_a(): return EvalResult(input='a', output='a')
@@ -99,7 +99,7 @@ def func_c(): return EvalResult(input='c', output='c')
         """Test function name filter combined with label filter"""
         d = tmp_path / "test_labels.py"
         d.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(labels=["prod"])
 def func_prod(): return EvalResult(input='p', output='p')

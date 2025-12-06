@@ -7,8 +7,8 @@ import concurrent.futures
 import traceback
 import types
 
-from twevals.schemas import EvalResult, Score
-from twevals.context import EvalContext
+from ezvals.schemas import EvalResult, Score
+from ezvals.context import EvalContext
 
 
 class EvalFunction:

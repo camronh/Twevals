@@ -7,12 +7,12 @@ Use file-level defaults to share common configuration across all evaluations in 
 
 ## Basic Usage
 
-Define a `twevals_defaults` dictionary at the module level:
+Define a `ezvals_defaults` dictionary at the module level:
 
 ```python
 # evals/customer_service.py
 
-twevals_defaults = {
+ezvals_defaults = {
     "labels": ["production"],
     "default_score_key": "quality",
 }
@@ -42,7 +42,7 @@ The `dataset` field is automatically inferred from the filename when not explici
 Override specific fields in individual decorators:
 
 ```python
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "customer_service",
     "labels": ["production"],
     "default_score_key": "quality",
@@ -77,7 +77,7 @@ async def test_edge_case(ctx: EvalContext):
 File defaults and decorator metadata are merged:
 
 ```python
-twevals_defaults = {
+ezvals_defaults = {
     "metadata": {"environment": "test", "version": "1.0"}
 }
 
@@ -102,7 +102,7 @@ def file_evaluator(result):
 def specific_evaluator(result):
     return {"key": "specific_check", "passed": True}
 
-twevals_defaults = {
+ezvals_defaults = {
     "evaluators": [file_evaluator]
 }
 
@@ -141,7 +141,7 @@ Each file sets its own defaults:
 ```python
 # evals/technical_support.py
 
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "technical_support",
     "labels": ["production", "technical"],
     "default_score_key": "helpfulness",
@@ -163,7 +163,7 @@ async def test_installation_guide(ctx: EvalContext):
 ```python
 # evals/sentiment_analysis.py
 
-from twevals import eval, parametrize, EvalContext
+from ezvals import eval, parametrize, EvalContext
 
 # Shared evaluators
 def check_confidence(result):
@@ -177,7 +177,7 @@ def check_confidence(result):
     return None
 
 # File-level defaults
-twevals_defaults = {
+ezvals_defaults = {
     "labels": ["ml", "nlp"],
     "default_score_key": "accuracy",
     "metadata": {"model_version": "v2.1"},

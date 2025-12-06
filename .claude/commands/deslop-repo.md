@@ -1,4 +1,4 @@
-Clean up the Twevals Codebase
+Clean up the EZVals Codebase
 
 I want to clean up tech debt and remove as many lines of code as possible in this codebase. The goal is to simplify the codebase as much as possible while still maintaining the same behavior and performance. The ultimate flex of a good developer is to tell them to download my lib, and its this many lines of code! The behavior right now is great, I just want to simplify the code. I suggest you:
 

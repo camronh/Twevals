@@ -1,15 +1,15 @@
-# Twevals
+# EZVals
 
-Lightweight evals for AI agents and LLM apps. Write Python functions, use `EvalContext` to track results, and Twevals handles storage, scoring, and a small web UI.
+Lightweight evals for AI agents and LLM apps. Write Python functions, use `EvalContext` to track results, and EZVals handles storage, scoring, and a small web UI.
 
 ## Installation
 
-Twevals is intended as a development dependency.
+EZVals is intended as a development dependency.
 
 ```bash
-pip install twevals
+pip install ezvals
 # or with uv
-uv add --dev twevals
+uv add --dev ezvals
 ```
 
 ## Quick start
@@ -18,7 +18,7 @@ Look at the [examples](examples/) directory for runnable snippets.
 Run the demo suite and open the UI:
 
 ```bash
-twevals serve examples
+ezvals serve examples
 ```
 
 ![UI screenshot](assets/ui.png)
@@ -31,10 +31,10 @@ twevals serve examples
 
 ## Authoring evals
 
-Write evals like tests. Add a `ctx: EvalContext` parameter, and Twevals auto-injects a mutable context object.
+Write evals like tests. Add a `ctx: EvalContext` parameter, and EZVals auto-injects a mutable context object.
 
 ```python
-from twevals import eval, EvalContext
+from ezvals import eval, EvalContext
 
 @eval(input="I want a refund", dataset="customer_service")
 async def test_refund(ctx: EvalContext):
@@ -44,7 +44,7 @@ async def test_refund(ctx: EvalContext):
 
 ### EvalContext
 
-`EvalContext` is a mutable builder for constructing eval results. When your function has a parameter with type annotation `: EvalContext`, Twevals automatically injects an instance.
+`EvalContext` is a mutable builder for constructing eval results. When your function has a parameter with type annotation `: EvalContext`, EZVals automatically injects an instance.
 
 **Key features:**
 - **Auto-injection**: Just add `ctx: EvalContext` parameter
@@ -81,7 +81,7 @@ ctx.add_score(0.95, "High score", key="similarity")  # Numeric
 Set context fields in the decorator when possible:
 
 ```python
-from twevals import eval, EvalContext
+from ezvals import eval, EvalContext
 
 @eval(
     input="I want a refund",
@@ -168,10 +168,10 @@ def test_with_target(ctx: EvalContext):
 
 ### File-level defaults
 
-Set global properties for all tests in a file using `twevals_defaults`:
+Set global properties for all tests in a file using `ezvals_defaults`:
 
 ```python
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "sentiment_analysis",
     "labels": ["production", "nlp"],
     "metadata": {"model": "gpt-4"}
@@ -197,7 +197,7 @@ Generate multiple evals from one function. Place `@eval` above `@parametrize`.
 When parameter names match EvalContext fields (`input`, `reference`, `metadata`, etc.), they automatically populate the context:
 
 ```python
-from twevals import parametrize
+from ezvals import parametrize
 
 @eval(dataset="sentiment")
 @parametrize("input,reference", [
@@ -243,7 +243,7 @@ def test_model_grid(ctx: EvalContext, model, temperature):
 `EvalContext` automatically builds an `EvalResult` when the evaluation completes. You can also return `EvalResult` directly:
 
 ```python
-from twevals import EvalResult
+from ezvals import EvalResult
 
 @eval(dataset="test")
 def test_direct():
@@ -286,13 +286,13 @@ async def test_response(ctx: EvalContext):
 
 ```bash
 # Run evals headlessly
-twevals run path/to/evals
+ezvals run path/to/evals
 
 # Run with web UI
-twevals serve path/to/evals
+ezvals serve path/to/evals
 
 # Run specific function
-twevals run path/to/evals.py::function_name
+ezvals run path/to/evals.py::function_name
 ```
 
 **Common flags:**
@@ -324,24 +324,24 @@ Group related eval runs together:
 
 ```bash
 # Named session and run
-twevals serve examples --session model-upgrade --run-name baseline
+ezvals serve examples --session model-upgrade --run-name baseline
 
 # Auto-generated friendly names (e.g., "swift-falcon")
-twevals serve examples
+ezvals serve examples
 ```
 
-Results are saved to `.twevals/runs/` with the pattern `{run_name}_{timestamp}.json`.
+Results are saved to `.ezvals/runs/` with the pattern `{run_name}_{timestamp}.json`.
 
 ## Contributing
 
 ```bash
 uv sync
 uv run pytest -q
-uv run ruff check twevals tests
+uv run ruff check ezvals tests
 ```
 
 Demo:
 
 ```bash
-uv run twevals serve examples
+uv run ezvals serve examples
 ```

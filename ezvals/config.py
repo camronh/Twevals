@@ -1,13 +1,13 @@
-"""Config file management for twevals."""
+"""Config file management for ezvals."""
 
 import json
 from pathlib import Path
 
-CONFIG_FILENAME = "twevals.json"
+CONFIG_FILENAME = "ezvals.json"
 
 DEFAULT_CONFIG = {
     "concurrency": 1,
-    "results_dir": ".twevals/sessions",
+    "results_dir": ".ezvals/sessions",
     "overwrite": True,
 }
 

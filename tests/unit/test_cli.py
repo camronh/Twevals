@@ -4,7 +4,7 @@ import tempfile
 import json
 from pathlib import Path
 
-from twevals.cli import cli
+from ezvals.cli import cli
 
 
 class TestCLI:
@@ -15,7 +15,7 @@ class TestCLI:
     def test_cli_help(self):
         result = self.runner.invoke(cli, ['--help'])
         assert result.exit_code == 0
-        assert 'Twevals' in result.output
+        assert 'EZVals' in result.output
         assert 'lightweight evaluation framework' in result.output
     
     def test_run_command_help(self):
@@ -33,7 +33,7 @@ class TestCLI:
             # Create test file
             with open('test_eval.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_cli():
@@ -57,7 +57,7 @@ def test_cli():
             # Create test file
             with open('test_dataset.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="dataset1")
 def test_one():
@@ -78,7 +78,7 @@ def test_two():
             # Create test file
             with open('test_labels.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(labels=["prod"])
 def test_prod():
@@ -98,7 +98,7 @@ def test_dev():
             # Create test file
             with open('test_multi_labels.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(labels=["a"])
 def test_a():
@@ -127,7 +127,7 @@ def test_c():
             # Create test file
             with open('test_json.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_json():
@@ -157,7 +157,7 @@ def test_json():
             # Create test file with print statements
             with open('test_verbose.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_verbose():
@@ -181,7 +181,7 @@ def test_verbose():
             # Create test file
             with open('test_concurrent.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_1():
@@ -219,7 +219,7 @@ def regular_function():
             # Create test file with error
             with open('test_error.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_error():
@@ -240,7 +240,7 @@ def test_error():
         with self.runner.isolated_filesystem():
             with open('test_limit.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="test")
 def test_1():
@@ -272,7 +272,7 @@ def test_5():
         with self.runner.isolated_filesystem():
             with open('test_nosave.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_nosave():
@@ -288,11 +288,11 @@ def test_nosave():
             assert '"results"' in result.output
 
     def test_no_save_no_file(self):
-        """--no-save prevents file from being written to .twevals/sessions/"""
+        """--no-save prevents file from being written to .ezvals/sessions/"""
         with self.runner.isolated_filesystem():
             with open('test_nosave2.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_nosave():
@@ -302,14 +302,14 @@ def test_nosave():
             result = self.runner.invoke(cli, ['run', 'test_nosave2.py', '--no-save'])
             assert result.exit_code == 0
             # No file should be saved
-            assert not Path('.twevals/sessions').exists() or len(list(Path('.twevals/sessions').rglob('*.json'))) == 0
+            assert not Path('.ezvals/sessions').exists() or len(list(Path('.ezvals/sessions').rglob('*.json'))) == 0
 
     def test_session_flag(self):
         """--session sets session_name in stored JSON"""
         with self.runner.isolated_filesystem():
             with open('test_session.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_session():
@@ -320,7 +320,7 @@ def test_session():
             assert result.exit_code == 0
 
             # Load from new hierarchical storage location
-            session_dir = Path('.twevals/sessions/my-session')
+            session_dir = Path('.ezvals/sessions/my-session')
             run_files = list(session_dir.glob('*.json'))
             assert len(run_files) == 1
             with open(run_files[0]) as f:
@@ -332,7 +332,7 @@ def test_session():
         with self.runner.isolated_filesystem():
             with open('test_runname.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_runname():
@@ -343,7 +343,7 @@ def test_runname():
             assert result.exit_code == 0
 
             # Load from default session (CLI uses "default" session)
-            session_dir = Path('.twevals/sessions/default')
+            session_dir = Path('.ezvals/sessions/default')
             run_files = list(session_dir.glob('baseline_*.json'))
             assert len(run_files) == 1
             with open(run_files[0]) as f:
@@ -355,7 +355,7 @@ def test_runname():
         with self.runner.isolated_filesystem():
             with open('test_comma_ds.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="alpha")
 def test_alpha():
@@ -381,7 +381,7 @@ def test_gamma():
         with self.runner.isolated_filesystem():
             with open('test_exitcode.py', 'w') as f:
                 f.write("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_failing():

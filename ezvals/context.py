@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Union
-from twevals.schemas import EvalResult, TraceData
+from ezvals.schemas import EvalResult, TraceData
 
 
 class EvalContext:

@@ -55,7 +55,7 @@
 /* Column resizer */
 .col-resizer { position: absolute; right: 0; top: 0; width: 4px; height: 100%; cursor: col-resize; }
 .col-resizer:hover, .col-resizer:active { background: rgba(59, 130, 246, 0.4); }
-body.twevals-col-resize { cursor: col-resize !important; user-select: none; }
+body.ezvals-col-resize { cursor: col-resize !important; user-select: none; }
 
 /* Checkbox styling */
 .row-checkbox, #select-all-checkbox {

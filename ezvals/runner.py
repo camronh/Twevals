@@ -8,9 +8,9 @@ from pathlib import Path
 from threading import Thread
 from typing import Dict, List, Optional, Union, Callable
 
-from twevals.decorators import EvalFunction
-from twevals.discovery import EvalDiscovery
-from twevals.schemas import EvalResult, Score
+from ezvals.decorators import EvalFunction
+from ezvals.discovery import EvalDiscovery
+from ezvals.schemas import EvalResult, Score
 
 
 def _run_async_with_loop_handling(coro_fn):

@@ -6,7 +6,7 @@ description: The context object that powers evaluation result construction
 Every eval function receives an `EvalContext` that accumulates evaluation data and builds into an `EvalResult`.
 
 ```python
-from twevals import eval, EvalContext
+from ezvals import eval, EvalContext
 
 @eval(input="What is 2 + 2?", dataset="demo")
 async def my_eval(ctx: EvalContext):
@@ -141,7 +141,7 @@ The resulting `EvalResult` will have:
 
 ## Default Scoring
 
-If no score is added and no assertions fail, Twevals auto-adds a passing score:
+If no score is added and no assertions fail, EZVals auto-adds a passing score:
 
 ```python
 @eval(input="test", dataset="demo", default_score_key="correctness")

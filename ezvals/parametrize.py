@@ -1,8 +1,8 @@
 from typing import Any, Callable, List, Optional, Union, Dict
 import inspect
 
-from twevals.decorators import EvalFunction
-from twevals.context import EvalContext
+from ezvals.decorators import EvalFunction
+from ezvals.context import EvalContext
 
 
 def generate_eval_functions(func: Callable) -> List[EvalFunction]:

@@ -8,10 +8,10 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 import uvicorn
 
-from twevals.server import create_app
-from twevals.storage import ResultsStore
-from twevals.discovery import EvalDiscovery
-from twevals.runner import EvalRunner
+from ezvals.server import create_app
+from ezvals.storage import ResultsStore
+from ezvals.discovery import EvalDiscovery
+from ezvals.runner import EvalRunner
 
 
 def run_server(app, host: str = "127.0.0.1", port: int = 8766):
@@ -36,7 +36,7 @@ def create_slow_eval_file(path: Path):
     """Create a test eval file with slow-running evaluations."""
     path.write_text('''
 import time
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="test_ds")
 def slow_eval_1():
@@ -58,7 +58,7 @@ def slow_eval_3():
 def create_fast_eval_file(path: Path):
     """Create a test eval file with fast evaluations."""
     path.write_text('''
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="fast_ds")
 def fast_eval_1():
@@ -247,8 +247,8 @@ class TestStopFunctionality:
         discovery = EvalDiscovery()
         functions = discovery.discover(path=str(eval_file))
 
-        # Create store and app - use default config path (.twevals/runs)
-        results_dir = tmp_path / ".twevals" / "runs"
+        # Create store and app - use default config path (.ezvals/runs)
+        results_dir = tmp_path / ".ezvals" / "runs"
         store = ResultsStore(results_dir)
         run_id = store.generate_run_id()
 
@@ -315,8 +315,8 @@ class TestRerunFunctionality:
         eval_file = tmp_path / "fast_evals.py"
         create_fast_eval_file(eval_file)
 
-        # Seed completed run - use default config path (.twevals/runs)
-        results_dir = tmp_path / ".twevals" / "runs"
+        # Seed completed run - use default config path (.ezvals/runs)
+        results_dir = tmp_path / ".ezvals" / "runs"
         store = ResultsStore(results_dir)
         summary = make_completed_summary()
         run_id = store.save_run(summary, "2024-01-01T00-00-00Z")
@@ -360,8 +360,8 @@ class TestRerunFunctionality:
         discovery = EvalDiscovery()
         functions = discovery.discover(path=str(eval_file))
 
-        # Seed run with completed results - use default config path (.twevals/runs)
-        results_dir = tmp_path / ".twevals" / "runs"
+        # Seed run with completed results - use default config path (.ezvals/runs)
+        results_dir = tmp_path / ".ezvals" / "runs"
         store = ResultsStore(results_dir)
 
         results = [{
@@ -432,8 +432,8 @@ class TestPlayStopToggle:
         discovery = EvalDiscovery()
         functions = discovery.discover(path=str(eval_file))
 
-        # Use default config path (.twevals/runs)
-        results_dir = tmp_path / ".twevals" / "runs"
+        # Use default config path (.ezvals/runs)
+        results_dir = tmp_path / ".ezvals" / "runs"
         store = ResultsStore(results_dir)
         run_id = store.generate_run_id()
 

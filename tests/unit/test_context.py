@@ -1,7 +1,7 @@
 """Unit tests for EvalContext"""
 
 import pytest
-from twevals import EvalContext, eval, EvalResult
+from ezvals import EvalContext, eval, EvalResult
 
 
 class TestEvalContextBasics:

@@ -1,24 +1,24 @@
-"""Tests for file-level defaults (twevals_defaults) functionality."""
+"""Tests for file-level defaults (ezvals_defaults) functionality."""
 
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from twevals.discovery import EvalDiscovery
+from ezvals.discovery import EvalDiscovery
 
 
 class TestFileDefaults:
-    """Test suite for file-level defaults using twevals_defaults."""
+    """Test suite for file-level defaults using ezvals_defaults."""
 
     def test_file_with_defaults_all_tests_inherit(self, tmp_path: Path):
-        """Tests in a file with twevals_defaults should inherit those defaults."""
+        """Tests in a file with ezvals_defaults should inherit those defaults."""
         test_file = tmp_path / "test_with_defaults.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "customer_service",
     "labels": ["production", "v2"],
     "default_score_key": "accuracy",
@@ -56,10 +56,10 @@ def test_two():
         """Decorator parameters should override file-level defaults."""
         test_file = tmp_path / "test_override.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "customer_service",
     "labels": ["production"],
     "default_score_key": "accuracy",
@@ -100,11 +100,11 @@ def test_partial_override():
         assert func2.context_kwargs.get("default_score_key") == "accuracy"  # From file defaults
 
     def test_file_without_defaults_uses_builtin(self, tmp_path: Path):
-        """Files without twevals_defaults should use built-in defaults."""
+        """Files without ezvals_defaults should use built-in defaults."""
         test_file = tmp_path / "test_no_defaults.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
 @eval
 def test_builtin_defaults():
@@ -130,10 +130,10 @@ def test_builtin_defaults():
         """File defaults should support metadata field."""
         test_file = tmp_path / "test_metadata.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "customer_service",
     "metadata": {"version": "v2", "model": "gpt-4"},
 }
@@ -175,10 +175,10 @@ def test_with_decorator_metadata():
         """Parametrized functions should inherit file defaults."""
         test_file = tmp_path / "test_parametrized.py"
         test_file.write_text("""
-from twevals import eval, parametrize
-from twevals.context import EvalResult
+from ezvals import eval, parametrize
+from ezvals.context import EvalResult
 
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "math_problems",
     "labels": ["production"],
 }
@@ -207,14 +207,14 @@ def test_math(input, expected):
             assert func.dataset == "math_problems"
             assert func.labels == ["production"]
 
-    def test_empty_twevals_defaults(self, tmp_path: Path):
-        """Empty twevals_defaults should not cause errors."""
+    def test_empty_ezvals_defaults(self, tmp_path: Path):
+        """Empty ezvals_defaults should not cause errors."""
         test_file = tmp_path / "test_empty_defaults.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
-twevals_defaults = {}
+ezvals_defaults = {}
 
 @eval
 def test_empty_defaults():
@@ -237,13 +237,13 @@ def test_empty_defaults():
         assert func.context_kwargs.get("default_score_key") is None
 
     def test_partial_file_defaults(self, tmp_path: Path):
-        """twevals_defaults can specify only some parameters."""
+        """ezvals_defaults can specify only some parameters."""
         test_file = tmp_path / "test_partial.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
-twevals_defaults = {
+ezvals_defaults = {
     "labels": ["experimental"],
     # dataset and default_score_key not specified
 }
@@ -272,13 +272,13 @@ def test_partial_defaults():
         """Decorator-provided empty lists should override file defaults."""
         test_file = tmp_path / "test_empty_decorator_lists.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
 def noop_evaluator(result):
     return result
 
-twevals_defaults = {
+ezvals_defaults = {
     "labels": ["production"],
     "evaluators": [noop_evaluator],
 }
@@ -301,14 +301,14 @@ def test_empty_lists_override():
         assert func.labels == []
         assert func.evaluators == []
 
-    def test_twevals_defaults_not_dict_ignored(self, tmp_path: Path):
-        """Non-dict twevals_defaults should be ignored gracefully."""
+    def test_ezvals_defaults_not_dict_ignored(self, tmp_path: Path):
+        """Non-dict ezvals_defaults should be ignored gracefully."""
         test_file = tmp_path / "test_invalid_defaults.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
-twevals_defaults = "not a dict"  # Invalid
+ezvals_defaults = "not a dict"  # Invalid
 
 @eval
 def test_invalid_defaults():
@@ -333,13 +333,13 @@ class TestFileDefaultsEdgeCases:
     """Test edge cases for file-level defaults."""
 
     def test_invalid_keys_warning(self, tmp_path: Path, capsys):
-        """Unknown keys in twevals_defaults should trigger a warning."""
+        """Unknown keys in ezvals_defaults should trigger a warning."""
         test_file = tmp_path / "test_invalid_keys.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "test_dataset",
     "invalid_key": "should warn",
     "another_bad_key": 123,
@@ -359,7 +359,7 @@ def test_with_invalid_keys():
 
         # Check that warning was printed
         captured = capsys.readouterr()
-        assert "Warning: Unknown keys in twevals_defaults" in captured.out
+        assert "Warning: Unknown keys in ezvals_defaults" in captured.out
         assert "another_bad_key" in captured.out
         assert "invalid_key" in captured.out
 
@@ -371,10 +371,10 @@ def test_with_invalid_keys():
         """Metadata from file and decorator should be deep merged."""
         test_file = tmp_path / "test_metadata_merge.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
-twevals_defaults = {
+ezvals_defaults = {
     "metadata": {
         "model": "gpt-4",
         "version": "v1",
@@ -407,13 +407,13 @@ def test_merged_metadata():
         """Mutable values in file defaults should be deep copied for each test."""
         test_file = tmp_path / "test_mutable_copy.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
 shared_labels = ["production", "test"]
 shared_metadata = {"model": "gpt-4", "nested": {"key": "value"}}
 
-twevals_defaults = {
+ezvals_defaults = {
     "labels": shared_labels,
     "metadata": shared_metadata,
 }
@@ -450,16 +450,16 @@ def test_two():
         assert len(functions[1].labels) == 2  # Original length
 
     def test_evaluators_support(self, tmp_path: Path):
-        """twevals_defaults should support evaluators parameter."""
+        """ezvals_defaults should support evaluators parameter."""
         test_file = tmp_path / "test_evaluators.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalResult
+from ezvals import eval
+from ezvals.context import EvalResult
 
 def my_evaluator(result):
     return result
 
-twevals_defaults = {
+ezvals_defaults = {
     "evaluators": [my_evaluator],
 }
 
@@ -480,17 +480,17 @@ def test_with_evaluator():
         assert functions[0].evaluators[0].__name__ == "my_evaluator"
 
     def test_target_support(self, tmp_path: Path):
-        """twevals_defaults should support target parameter."""
+        """ezvals_defaults should support target parameter."""
         test_file = tmp_path / "test_target.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalContext
+from ezvals import eval
+from ezvals.context import EvalContext
 
 def my_target(context):
     context.output = "target output"
     return {"output": "target output"}
 
-twevals_defaults = {
+ezvals_defaults = {
     "target": my_target,
 }
 
@@ -510,8 +510,8 @@ def test_with_target(context):
         """When no default_score_key is set anywhere, should fall back to 'correctness'."""
         test_file = tmp_path / "test_default_fallback.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalContext
+from ezvals import eval
+from ezvals.context import EvalContext
 
 @eval  # No default_score_key in decorator or file
 def test_uses_correctness_default(context: EvalContext):
@@ -538,10 +538,10 @@ def test_uses_correctness_default(context: EvalContext):
         """File default_score_key should override built-in 'correctness' default."""
         test_file = tmp_path / "test_file_default_score.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalContext
+from ezvals import eval
+from ezvals.context import EvalContext
 
-twevals_defaults = {
+ezvals_defaults = {
     "default_score_key": "accuracy"
 }
 
@@ -568,10 +568,10 @@ def test_uses_file_default(context: EvalContext):
         """Decorator default_score_key should override file defaults."""
         test_file = tmp_path / "test_decorator_score.py"
         test_file.write_text("""
-from twevals import eval
-from twevals.context import EvalContext
+from ezvals import eval
+from ezvals.context import EvalContext
 
-twevals_defaults = {
+ezvals_defaults = {
     "default_score_key": "accuracy"
 }
 

@@ -61,7 +61,7 @@ def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
 class ResultsStore:
     base_dir: Path
 
-    def __init__(self, base_dir: str | Path = ".twevals/sessions") -> None:
+    def __init__(self, base_dir: str | Path = ".ezvals/sessions") -> None:
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self._locks: dict[str, Lock] = {}

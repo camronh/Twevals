@@ -1,13 +1,13 @@
 # Python Library Experience Specification
 
-This document specifies the Python API experience for Twevals.
+This document specifies the Python API experience for EZVals.
 
 ---
 
 ## Public API
 
 ```python
-from twevals import eval, EvalResult, TraceData, parametrize, EvalContext, run_evals
+from ezvals import eval, EvalResult, TraceData, parametrize, EvalContext, run_evals
 ```
 
 | Export | Type | Purpose |
@@ -23,7 +23,7 @@ from twevals import eval, EvalResult, TraceData, parametrize, EvalContext, run_e
 
 ## The `@eval` Decorator
 
-**Intent:** User wants to mark a function as an evaluation that Twevals can discover and run.
+**Intent:** User wants to mark a function as an evaluation that EZVals can discover and run.
 
 ### Basic Usage
 
@@ -405,7 +405,7 @@ Scenario: Async evaluator
 
 ```python
 # At module level
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "customer_service",
     "labels": ["production"],
     "default_score_key": "accuracy",

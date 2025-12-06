@@ -46,7 +46,7 @@ Thumbs.db
 # Project specific
 !tests/fixtures/*.json
 results/
-.twevals/
+.ezvals/
 
 # Agents
 *.local.md
@@ -54,4 +54,4 @@ PRD.md
 AGENTS.md
 
 
-twevals.json
+ezvals.json

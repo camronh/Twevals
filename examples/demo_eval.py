@@ -1,6 +1,6 @@
 import time
 import asyncio
-from twevals import eval, EvalResult, EvalContext
+from ezvals import eval, EvalResult, EvalContext
 import random
 
 async def run_agent(prompt):

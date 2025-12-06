@@ -9,16 +9,16 @@ Sessions let you group related evaluation runs together, enabling workflows like
 
 ```bash
 # Start the web UI
-twevals serve evals.py
+ezvals serve evals.py
 
 # Run headlessly with session and run names
-twevals run evals.py --session model-upgrade --run-name gpt5-baseline
+ezvals run evals.py --session model-upgrade --run-name gpt5-baseline
 
 # Continue the session with another run
-twevals run evals.py --session model-upgrade --run-name gpt5-tuned
+ezvals run evals.py --session model-upgrade --run-name gpt5-tuned
 
 # Auto-generated friendly names
-twevals run evals.py
+ezvals run evals.py
 ```
 
 ## Concepts
@@ -46,7 +46,7 @@ This ensures every run has identifiable names without requiring manual input.
 Run files are named with the pattern `{run_name}_{timestamp}.json`:
 
 ```
-.twevals/runs/
+.ezvals/runs/
 ├── gpt5-baseline_2024-01-15T10-30-00Z.json   # Named run
 ├── gpt5-tuned_2024-01-15T11-00-00Z.json      # Second run in session
 ├── swift-falcon_2024-01-15T14-45-00Z.json    # Auto-generated name
@@ -84,9 +84,9 @@ SESSION model-upgrade · RUN gpt5-baseline | TESTS 50 | ACCURACY 45/50 | ...
     Compare performance across different models or configurations:
 
     ```bash
-    twevals run evals/ --session model-comparison --run-name gpt4-baseline
-    twevals run evals/ --session model-comparison --run-name claude-3
-    twevals run evals/ --session model-comparison --run-name gemini-pro
+    ezvals run evals/ --session model-comparison --run-name gpt4-baseline
+    ezvals run evals/ --session model-comparison --run-name claude-3
+    ezvals run evals/ --session model-comparison --run-name gemini-pro
     ```
 
     Each run's JSON file contains the full results for that model, all grouped under the same session.
@@ -96,11 +96,11 @@ SESSION model-upgrade · RUN gpt5-baseline | TESTS 50 | ACCURACY 45/50 | ...
     Track progress while debugging or improving:
 
     ```bash
-    twevals run evals/ --session bug-fix-123 --run-name initial
+    ezvals run evals/ --session bug-fix-123 --run-name initial
     # Make changes...
-    twevals run evals/ --session bug-fix-123 --run-name attempt-2
+    ezvals run evals/ --session bug-fix-123 --run-name attempt-2
     # More changes...
-    twevals run evals/ --session bug-fix-123 --run-name fixed
+    ezvals run evals/ --session bug-fix-123 --run-name fixed
     ```
   </Accordion>
 
@@ -108,7 +108,7 @@ SESSION model-upgrade · RUN gpt5-baseline | TESTS 50 | ACCURACY 45/50 | ...
     Use session names to track runs across deployments:
 
     ```bash
-    twevals run evals/ --session "release-${VERSION}" --run-name "build-${BUILD_ID}" -o results.json
+    ezvals run evals/ --session "release-${VERSION}" --run-name "build-${BUILD_ID}" -o results.json
     ```
   </Accordion>
 
@@ -116,9 +116,9 @@ SESSION model-upgrade · RUN gpt5-baseline | TESTS 50 | ACCURACY 45/50 | ...
     Compare different approaches:
 
     ```bash
-    twevals run evals/ --session prompt-experiment --run-name prompt-v1
-    twevals run evals/ --session prompt-experiment --run-name prompt-v2-concise
-    twevals run evals/ --session prompt-experiment --run-name prompt-v3-detailed
+    ezvals run evals/ --session prompt-experiment --run-name prompt-v1
+    ezvals run evals/ --session prompt-experiment --run-name prompt-v2-concise
+    ezvals run evals/ --session prompt-experiment --run-name prompt-v3-detailed
     ```
   </Accordion>
 </AccordionGroup>

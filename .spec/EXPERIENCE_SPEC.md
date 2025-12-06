@@ -1,9 +1,9 @@
-# Experience Specification: Twevals
+# Experience Specification: EZVals
 
 **Version:** 0.0.2a15 (Unreleased)
 **Generated:** 2025-12-05
 
-This is the canonical source of truth for what Twevals enables users to do and how they do it. If someone deleted all the code but kept these documents, another developer should be able to rebuild the library with identical user-facing behavior.
+This is the canonical source of truth for what EZVals enables users to do and how they do it. If someone deleted all the code but kept these documents, another developer should be able to rebuild the library with identical user-facing behavior.
 
 ---
 
@@ -12,7 +12,7 @@ This is the canonical source of truth for what Twevals enables users to do and h
 | Document | Covers |
 |----------|--------|
 | [EXPERIENCE_SPEC_PYTHON.md](./EXPERIENCE_SPEC_PYTHON.md) | Python API: `@eval`, `EvalContext`, `@parametrize`, schemas |
-| [EXPERIENCE_SPEC_CLI.md](./EXPERIENCE_SPEC_CLI.md) | CLI: `twevals run`, `twevals serve`, flags, exit codes |
+| [EXPERIENCE_SPEC_CLI.md](./EXPERIENCE_SPEC_CLI.md) | CLI: `ezvals run`, `ezvals serve`, flags, exit codes |
 | [EXPERIENCE_SPEC_WEBUI.md](./EXPERIENCE_SPEC_WEBUI.md) | Web UI: table view, detail view, editing, export, REST API |
 
 ---
@@ -21,9 +21,9 @@ This is the canonical source of truth for what Twevals enables users to do and h
 
 ### Core Philosophy
 
-Twevals is a **pytest-inspired, code-first evaluation framework** for LLM applications and AI agents.
+EZVals is a **pytest-inspired, code-first evaluation framework** for LLM applications and AI agents.
 
-1. **Write evals like tests** - If you know pytest, you know Twevals. Use `assert`, `@parametrize`, and decorators.
+1. **Write evals like tests** - If you know pytest, you know EZVals. Use `assert`, `@parametrize`, and decorators.
 
 2. **Everything lives locally** - Datasets, code, and results are version-controlled together. No cloud dependencies.
 
@@ -54,9 +54,9 @@ Twevals is a **pytest-inspired, code-first evaluation framework** for LLM applic
 | `@eval` decorator | Mark functions as evaluations | [Python](./EXPERIENCE_SPEC_PYTHON.md#the-eval-decorator) |
 | `EvalContext` injection | Build results declaratively | [Python](./EXPERIENCE_SPEC_PYTHON.md#evalcontext) |
 | Assertion-based scoring | Pytest-like pass/fail | [Python](./EXPERIENCE_SPEC_PYTHON.md#assertion-based-scoring) |
-| `twevals run` command | Headless execution | [CLI](./EXPERIENCE_SPEC_CLI.md#twevals-run) |
+| `ezvals run` command | Headless execution | [CLI](./EXPERIENCE_SPEC_CLI.md#ezvals-run) |
 | Results saved to JSON | Persistence and analysis | [CLI](./EXPERIENCE_SPEC_CLI.md#output-options) |
-| `twevals serve` command | Web UI for review | [CLI](./EXPERIENCE_SPEC_CLI.md#twevals-serve) |
+| `ezvals serve` command | Web UI for review | [CLI](./EXPERIENCE_SPEC_CLI.md#ezvals-serve) |
 
 ### Tier 2: Important (Has Workarounds)
 
@@ -76,7 +76,7 @@ Twevals is a **pytest-inspired, code-first evaluation framework** for LLM applic
 |------------|-----------------|------|
 | `--visual` output | Rich terminal display | [CLI](./EXPERIENCE_SPEC_CLI.md#output-options) |
 | `--verbose` | Debug output | [CLI](./EXPERIENCE_SPEC_CLI.md#output-options) |
-| `twevals.json` config | Persistent defaults | [CLI](./EXPERIENCE_SPEC_CLI.md#configuration-file-twevalsjson) |
+| `ezvals.json` config | Persistent defaults | [CLI](./EXPERIENCE_SPEC_CLI.md#configuration-file-ezvalsjson) |
 | UI inline editing | Result annotation | [WebUI](./EXPERIENCE_SPEC_WEBUI.md#inline-editing) |
 | CSV export | Spreadsheet analysis | [WebUI](./EXPERIENCE_SPEC_WEBUI.md#export) |
 | Sessions/runs | Grouping for comparison | [CLI](./EXPERIENCE_SPEC_CLI.md#session-options) |
@@ -110,7 +110,7 @@ Twevals is a **pytest-inspired, code-first evaluation framework** for LLM applic
          │
          ▼
 ┌─────────────────┐
-│  JSON Storage   │ ◄── .twevals/runs/{name}_{timestamp}.json
+│  JSON Storage   │ ◄── .ezvals/runs/{name}_{timestamp}.json
 └─────────────────┘
 ```
 
@@ -195,12 +195,12 @@ These are mistakes new users commonly make.
 ```gherkin
 # Add CLI tests
 Scenario: --no-save outputs JSON to stdout
-  When `twevals run evals/ --no-save`
+  When `ezvals run evals/ --no-save`
   Then JSON printed to stdout, no file created
 
 Scenario: --limit restricts evaluation count
   Given 10 @eval functions
-  When `twevals run evals/ --limit 3`
+  When `ezvals run evals/ --limit 3`
   Then only 3 run
 ```
 

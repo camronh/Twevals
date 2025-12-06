@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from twevals.storage import ResultsStore
+from ezvals.storage import ResultsStore
 
 
 def minimal_summary() -> dict:

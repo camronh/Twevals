@@ -86,7 +86,7 @@ EvalResult(
 
 ### latency (optional)
 
-Execution time in seconds. Automatically measured by Twevals.
+Execution time in seconds. Automatically measured by EZVals.
 
 ```python
 EvalResult(
@@ -149,7 +149,7 @@ async def my_eval(ctx: EvalContext):
 For batch operations or custom flows:
 
 ```python
-from twevals import EvalResult
+from ezvals import EvalResult
 
 result = EvalResult(
     input="What is 2 + 2?",
@@ -232,7 +232,7 @@ The pass/fail logic checks if **any** score has `passed=True`, not if **all** sc
 ## Complete Example
 
 ```python
-from twevals import EvalResult
+from ezvals import EvalResult
 
 result = EvalResult(
     input={

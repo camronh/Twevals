@@ -1,9 +1,9 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock
-from twevals.runner import EvalRunner
-from twevals.decorators import EvalFunction, eval
-from twevals.schemas import EvalResult
+from ezvals.runner import EvalRunner
+from ezvals.decorators import EvalFunction, eval
+from ezvals.schemas import EvalResult
 
 class TestRunnerHooks:
     @pytest.mark.asyncio

@@ -33,7 +33,7 @@ flowchart LR
 ## The Eval
 
 ```python
-from twevals import eval, parametrize, EvalContext
+from ezvals import eval, parametrize, EvalContext
 
 async def run_agent(ctx: EvalContext):
     results = await run_rag_agent(ctx.input)
@@ -83,13 +83,13 @@ async def test_rag_agent(ctx: EvalContext):
 
 ```bash
 # Run headlessly
-twevals run evals/rag_agent.py
+ezvals run evals/rag_agent.py
 
 # Start the web UI
-twevals serve evals/rag_agent.py
+ezvals serve evals/rag_agent.py
 
 # Run verbosely to see each result
-twevals run evals/rag_agent.py --verbose
+ezvals run evals/rag_agent.py --verbose
 ```
 
 ## Example Results

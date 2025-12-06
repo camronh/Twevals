@@ -5,7 +5,7 @@ description: When each test case needs its own logic
 
 # Granular Evals
 
-Sometimes you can't parametrize. Each test case has unique logic—different ways of deriving ground truth, different validation. Twevals handles this naturally.
+Sometimes you can't parametrize. Each test case has unique logic—different ways of deriving ground truth, different validation. EZVals handles this naturally.
 
 ## The Problem
 
@@ -13,7 +13,7 @@ You're evaluating an agent that handles diverse tasks. Each test case:
 - Derives ground truth from a different source
 - Has custom validation logic
 
-With most frameworks, you'd need a separate dataset for each. With Twevals, you just write functions.
+With most frameworks, you'd need a separate dataset for each. With EZVals, you just write functions.
 
 ```mermaid
 flowchart TD
@@ -39,7 +39,7 @@ flowchart TD
 ## The Eval
 
 ```python
-from twevals import eval, EvalContext
+from ezvals import eval, EvalContext
 
 async def run_agent(ctx: EvalContext):
     """Shared target function for all evals"""
@@ -102,13 +102,13 @@ async def test_factorial(ctx: EvalContext):
 
 ```bash
 # Start the web UI
-twevals serve evals/agent_tasks.py
+ezvals serve evals/agent_tasks.py
 
 # Run a specific test
-twevals serve evals/agent_tasks.py::test_weather_lookup
+ezvals serve evals/agent_tasks.py::test_weather_lookup
 
 # Run with session/run names for tracking
-twevals serve evals/agent_tasks.py --session model-upgrade --run-name baseline
+ezvals serve evals/agent_tasks.py --session model-upgrade --run-name baseline
 ```
 
 ## When to Use This Pattern

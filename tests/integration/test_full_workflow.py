@@ -4,8 +4,8 @@ import json
 import os
 from pathlib import Path
 
-from twevals.runner import EvalRunner
-from twevals import eval, EvalResult
+from ezvals.runner import EvalRunner
+from ezvals import eval, EvalResult
 
 
 class TestFullWorkflow:
@@ -14,7 +14,7 @@ class TestFullWorkflow:
         # Create a test evaluation file
         test_file = tmp_path / "test_evals.py"
         test_file.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="integration_test", labels=["test"])
 def test_simple_eval():
@@ -76,7 +76,7 @@ def test_different_dataset():
         # Create test file
         test_file = tmp_path / "test_export.py"
         test_file.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_export():
@@ -117,7 +117,7 @@ def test_export():
         # Create test file
         test_file = tmp_path / "test_export.py"
         test_file.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_export():
@@ -151,7 +151,7 @@ def test_export():
         # Create test file with error
         test_file = tmp_path / "test_errors.py"
         test_file.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 def test_with_error():
@@ -185,7 +185,7 @@ def test_normal():
         # Create test file with multiple functions
         test_file = tmp_path / "test_concurrent.py"
         test_file.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 import time
 
 @eval()
@@ -232,7 +232,7 @@ async def test_slow_async():
         
         file1 = tmp_path / "evals" / "test1.py"
         file1.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="dataset1")
 def test_one():
@@ -241,7 +241,7 @@ def test_one():
         
         file2 = tmp_path / "evals" / "test2.py"
         file2.write_text("""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="dataset2")
 def test_two():

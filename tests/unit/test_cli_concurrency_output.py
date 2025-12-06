@@ -1,7 +1,7 @@
 
 import pytest
 from click.testing import CliRunner
-from twevals.cli import cli
+from ezvals.cli import cli
 
 class TestCLIConcurrencyOutput:
     def setup_method(self):
@@ -16,7 +16,7 @@ class TestCLIConcurrencyOutput:
             with open('test_conc.py', 'w') as f:
                 f.write("""
 import asyncio
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval()
 async def test_async_1():

@@ -1,4 +1,4 @@
-from twevals import eval, EvalResult, parametrize, EvalContext
+from ezvals import eval, EvalResult, parametrize, EvalContext
 
 def custom_evaluator(result: EvalResult):
     """Custom evaluator to check if the reference output is in the output"""
@@ -163,7 +163,7 @@ async def test_model_temperatures(ctx: EvalContext, model, temperature):
         output=f"Response from {model} at temp {temperature}",
         scores={"value": min(creativity_score, 1.0), "key": "quality"},
         metadata={"model": model, "temperature": temperature},
-        trace_url="https://twevals.com",
+        trace_url="https://ezvals.com",
         trace_data={
             "sampling": {"top_p": 0.95, "temperature": temperature},
             "env": {"model": model},

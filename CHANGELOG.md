@@ -2,11 +2,15 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Changed: Project renamed from Twevals to EZVals. Package is now `ezvals`, CLI command is `ezvals`, config file is `ezvals.json`, results directory is `.ezvals/`.
+
 ## 0.0.2a16 - 2025-12-06
 
-- Changed: Results storage restructured to hierarchical sessions with overwrite-by-name semantics. New directory structure: `.twevals/sessions/{session_name}/{run_name}_{timestamp}.json`.
+- Changed: Results storage restructured to hierarchical sessions with overwrite-by-name semantics. New directory structure: `.ezvals/sessions/{session_name}/{run_name}_{timestamp}.json`.
 - Changed: `serve` command auto-generates session names (each serve = new session). `run` command defaults to "default" session.
-- Changed: Config `results_dir` default updated from `.twevals/runs` to `.twevals/sessions`.
+- Changed: Config `results_dir` default updated from `.ezvals/runs` to `.ezvals/sessions`.
 - Added: GitHub-style split button for Run controls with Rerun/New Run dropdown options.
 - Added: Run mode persistence via localStorage - dropdown selection is sticky across sessions.
 - Added: Descriptive subtext in dropdown menu ("Overwrite current run results" / "Create a fresh run in this session").
@@ -20,7 +24,7 @@ All notable changes to this project will be documented in this file.
 
 - Changed: `add_output()` and `add_score()` replaced with unified `store()` method. Use `ctx.store(output=..., scores=..., messages=..., trace_url=...)` for all context updates. Same score key overwrites, different key appends.
 - Changed: `run_data` renamed to `trace_data` with structured `TraceData` schema. First-class `messages` and `trace_url` properties, plus arbitrary extra fields via dict-style access.
-- Added: `--run` flag for `twevals serve` to auto-run all evaluations on startup.
+- Added: `--run` flag for `ezvals serve` to auto-run all evaluations on startup.
 - Added: Light mode support with theme toggle in UI header.
 - Changed: UI completely refactored to client-side rendering with new dashboard design featuring bar charts and score breakdown.
 - Added: Three-state filtering for datasets and labels (include/exclude/any) in the web UI.
@@ -39,7 +43,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.0.2a13 - 2025-11-30
 
-- Added: `--no-save` flag for `twevals run` to skip saving results to file (outputs JSON to stdout instead).
+- Added: `--no-save` flag for `ezvals run` to skip saving results to file (outputs JSON to stdout instead).
 - Added: Dataset and label pill filters in the web UI sidebar for quick filtering.
 - Added: Shift-click range selection for result checkboxes in the web UI.
 - Added: Trace URL link button in result detail page when `run_data.trace_url` is present.
@@ -51,17 +55,17 @@ All notable changes to this project will be documented in this file.
 
 ## 0.0.2a12 - 2025-11-30
 
-- Changed: CLI restructured into explicit subcommands - `twevals serve <path>` starts the UI, `twevals run <path>` runs headless. The `--serve` flag is removed.
-- Changed: `twevals serve` no longer auto-runs evaluations. Discovered evals are displayed in the UI with "not_started" status; users click Run to start execution.
-- Changed: Removed `--limit`, `--dev`, `--host`, `--list`, and `--quiet` flags from `twevals serve` to simplify the serve command.
-- Changed: `twevals run` now outputs minimal text by default (optimized for LLM agents) - just "Running..." and "Results saved to...". Use `--visual` for rich output.
-- Added: `--visual` flag for `twevals run` to show progress dots, results table, and summary (the previous default behavior).
-- Added: `--verbose/-v` flag for `twevals run` now shows stdout from eval functions instead of controlling output verbosity.
-- Changed: Results are always auto-saved to file. Priority: `--output` flag > config `results_dir` > default `.twevals/runs/`.
-- Changed: Removed `--csv` and `--json` flags from `twevals run` - results always save as JSON.
+- Changed: CLI restructured into explicit subcommands - `ezvals serve <path>` starts the UI, `ezvals run <path>` runs headless. The `--serve` flag is removed.
+- Changed: `ezvals serve` no longer auto-runs evaluations. Discovered evals are displayed in the UI with "not_started" status; users click Run to start execution.
+- Changed: Removed `--limit`, `--dev`, `--host`, `--list`, and `--quiet` flags from `ezvals serve` to simplify the serve command.
+- Changed: `ezvals run` now outputs minimal text by default (optimized for LLM agents) - just "Running..." and "Results saved to...". Use `--visual` for rich output.
+- Added: `--visual` flag for `ezvals run` to show progress dots, results table, and summary (the previous default behavior).
+- Added: `--verbose/-v` flag for `ezvals run` now shows stdout from eval functions instead of controlling output verbosity.
+- Changed: Results are always auto-saved to file. Priority: `--output` flag > config `results_dir` > default `.ezvals/runs/`.
+- Changed: Removed `--csv` and `--json` flags from `ezvals run` - results always save as JSON.
 - Changed: Concurrency minimum is now 1 (sequential execution). Values < 1 throw an error.
 - Added: Support for running selected evaluations from the initial "not_started" state via checkbox selection in the UI.
-- Added: `twevals.json` config file for persisting CLI defaults. Auto-generated on first run with `concurrency` and `results_dir`.
+- Added: `ezvals.json` config file for persisting CLI defaults. Auto-generated on first run with `concurrency` and `results_dir`.
 - Added: Settings UI in the web interface to edit runtime options (concurrency, results_dir, timeout). Changes take effect on next run without restarting the server.
 - Removed: `rerun_config` from run JSON files (YAGNI - feature for viewing historical runs didn't exist).
 - Tests: Updated CLI tests to use new `run` subcommand syntax.
@@ -100,31 +104,31 @@ All notable changes to this project will be documented in this file.
 - Changed: `EvalFunction.__call__` now detects `__param_sets__` attribute and automatically runs all parametrized variants.
 - Added: UI redesign with dark mode support, amber/zinc color scheme, improved typography, and responsive layout.
 - Added: Background evaluation execution - UI loads immediately while evals run in background with live status updates.
-- Added: Auto-open browser when starting `twevals --serve` for faster workflow.
+- Added: Auto-open browser when starting `ezvals --serve` for faster workflow.
 - Added: Rerun configuration stored in run JSON for reproducible reruns from UI.
 - Changed: Simplified server/CLI code by inlining background execution logic.
 
 ## 0.0.2a9 - 2025-11-23
 
 - Added: `timeout` parameter to `@eval` decorator for setting per-evaluation timeout limits in seconds.
-- Added: `--timeout` CLI flag for `twevals run` command to set a global timeout that overrides individual test timeouts.
+- Added: `--timeout` CLI flag for `ezvals run` command to set a global timeout that overrides individual test timeouts.
 - Added: Timeout enforcement for both sync and async functions using `concurrent.futures.ThreadPoolExecutor` and `asyncio.wait_for`.
 - Added: Timeout support for target hooks with proper error handling and latency tracking on timeout.
 - Tests: Added comprehensive timeout tests covering async/sync functions and target hooks.
 
 0.0.2a8 - 2025-11-23
 
-- Added: `--list` flag to `twevals run` command to list evaluations without running them, preserving all filtering options.
+- Added: `--list` flag to `ezvals run` command to list evaluations without running them, preserving all filtering options.
 - Changed: Removed standalone `list` command in favor of `run --list`.
 - Tests: Added regression test for concurrency output capturing.
 
 0.0.2a7 - 2025-11-23
 
-- Added: File-level defaults via `twevals_defaults` dictionary - set global properties (dataset, labels, metadata, etc.) at the top of test files that all tests inherit, similar to pytest's pytestmark pattern.
+- Added: File-level defaults via `ezvals_defaults` dictionary - set global properties (dataset, labels, metadata, etc.) at the top of test files that all tests inherit, similar to pytest's pytestmark pattern.
 - Added: Support for all decorator parameters in file defaults including evaluators, target, input, reference, default_score_key, metadata, and metadata_from_params.
 - Added: Deep merge for metadata - when both file defaults and decorator specify metadata, they are merged with decorator values taking precedence on conflicts.
 - Added: Deep copy of mutable values (lists, dicts) in file defaults to prevent shared mutation between tests.
-- Added: Validation and warnings for unknown keys in `twevals_defaults` dictionary.
+- Added: Validation and warnings for unknown keys in `ezvals_defaults` dictionary.
 - Changed: `default_score_key` parameter default changed from "correctness" to None to enable file-level defaults, with "correctness" still applied as final fallback via EvalContext.
 - Tests: Added 17 comprehensive tests for file defaults including inheritance, overrides, deep merge, mutable value copying, and default_score_key priority chain.
 
@@ -140,7 +144,7 @@ All notable changes to this project will be documented in this file.
 
 0.0.2a5 - 2025-11-22
 
-- Added: `--json` flag for `twevals run` command to output results as compact JSON to stdout, omitting null values for machine-readable output.
+- Added: `--json` flag for `ezvals run` command to output results as compact JSON to stdout, omitting null values for machine-readable output.
 - Added: Pytest-style progress reporting during evaluation execution with colored output (green for pass, red for fail/error).
 - Added: Progress display shows one line per file with filename prefix followed by status characters (`.`, `F`, `E`), matching pytest's output format.
 - Added: Detailed failure reporting after progress output showing dataset::function_name, error messages, and input/output for failed evaluations.
@@ -151,7 +155,7 @@ All notable changes to this project will be documented in this file.
 
 0.0.2a4 - 2025-11-22
 
-- Added: Function name filtering using `file.py::function_name` syntax, similar to pytest. Run specific evaluation functions or parametrized variants (e.g., `twevals run tests.py::my_eval` or `tests.py::my_eval[param1]`).
+- Added: Function name filtering using `file.py::function_name` syntax, similar to pytest. Run specific evaluation functions or parametrized variants (e.g., `ezvals run tests.py::my_eval` or `tests.py::my_eval[param1]`).
 - Tests: Added comprehensive tests for function filtering including exact matches, parametrized variants, and combined filters with dataset/labels.
 
 0.0.2a3 - 2025-11-22
@@ -201,9 +205,9 @@ All notable changes to this project will be documented in this file.
 - Added: Inline editing in the UI for dataset, labels, metadata (JSON), scores (key/value/passed/notes), and a free‑form annotation. Edits are persisted to JSON.
 - Added: Actions menu in the UI with Refresh, Rerun full suite, Export JSON, and Export CSV.
 - Added: Server endpoints: `PATCH /api/runs/{run_id}/results/{index}` for updates; `POST /api/runs/rerun`; `GET /api/runs/{run_id}/export/{json|csv}`.
-- Added: `twevals serve --dev` hot‑reload mode for rapid UI/eval iteration.
-- Added: CLI CSV export via `twevals run ... --csv results.csv` (in addition to JSON `-o`).
-- Added: `ResultsStore` for robust, atomic JSON writes under `.twevals/runs/` with `latest.json` convenience copy.
+- Added: `ezvals serve --dev` hot‑reload mode for rapid UI/eval iteration.
+- Added: CLI CSV export via `ezvals run ... --csv results.csv` (in addition to JSON `-o`).
+- Added: `ResultsStore` for robust, atomic JSON writes under `.ezvals/runs/` with `latest.json` convenience copy.
 - Added: `EvalResult.run_data` for run‑specific structured data, displayed in the UI details panel.
 - Changed: CLI `run` prints a results table by default and a concise summary below it.
 - Tests: Added integration tests for server (JSON flow, export endpoints, rerun) and e2e UI tests (Playwright), plus unit tests for storage behavior.

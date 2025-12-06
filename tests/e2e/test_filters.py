@@ -3,8 +3,8 @@ import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
-from twevals.server import create_app
-from twevals.storage import ResultsStore
+from ezvals.server import create_app
+from ezvals.storage import ResultsStore
 
 # Import run_server from conftest in same directory
 sys.path.insert(0, str(Path(__file__).parent))

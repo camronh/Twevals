@@ -223,14 +223,14 @@ function initMessagesPaneResize() {
       document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
-      localStorage.setItem('twevals:messagesPaneWidth', pane.style.width);
+      localStorage.setItem('ezvals:messagesPaneWidth', pane.style.width);
     };
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   });
 
-  const savedWidth = localStorage.getItem('twevals:messagesPaneWidth');
+  const savedWidth = localStorage.getItem('ezvals:messagesPaneWidth');
   if (savedWidth) pane.style.width = savedWidth;
 }
 
@@ -242,12 +242,12 @@ function saveResizeSizes() {
   if (inputPanel) sizes.inputWidth = inputPanel.style.width;
   if (sidebarPanel) sizes.sidebarWidth = sidebarPanel.style.width;
   if (refPanel) sizes.refHeight = refPanel.style.height;
-  localStorage.setItem('twevals:detailSizes', JSON.stringify(sizes));
+  localStorage.setItem('ezvals:detailSizes', JSON.stringify(sizes));
 }
 
 function restoreResizeSizes() {
   try {
-    const sizes = JSON.parse(localStorage.getItem('twevals:detailSizes') || '{}');
+    const sizes = JSON.parse(localStorage.getItem('ezvals:detailSizes') || '{}');
     const inputPanel = document.getElementById('input-panel');
     const mainPanel = document.getElementById('main-panel');
     const sidebarPanel = document.getElementById('sidebar-panel');
@@ -277,7 +277,7 @@ function initCopyButtons() {
   });
 
   document.getElementById('copy-cmd-btn')?.addEventListener('click', async () => {
-    const cmd = evalPath ? `twevals run ${evalPath}::${functionName}` : `twevals run ${functionName || ''}`.trim();
+    const cmd = evalPath ? `ezvals run ${evalPath}::${functionName}` : `ezvals run ${functionName || ''}`.trim();
     try {
       await navigator.clipboard.writeText(cmd);
       const btn = document.getElementById('copy-cmd-btn');

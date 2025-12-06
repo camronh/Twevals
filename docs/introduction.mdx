@@ -1,20 +1,20 @@
 ---
-title: Twevals
+title: EZVals
 description: A pytest-inspired evaluation framework for LLMs and AI agents
 ---
 
 <img
   className="block dark:hidden"
   src="/assets/hero-light.svg"
-  alt="Twevals Hero"
+  alt="EZVals Hero"
 />
 <img
   className="hidden dark:block"
   src="/assets/hero-dark.svg"
-  alt="Twevals Hero"
+  alt="EZVals Hero"
 />
 
-Twevals is a lightweight, code-first evaluation framework for testing AI agents and LLM applications. Inspired by Pytest and LangSmith, Twevals lets you
+EZVals is a lightweight, code-first evaluation framework for testing AI agents and LLM applications. Inspired by Pytest and LangSmith, EZVals lets you
 write evaluations like you write tests!
 
 <CardGroup cols={2}>
@@ -37,15 +37,15 @@ write evaluations like you write tests!
 <CodeGroup>
 
 ```bash uv
-uv add twevals --dev
+uv add ezvals --dev
 ```
 
 ```bash pip
-pip install twevals
+pip install ezvals
 ```
 
 ```bash poetry
-poetry add twevals --group dev
+poetry add ezvals --group dev
 ```
 
 </CodeGroup>
@@ -55,7 +55,7 @@ poetry add twevals --group dev
 Evaluating a simple sentiment analyzer against a ground truth dataset:
 
 ```python
-from twevals import eval, parametrize, EvalContext
+from ezvals import eval, parametrize, EvalContext
 
 @eval(
   input="I love this product!",  # Prompt
@@ -89,25 +89,25 @@ async def test_sentiment_batch(ctx: EvalContext):
 Start the web UI to run evals and review results:
 
 ```bash
-twevals serve sentiment_evals.py
+ezvals serve sentiment_evals.py
 
 # Or run all in a dir
-twevals serve evals/
+ezvals serve evals/
 ```
 
 ### Web UI
 
-Twevals spins up a local Web UI that makes it easy to filter, run, and rerun evals. Do deep analysis on the results
+EZVals spins up a local Web UI that makes it easy to filter, run, and rerun evals. Do deep analysis on the results
 
 <img
   className="block dark:hidden"
   src="/assets/ui-screenshot-light.png"
-  alt="Twevals Web UI"
+  alt="EZVals Web UI"
 />
 <img
   className="hidden dark:block"
   src="/assets/ui-screenshot-dark.png"
-  alt="Twevals Web UI"
+  alt="EZVals Web UI"
 />
 
 All results are stored locally in a `.json` file for further analysis.
@@ -121,9 +121,9 @@ The CLI and SDK make it easy for your coding agent to run, analyze, and iterate 
 Your coding agent would run:
 
 ```bash
-twevals run sentiment_evals.py::test_sentiment_batch --session sentiment-failed-results
+ezvals run sentiment_evals.py::test_sentiment_batch --session sentiment-failed-results
 
-// Eval results saved to ./twevals/cool-cloud-2025.json
+// Eval results saved to ./ezvals/cool-cloud-2025.json
 ```
 
 The agent could review the json results before presenting a solution to you. It could even implement that solution and rerun the evals to compare
@@ -147,8 +147,8 @@ before and after!
 
 **Pytest isn't the answer either.** Tests are pass/fail—evals are for _analysis_. You want to see all results, latency, cost, comparisons over time. Pytest doesn't do that.
 
-**Twevals is different:** minimal, flexible, agent-friendly. Everything lives locally as code and JSON.
+**EZVals is different:** minimal, flexible, agent-friendly. Everything lives locally as code and JSON.
 
 <Card title="Ready to start?" icon="play" href="/quickstart">
-  Follow our quickstart guide to set up Twevals in under 5 minutes.
+  Follow our quickstart guide to set up EZVals in under 5 minutes.
 </Card>

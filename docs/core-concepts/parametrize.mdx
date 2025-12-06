@@ -8,7 +8,7 @@ The `@parametrize` decorator lets you generate multiple evaluations from one fun
 ## Basic Usage
 
 ```python
-from twevals import eval, parametrize, EvalContext
+from ezvals import eval, parametrize, EvalContext
 
 @eval(dataset="math")
 @parametrize("a,b,expected", [
@@ -134,10 +134,10 @@ Run a specific parametrized test:
 
 ```bash
 # Run all variants
-twevals run evals.py::test_math
+ezvals run evals.py::test_math
 
 # Run specific variant
-twevals run evals.py::test_math[2][3][5]
+ezvals run evals.py::test_math[2][3][5]
 ```
 
 ## Combining with Other Options
@@ -184,7 +184,7 @@ async def test_qa(ctx: EvalContext, question, answer):
 ## Example: Comprehensive Test Suite
 
 ```python
-from twevals import eval, parametrize, EvalContext
+from ezvals import eval, parametrize, EvalContext
 
 PROMPTS = [
     {"input": "Hello", "expected_intent": "greeting", "expected_sentiment": "positive"},

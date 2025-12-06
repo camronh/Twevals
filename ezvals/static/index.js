@@ -1,6 +1,6 @@
-const STORAGE_KEY = "twevals:hidden_columns";
-const WIDTHS_STORAGE_KEY = "twevals:col_widths";
-const THEME_STORAGE_KEY = "twevals:theme";
+const STORAGE_KEY = "ezvals:hidden_columns";
+const WIDTHS_STORAGE_KEY = "ezvals:col_widths";
+const THEME_STORAGE_KEY = "ezvals:theme";
 
 document.getElementById('theme-toggle')?.addEventListener('click', () => {
   const html = document.documentElement;
@@ -34,7 +34,7 @@ const PILL_TONES = {
   'error': 'text-rose-300 bg-rose-500/10 border border-rose-500/40',
   'cancelled': 'text-amber-300 bg-amber-500/10 border border-amber-500/40'
 };
-const STATS_PREF_KEY = 'twevals:statsExpanded';
+const STATS_PREF_KEY = 'ezvals:statsExpanded';
 
 function summarizeStats(data) {
   const results = data.results || [];
@@ -539,7 +539,7 @@ function hasRunningResults(data) {
   return (data.results || []).some(r => ['pending', 'running', 'not_started'].includes(r.result?.status));
 }
 function getFilters() { return _filters; }
-function setFilters(f) { _filters = f || defaultFilters(); sessionStorage.setItem('twevals:filters', JSON.stringify(_filters)); renderActiveFilters(); applyAllFilters(); }
+function setFilters(f) { _filters = f || defaultFilters(); sessionStorage.setItem('ezvals:filters', JSON.stringify(_filters)); renderActiveFilters(); applyAllFilters(); }
 
 let _isRunning = false;
 function updateSelectionUI() {
@@ -788,15 +788,15 @@ function initResizableColumns(table) {
     const handle = document.createElement('div'); handle.className = 'col-resizer'; th.appendChild(handle);
     let startX = 0, startWidth = 0; const colKey = th.getAttribute('data-col'); const minWidth = 50, maxWidth = 500;
     function onMouseMove(e) { const dx = e.clientX - startX; let newW = Math.max(minWidth, Math.min(maxWidth, startWidth + dx)); th.style.width = `${newW}px`; }
-    function onMouseUp() { document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); document.body.classList.remove('twevals-col-resize'); const map = getColWidths(); map[colKey] = Math.round(th.getBoundingClientRect().width); setColWidths(map); }
-    handle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startX = e.clientX; startWidth = th.getBoundingClientRect().width; document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp); document.body.classList.add('twevals-col-resize'); });
+    function onMouseUp() { document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); document.body.classList.remove('ezvals-col-resize'); const map = getColWidths(); map[colKey] = Math.round(th.getBoundingClientRect().width); setColWidths(map); }
+    handle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startX = e.clientX; startWidth = th.getBoundingClientRect().width; document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp); document.body.classList.add('ezvals-col-resize'); });
     handle.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
     const saved = widths[colKey]; if (saved) th.style.width = `${saved}px`;
   });
 }
 
 const searchInput = document.getElementById('search-input');
-if (searchInput) { let timer; searchInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { sessionStorage.setItem('twevals:search', searchInput.value); applyAllFilters(); }, 120); }); }
+if (searchInput) { let timer; searchInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { sessionStorage.setItem('ezvals:search', searchInput.value); applyAllFilters(); }, 120); }); }
 function compare(op, a, b) { if (op === '>') return a > b; if (op === '>=') return a >= b; if (op === '<') return a < b; if (op === '<=') return a <= b; if (op === '==') return a === b; if (op === '!=') return a !== b; return false; }
 function rowMatchesFilters(mainTr) {
   const f = getFilters();
@@ -844,14 +844,14 @@ function updateFilteredSummary() {
   Object.entries(map).forEach(([k, d]) => { const el = document.createElement('span'); el.className = 'rounded px-2 py-0.5 text-[10px] font-medium '; if (d.bool > 0) { const total = d.passed + d.failed; if (d.passed === total) el.className += 'bg-emerald-500/20 text-emerald-300'; else if (d.passed === 0) el.className += 'bg-rose-500/20 text-rose-300'; else el.className += 'bg-blue-500/20 text-blue-300'; el.textContent = `${k}: ${d.passed}/${total}`; } else if (d.count > 0) { el.className += 'bg-zinc-800 text-zinc-300'; el.textContent = `${k}: ${(d.sum / d.count).toFixed(2)}`; } else return; chipsEl?.appendChild(el); });
 }
 
-function initScrollRestoration() { const savedY = sessionStorage.getItem('twevals:scrollY'); if (savedY !== null) { window.scrollTo(0, parseInt(savedY, 10)); sessionStorage.removeItem('twevals:scrollY'); } const params = new URLSearchParams(window.location.search); if (params.has('scroll')) { history.replaceState(null, '', window.location.pathname); } }
-document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('twevals:scrollY', window.scrollY.toString()); } });
+function initScrollRestoration() { const savedY = sessionStorage.getItem('ezvals:scrollY'); if (savedY !== null) { window.scrollTo(0, parseInt(savedY, 10)); sessionStorage.removeItem('ezvals:scrollY'); } const params = new URLSearchParams(window.location.search); if (params.has('scroll')) { history.replaceState(null, '', window.location.pathname); } }
+document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('ezvals:scrollY', window.scrollY.toString()); } });
 function wireExportButtons() { const table = document.getElementById('results-table'); const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest'; document.getElementById('export-json-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/json`; }); document.getElementById('export-csv-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/csv`; }); }
 
 document.addEventListener('click', async (e) => { const btn = e.target.closest('.copy-btn'); if (!btn) return; const id = btn.getAttribute('data-copy'); const pre = document.getElementById(id); if (!pre) return; try { await navigator.clipboard.writeText(pre.innerText); const copyIcon = btn.querySelector('.copy-icon'); const checkIcon = btn.querySelector('.check-icon'); if (copyIcon && checkIcon) { copyIcon.classList.add('hidden'); checkIcon.classList.remove('hidden'); setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900); } } catch { alert('Copy failed'); } });
 
 // Run button mode: 'run' (fresh), 'rerun', or 'new'
-const RUN_MODE_KEY = 'twevals:runMode';
+const RUN_MODE_KEY = 'ezvals:runMode';
 let _runMode = localStorage.getItem(RUN_MODE_KEY) || 'rerun';
 let _hasRunBefore = false;
 
@@ -1156,7 +1156,7 @@ function updateStatsInPlace(data) {
   form?.addEventListener('submit', saveConfig);
 })();
 
-function restoreFiltersAndSearch() { const savedFilters = sessionStorage.getItem('twevals:filters'); if (savedFilters) { try { _filters = JSON.parse(savedFilters); } catch {} } const savedSearch = sessionStorage.getItem('twevals:search'); const searchEl = document.getElementById('search-input'); if (savedSearch && searchEl) { searchEl.value = savedSearch; } }
+function restoreFiltersAndSearch() { const savedFilters = sessionStorage.getItem('ezvals:filters'); if (savedFilters) { try { _filters = JSON.parse(savedFilters); } catch {} } const savedSearch = sessionStorage.getItem('ezvals:search'); const searchEl = document.getElementById('search-input'); if (savedSearch && searchEl) { searchEl.value = savedSearch; } }
 
 // Initial load
 async function loadResults() {

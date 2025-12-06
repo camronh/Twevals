@@ -2,7 +2,7 @@ import asyncio
 import random
 import time
 
-from twevals import EvalContext, eval
+from ezvals import EvalContext, eval
 
 
 def _simulate_latency(min_seconds: float = 8.0, max_seconds: float = 12.0) -> float:

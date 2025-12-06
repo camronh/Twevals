@@ -1,14 +1,14 @@
 """
-Example demonstrating file-level defaults using twevals_defaults.
+Example demonstrating file-level defaults using ezvals_defaults.
 
 This shows how to set global properties at the file level that all tests inherit,
 similar to pytest's pytestmark pattern.
 """
 
-from twevals import eval, parametrize, EvalContext
+from ezvals import eval, parametrize, EvalContext
 
 # Set file-level defaults that all tests in this file will inherit
-twevals_defaults = {
+ezvals_defaults = {
     "dataset": "sentiment_analysis",
     "labels": ["production", "nlp"],
     "default_score_key": "correctness",
@@ -22,7 +22,7 @@ twevals_defaults = {
 @eval
 def test_positive_sentiment(ctx: EvalContext):
     """
-    This test inherits all defaults from twevals_defaults:
+    This test inherits all defaults from ezvals_defaults:
     - dataset: sentiment_analysis
     - labels: ["production", "nlp"]
     - default_score_key: correctness

@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from twevals.server import create_app
-from twevals.storage import ResultsStore
+from ezvals.server import create_app
+from ezvals.storage import ResultsStore
 
 
 def make_summary() -> dict:
@@ -155,7 +155,7 @@ def test_rerun_endpoint(tmp_path: Path, monkeypatch):
     f = eval_dir / "test_e.py"
     f.write_text(
         """
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="rerun_ds")
 def case():
@@ -163,13 +163,13 @@ def case():
 """
     )
 
-    # Seed with an arbitrary run - use default config path (.twevals/runs)
-    results_dir = tmp_path / ".twevals" / "runs"
+    # Seed with an arbitrary run - use default config path (.ezvals/runs)
+    results_dir = tmp_path / ".ezvals" / "runs"
     store = ResultsStore(results_dir)
     run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
 
     # App configured with path for rerun
-    from twevals.server import create_app
+    from ezvals.server import create_app
     app = create_app(
         results_dir=str(results_dir),
         active_run_id=run_id,
@@ -205,7 +205,7 @@ def test_rerun_with_indices(tmp_path: Path):
     f = eval_dir / "test_selective.py"
     f.write_text(
         """
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="selective_ds")
 def case1():
@@ -268,8 +268,8 @@ def test_rerun_with_no_functions_persists_empty_run(tmp_path: Path, monkeypatch)
     f = eval_dir / "test_empty.py"
     f.write_text("# No eval functions here\n")
 
-    # Use default config path (.twevals/runs)
-    results_dir = tmp_path / ".twevals" / "runs"
+    # Use default config path (.ezvals/runs)
+    results_dir = tmp_path / ".ezvals" / "runs"
     store = ResultsStore(results_dir)
     run_id = store.save_run(make_summary(), "2024-01-01T00-00-00Z")
 
@@ -310,7 +310,7 @@ def test_stop_endpoint_stops_pending_tasks(tmp_path: Path, monkeypatch):
     f = eval_dir / "stop_eval.py"
     f.write_text(
         f"""
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 import time, json, pathlib
 
 log_file = pathlib.Path(r"{log_file}")
@@ -343,8 +343,8 @@ def third():
 """
     )
 
-    # Use default config path (.twevals/runs)
-    results_dir = tmp_path / ".twevals" / "runs"
+    # Use default config path (.ezvals/runs)
+    results_dir = tmp_path / ".ezvals" / "runs"
     store = ResultsStore(results_dir)
     run_id = store.save_run({"total_evaluations": 0, "results": []}, "2024-01-01T00-00-00Z")
 

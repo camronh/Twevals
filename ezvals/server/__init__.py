@@ -11,11 +11,11 @@ from pydantic import BaseModel
 
 from rich.console import Console
 
-from twevals.decorators import EvalFunction
-from twevals.discovery import EvalDiscovery
-from twevals.runner import EvalRunner
-from twevals.storage import ResultsStore
-from twevals.config import load_config, save_config
+from ezvals.decorators import EvalFunction
+from ezvals.discovery import EvalDiscovery
+from ezvals.runner import EvalRunner
+from ezvals.storage import ResultsStore
+from ezvals.config import load_config, save_config
 
 console = Console()
 
@@ -338,7 +338,7 @@ def create_app(
                         r["result"]["status"] = "cancelled"
                         changed = True
                 if changed:
-                    from twevals.storage import _atomic_write_json
+                    from ezvals.storage import _atomic_write_json
                     run_file = store._find_run_file(app.state.active_run_id)
                     _atomic_write_json(run_file, data)
             except Exception:
@@ -409,7 +409,7 @@ def create_app(
         app.state.active_run_id = run_id
         # Ensure run_name is set (belt and suspenders - should already be set in _serve)
         if not app.state.run_name:
-            from twevals.storage import _generate_friendly_name
+            from ezvals.storage import _generate_friendly_name
             app.state.run_name = _generate_friendly_name()
         start_run(all_functions, run_id)
         return {"ok": True, "run_id": run_id}
@@ -546,7 +546,7 @@ def create_app(
         if request.run_name:
             app.state.run_name = request.run_name
         else:
-            from twevals.storage import _generate_friendly_name
+            from ezvals.storage import _generate_friendly_name
             app.state.run_name = _generate_friendly_name()
 
         # Discover functions
@@ -566,12 +566,12 @@ def create_app(
 
     @app.get("/api/config")
     def get_config():
-        """Get the current twevals config."""
+        """Get the current ezvals config."""
         return load_config()
 
     @app.put("/api/config")
     def update_config(body: dict):
-        """Update the twevals config."""
+        """Update the ezvals config."""
         config = load_config()
         config.update(body)
         save_config(config)

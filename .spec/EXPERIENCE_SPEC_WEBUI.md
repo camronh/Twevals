@@ -1,13 +1,13 @@
 # Web UI Experience Specification
 
-This document specifies the web interface experience for Twevals.
+This document specifies the web interface experience for EZVals.
 
 ---
 
 ## Starting the UI
 
 ```bash
-twevals serve evals/
+ezvals serve evals/
 ```
 
 Opens browser to `http://127.0.0.1:8000`. Evaluations are discovered but not auto-run.
@@ -20,7 +20,7 @@ Opens browser to `http://127.0.0.1:8000`. Evaluations are discovered but not aut
 
 ```gherkin
 Scenario: View discovered evaluations
-  Given the UI starts with `twevals serve evals/`
+  Given the UI starts with `ezvals serve evals/`
   When the browser opens
   Then all discovered evaluations are listed
   And each row shows: function name, dataset, labels, status
@@ -216,7 +216,7 @@ Scenario: Export as CSV
 
 ```gherkin
 Scenario: View sessions
-  Given multiple sessions exist in .twevals/sessions/
+  Given multiple sessions exist in .ezvals/sessions/
   When the user clicks the session dropdown
   Then all sessions are listed
   And the current session is highlighted
@@ -375,7 +375,7 @@ The UI is backed by these REST endpoints, also available programmatically.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/config` | GET | Get twevals.json config |
+| `/api/config` | GET | Get ezvals.json config |
 | `/api/config` | PUT | Update config |
 
 ---
@@ -406,10 +406,10 @@ Scenario: Result index out of range
 
 ## File Storage
 
-Results are stored in `.twevals/sessions/` with hierarchical session directories:
+Results are stored in `.ezvals/sessions/` with hierarchical session directories:
 
 ```
-.twevals/
+.ezvals/
 ├── sessions/
 │   ├── default/
 │   │   └── swift-falcon_1705312200.json
@@ -419,7 +419,7 @@ Results are stored in `.twevals/sessions/` with hierarchical session directories
 │   └── model-upgrade/
 │       ├── gpt5_1705313000.json
 │       └── gpt5-1_1705313200.json
-└── twevals.json
+└── ezvals.json
 ```
 
 **File naming:** `{run_name}_{unix_timestamp}.json`

@@ -1,7 +1,7 @@
 """
 Verbose examples to test UI rendering of long inputs/outputs.
 """
-from twevals import eval, EvalResult, parametrize, EvalContext
+from ezvals import eval, EvalResult, parametrize, EvalContext
 
 LONG_ARTICLE = """The rapid advancement of artificial intelligence has fundamentally transformed how we approach software development, data analysis, and decision-making processes across industries. Machine learning models, particularly large language models (LLMs), have demonstrated remarkable capabilities in understanding and generating human-like text, leading to applications ranging from automated customer service to sophisticated code generation tools.
 

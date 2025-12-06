@@ -71,7 +71,7 @@ Follow these steps in order:
 **Skip this step unless the user explicitly asked to ship to main.**
 
 If shipping to main:
-1. Ask the user what version number to use (suggest next alpha based on CHANGELOG)
+1. Don't ask the user what version number to use (suggest next alpha based on CHANGELOG)
 2. Update CHANGELOG.md: change `## Unreleased` to `## <version> - <today's date>`
 3. Commit: `git commit -m "release <version>"`
 4. Push dev: `git push origin dev`

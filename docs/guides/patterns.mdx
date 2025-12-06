@@ -58,7 +58,7 @@ async def test_humor(ctx: EvalContext):
 Return multiple results from one function:
 
 ```python
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="batch")
 def test_batch_prompts():
@@ -129,7 +129,7 @@ Share configuration across multiple evaluations:
 ```python
 # evals/customer_service.py
 
-twevals_defaults = {
+ezvals_defaults = {
     "labels": ["production"],
     "metadata": {"department": "support"}
 }

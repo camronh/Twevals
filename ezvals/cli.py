@@ -14,11 +14,11 @@ from threading import Thread
 
 from rich.console import Console
 
-from twevals.formatters import format_results_table
-from twevals.decorators import EvalFunction
-from twevals.discovery import EvalDiscovery
-from twevals.runner import EvalRunner
-from twevals.config import load_config
+from ezvals.formatters import format_results_table
+from ezvals.decorators import EvalFunction
+from ezvals.discovery import EvalDiscovery
+from ezvals.runner import EvalRunner
+from ezvals.config import load_config
 
 
 console = Console()
@@ -125,10 +125,10 @@ class ProgressReporter:
 
 @click.group()
 def cli():
-    """Twevals - A lightweight evaluation framework for AI/LLM testing
+    """EZVals - A lightweight evaluation framework for AI/LLM testing
 
-    Start the UI: twevals serve evals.py
-    Run headless: twevals run evals.py
+    Start the UI: ezvals serve evals.py
+    Run headless: ezvals run evals.py
 
     Path can include function name filter: file.py::function_name
     """
@@ -155,11 +155,11 @@ def serve_cmd(
     """Start the web UI to browse and run evaluations."""
     from pathlib import Path as PathLib
 
-    from twevals.storage import _generate_friendly_name
+    from ezvals.storage import _generate_friendly_name
 
     # Load config and merge with CLI args
     config = load_config()
-    results_dir = results_dir if results_dir is not None else config.get("results_dir", ".twevals/sessions")
+    results_dir = results_dir if results_dir is not None else config.get("results_dir", ".ezvals/sessions")
     port = port if port is not None else config.get("port", 8000)
 
     # Auto-generate session name for serve command (each serve = new session)
@@ -220,7 +220,7 @@ def run_cmd(
 ):
     """Run evaluations headless. Optimized for LLM agents by default."""
     from pathlib import Path as PathLib
-    from twevals.storage import ResultsStore
+    from ezvals.storage import ResultsStore
 
     # Load config and merge with CLI args
     config = load_config()
@@ -283,8 +283,8 @@ def run_cmd(
             runner._save_results(summary, output)
             saved_path = output
         else:
-            # Save to config results_dir (default .twevals/sessions)
-            results_dir = config.get("results_dir", ".twevals/sessions")
+            # Save to config results_dir (default .ezvals/sessions)
+            results_dir = config.get("results_dir", ".ezvals/sessions")
             overwrite = config.get("overwrite", True)
             store = ResultsStore(results_dir)
             # CLI run defaults to "default" session when not specified
@@ -335,13 +335,13 @@ def _serve(
 ):
     """Serve a web UI to browse and run evaluations."""
     try:
-        from twevals.server import create_app
+        from ezvals.server import create_app
         import uvicorn
     except Exception:
         console.print("[red]Missing server dependencies. Install with:[/red] \n  uv add fastapi uvicorn jinja2")
         raise
 
-    from twevals.storage import ResultsStore, _generate_friendly_name
+    from ezvals.storage import ResultsStore, _generate_friendly_name
 
     # Discover functions (for display, not running)
     discovery = EvalDiscovery()
@@ -371,7 +371,7 @@ def _serve(
         console.print("[yellow]No evaluations found matching the criteria.[/yellow]")
 
     url = f"http://127.0.0.1:{port}"
-    console.print(f"\n[bold green]Twevals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
+    console.print(f"\n[bold green]EZVals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
     if auto_run:
         console.print(f"[cyan]Auto-running {len(functions)} evaluation(s)...[/cyan]")
     else:

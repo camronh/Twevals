@@ -4,7 +4,7 @@ import inspect
 from pathlib import Path
 from typing import List, Optional, Set
 
-from twevals.decorators import EvalFunction
+from ezvals.decorators import EvalFunction
 
 
 class EvalDiscovery:
@@ -76,11 +76,11 @@ class EvalDiscovery:
             module.__file__ = str(file_path)
             spec.loader.exec_module(module)
 
-            file_defaults = getattr(module, 'twevals_defaults', {})
+            file_defaults = getattr(module, 'ezvals_defaults', {})
             if not isinstance(file_defaults, dict):
                 file_defaults = {}
 
-            from twevals.parametrize import generate_eval_functions
+            from ezvals.parametrize import generate_eval_functions
 
             def get_line_number(func):
                 try:
@@ -133,7 +133,7 @@ class EvalDiscovery:
                       'default_score_key', 'metadata'}
         invalid_keys = set(file_defaults.keys()) - valid_keys
         if invalid_keys:
-            print(f"Warning: Unknown keys in twevals_defaults: {', '.join(sorted(invalid_keys))}")
+            print(f"Warning: Unknown keys in ezvals_defaults: {', '.join(sorted(invalid_keys))}")
 
         if 'dataset' in file_defaults and func.dataset == 'default':
             func.dataset = file_defaults['dataset']

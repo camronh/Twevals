@@ -6,7 +6,7 @@ description: Configure and register evaluation functions
 The `@eval` decorator marks functions as evaluations. Here's a complete example:
 
 ```python
-from twevals import eval, parametrize, EvalContext
+from ezvals import eval, parametrize, EvalContext
 
 @eval(
     dataset="customer_service",
@@ -58,7 +58,7 @@ async def test_complex_reasoning(ctx: EvalContext):
 
 Filter with CLI:
 ```bash
-twevals run evals.py --label production
+ezvals run evals.py --label production
 ```
 
 ### Pre-populated Fields
@@ -142,7 +142,7 @@ Both sync and async functions work—just use `async def` if your code uses `awa
 Return a list of `EvalResult` objects for batch evaluations:
 
 ```python
-from twevals import eval, EvalResult
+from ezvals import eval, EvalResult
 
 @eval(dataset="batch")
 def test_batch():

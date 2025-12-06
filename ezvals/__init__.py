@@ -1,8 +1,8 @@
-from twevals.decorators import eval
-from twevals.schemas import EvalResult, TraceData
-from twevals.parametrize import parametrize
-from twevals.context import EvalContext
-from twevals.runner import run_evals
+from ezvals.decorators import eval
+from ezvals.schemas import EvalResult, TraceData
+from ezvals.parametrize import parametrize
+from ezvals.context import EvalContext
+from ezvals.runner import run_evals
 
 __all__ = ["eval", "EvalResult", "TraceData", "parametrize", "EvalContext", "run_evals"]
 
@@ -14,6 +14,6 @@ except Exception:  # pragma: no cover
     PackageNotFoundError = Exception
 
 try:
-    __version__ = _pkg_version("twevals") if _pkg_version else "0.0.0"
+    __version__ = _pkg_version("ezvals") if _pkg_version else "0.0.0"
 except PackageNotFoundError:
     __version__ = "0.0.0"
