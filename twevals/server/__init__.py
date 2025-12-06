@@ -65,8 +65,6 @@ def create_app(
     app.state.discovered_functions = discovered_functions or []
     # Cancellation event for stopping running evals
     app.state.cancel_event = Event()
-    # Track which indices are being run (None = all, list = specific indices)
-    app.state.active_indices = None
     app.state.cancel_lock = Lock()
 
     def start_run(
@@ -368,7 +366,6 @@ def create_app(
         # Selective rerun: update in place
         if request.indices is not None:
             run_id = app.state.active_run_id
-            app.state.active_indices = list(request.indices)
 
             # Try to load existing run, or build from discovered functions if not_started state
             try:
@@ -408,7 +405,6 @@ def create_app(
         # Full rerun: create new run
         run_id = store.generate_run_id()
         app.state.active_run_id = run_id
-        app.state.active_indices = None  # All indices
         start_run(all_functions, run_id)
         return {"ok": True, "run_id": run_id}
 

@@ -6,6 +6,8 @@ import traceback
 import time
 import webbrowser
 import json
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Optional, List, Dict
 from threading import Thread
@@ -374,8 +376,7 @@ def _serve(
 
     # Auto-run evals if --run flag was passed
     if auto_run:
-        def trigger_auto_run():
-            import urllib.request
+        def do_auto_run():
             time.sleep(0.5)  # Wait for server to be ready
             try:
                 req = urllib.request.Request(
@@ -385,9 +386,9 @@ def _serve(
                     method='POST'
                 )
                 urllib.request.urlopen(req, timeout=5)
-            except Exception:
-                pass  # Server not ready yet, user can click Run manually
-        Thread(target=trigger_auto_run, daemon=True).start()
+            except urllib.error.URLError:
+                pass  # Server not ready, user can click Run manually
+        Thread(target=do_auto_run, daemon=True).start()
 
     def wait_for_stop_signal():
         """Wait for Esc or Ctrl+C while preserving log output formatting."""

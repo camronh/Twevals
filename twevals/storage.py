@@ -201,7 +201,7 @@ class ResultsStore:
                 raise IndexError("result index out of range")
 
             entry = results[index]
-            result_updates = updates.get("result") or {}
+            result_updates = updates.get("result")
             if result_updates:
                 result_entry = entry.setdefault("result", {})
                 for key in ("scores", "annotation", "annotations"):
