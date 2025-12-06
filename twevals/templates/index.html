@@ -1,1799 +1,277 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>twevals</title>
-    <link rel="icon" type="image/png" href="/static/logo.png" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-              mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
-            },
-            colors: {
-              theme: {
-                bg: 'var(--bg)',
-                'bg-secondary': 'var(--bg-secondary)',
-                'bg-elevated': 'var(--bg-elevated)',
-                text: 'var(--text)',
-                'text-secondary': 'var(--text-secondary)',
-                'text-muted': 'var(--text-muted)',
-                border: 'var(--border)',
-                'border-subtle': 'var(--border-subtle)',
-                'btn-bg': 'var(--btn-bg)',
-                'btn-bg-hover': 'var(--btn-bg-hover)',
-                'btn-border': 'var(--btn-border)',
-              },
-              accent: {
-                link: 'var(--accent-link)',
-                'link-hover': 'var(--accent-link-hover)',
-                success: 'var(--accent-success)',
-                'success-bg': 'var(--accent-success-bg)',
-                error: 'var(--accent-error)',
-                'error-bg': 'var(--accent-error-bg)',
-              }
-            }
-          }
-        }
-      };
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-      /* ═══════════════════════════════════════════════════════════════
-         THEME VARIABLES - Edit these to change the entire color scheme
-         ═══════════════════════════════════════════════════════════════ */
-      :root {
-        --bg: #ffffff;
-        --bg-secondary: #f8f8f8;
-        --bg-elevated: #f0f0f0;
-        --text: #171717;
-        --text-secondary: #404040;
-        --text-muted: #737373;
-        --border: #e5e5e5;
-        --border-subtle: #f0f0f0;
-        --btn-bg: #f5f5f5;
-        --btn-bg-hover: #e5e5e5;
-        --btn-border: #d4d4d4;
-        /* Accent colors - more saturated for light backgrounds */
-        --accent-link: #2563eb;
-        --accent-link-hover: #1d4ed8;
-        --accent-success: #059669;
-        --accent-success-bg: rgba(5, 150, 105, 0.15);
-        --accent-error: #dc2626;
-        --accent-error-bg: rgba(220, 38, 38, 0.15);
-      }
-      .dark {
-        --bg: #09090b;
-        --bg-secondary: #18181b;
-        --bg-elevated: #27272a;
-        --text: #fafafa;
-        --text-secondary: #e4e4e7;
-        --text-muted: #a1a1aa;
-        --border: #27272a;
-        --border-subtle: #3f3f46;
-        --btn-bg: #27272a;
-        --btn-bg-hover: #3f3f46;
-        --btn-border: #3f3f46;
-        /* Accent colors - lighter for dark backgrounds */
-        --accent-link: #60a5fa;
-        --accent-link-hover: #93c5fd;
-        --accent-success: #34d399;
-        --accent-success-bg: rgba(52, 211, 153, 0.15);
-        --accent-error: #f87171;
-        --accent-error-bg: rgba(248, 113, 113, 0.15);
-      }
+{% extends "base.html" %}
 
-      /* Panels */
-      .dropdown-menu, .filters-panel, .columns-panel { display: none; }
-      .dropdown-menu.active, .filters-panel.active, .columns-panel.active { display: block; }
-      .filter-badge { display: none; }
-      .filter-badge.active { display: flex; }
+{% block title %}twevals{% endblock %}
 
-      /* Table sorting indicators */
-      #results-table thead th[aria-sort="ascending"]::after { content: " ▲"; font-size: 8px; color: #3b82f6; }
-      #results-table thead th[aria-sort="descending"]::after { content: " ▼"; font-size: 8px; color: #3b82f6; }
+{% block extra_head %}
+    <link rel="stylesheet" href="/static/index.css">
+{% endblock %}
 
-      /* Column resizer */
-      .col-resizer { position: absolute; right: 0; top: 0; width: 4px; height: 100%; cursor: col-resize; }
-      .col-resizer:hover, .col-resizer:active { background: rgba(59, 130, 246, 0.4); }
-      body.twevals-col-resize { cursor: col-resize !important; user-select: none; }
+{% block body_class %}min-h-screen bg-theme-bg font-sans text-theme-text{% endblock %}
 
-      /* Checkbox styling */
-      .row-checkbox, #select-all-checkbox {
-        appearance: none;
-        width: 14px;
-        height: 14px;
-        border: 1px solid #52525b;
-        border-radius: 2px;
-        background: transparent;
-        cursor: pointer;
-        position: relative;
-      }
-      .row-checkbox:hover, #select-all-checkbox:hover { border-color: #3b82f6; }
-      .row-checkbox:checked, #select-all-checkbox:checked { background: #3b82f6; border-color: #3b82f6; }
-      .row-checkbox:checked::after, #select-all-checkbox:checked::after {
-        content: '';
-        position: absolute;
-        left: 4px;
-        top: 1px;
-        width: 4px;
-        height: 7px;
-        border: solid white;
-        border-width: 0 1.5px 1.5px 0;
-        transform: rotate(45deg);
-      }
-      .row-checkbox:indeterminate, #select-all-checkbox:indeterminate { background: #3b82f6; border-color: #3b82f6; }
-      .row-checkbox:indeterminate::after, #select-all-checkbox:indeterminate::after {
-        content: '';
-        position: absolute;
-        left: 2px;
-        top: 5px;
-        width: 8px;
-        height: 1.5px;
-        background: white;
-      }
+{% block icon_defs %}
+    <svg xmlns="http://www.w3.org/2000/svg" class="hidden">
+        <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="M21 21l-4.35-4.35"></path>
+        </symbol>
+        <symbol id="icon-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+        </symbol>
+        <symbol id="icon-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+        </symbol>
+        <symbol id="icon-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>
+        </symbol>
+        <symbol id="icon-play" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </symbol>
+        <symbol id="icon-stop" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12"></rect>
+        </symbol>
+        <symbol id="icon-github" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path>
+        </symbol>
+        <symbol id="icon-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </symbol>
+        <symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </symbol>
+        <symbol id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </symbol>
+        <symbol id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path>
+        </symbol>
+        <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+        </symbol>
+        <symbol id="icon-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 15l-6-6-6 6"></path>
+        </symbol>
+        <symbol id="icon-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"></path>
+        </symbol>
+        <symbol id="icon-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"></path>
+        </symbol>
+        <symbol id="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+        </symbol>
+        <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 6L9 17l-5-5"></path>
+        </symbol>
+    </svg>
+{% endblock %}
 
-      /* Expanded rows */
-      tr[data-row="main"].expanded { background: rgba(59, 130, 246, 0.03); }
-      tr[data-row="main"].expanded td { vertical-align: top; }
-      tr[data-row="main"].expanded .line-clamp-2 { -webkit-line-clamp: unset; white-space: pre-wrap; }
-      tr[data-row="main"].expanded .expand-chevron { transform: rotate(90deg); }
-      .expand-chevron { transition: transform 0.1s; }
-      tr[data-row="main"].expanded td[data-col="scores"] > div { flex-wrap: wrap; overflow: visible; }
-      tr[data-row="main"].expanded .score-badge { max-width: unset; }
-      tr[data-row="main"].expanded .score-extra { display: inline-flex; }
-      tr[data-row="main"].expanded .score-overflow { display: none; }
-      #results-table td { overflow: hidden; text-overflow: ellipsis; max-width: 0; }
-
-      /* Row transition animations */
-      tr[data-row="main"] {
-        transition: opacity 0.3s ease-out, background-color 0.2s ease-out;
-      }
-      .status-pill {
-        transition: all 0.3s ease-out;
-      }
-      .status-pill.fade-out {
-        opacity: 0;
-        transform: scale(0.8);
-      }
-      .score-badge {
-        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
-      }
-      .score-badge.entering {
-        opacity: 0;
-        transform: translateY(4px);
-      }
-      /* Cell content transitions */
-      .cell-content {
-        transition: opacity 0.25s ease-out;
-      }
-      .cell-content.updating {
-        opacity: 0;
-      }
-      /* Latency value pop-in */
-      .latency-value {
-        transition: opacity 0.3s ease-out, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      }
-      .latency-value.entering {
-        opacity: 0;
-        transform: scale(0.8);
-      }
-
-      #results { min-height: 200px; }
-
-      /* ═══════════════════════════════════════════════════════════════
-         EXPANDED STATS PANEL - Two-column layout
-         ═══════════════════════════════════════════════════════════════ */
-      .stats-expanded {
-        border-bottom: 1px solid var(--border);
-        background: transparent;
-      }
-      .stats-expanded.hidden { display: none; }
-
-      .stats-layout {
-        display: flex;
-        min-height: 200px;
-        position: relative;
-      }
-
-      .stats-collapse-btn {
-        position: absolute;
-        top: 0;
-        right: 0;
-        z-index: 10;
-        display: flex;
-        width: 32px;
-        height: 32px;
-        align-items: center;
-        justify-content: center;
-        border: none;
-        background: transparent;
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: color 0.15s;
-      }
-      .stats-collapse-btn:hover { color: var(--text); }
-
-      /* Left panel: details + Y-axis labels */
-      .stats-left {
-        width: 25%;
-        display: flex;
-        border-right: 1px solid var(--border-subtle); /* This IS the Y-axis */
-      }
-      .stats-left-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 0.5rem;
-        padding: 1rem 1rem 1rem 1.5rem;
-      }
-      .stats-left-header {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid var(--border);
-      }
-      .stats-info-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-      .stats-info-label {
-        font-size: 10px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #52525b;
-        min-width: 50px;
-      }
-      /* Y-axis labels - right edge of left panel */
-      .stats-yaxis {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        padding: 0 8px;
-        height: 120px;
-        align-self: flex-start;
-        margin-top: 1rem;
-      }
-      .stats-axis-label {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 9px;
-        color: #71717a;
-        text-align: right;
-        line-height: 1;
-      }
-
-      /* Metric blocks */
-      .stats-metric {
-        display: flex;
-        align-items: baseline;
-        gap: 0.5rem;
-      }
-      .stats-metric-value {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 56px;
-        font-weight: 600;
-        color: var(--text);
-        line-height: 1;
-      }
-      .stats-metric-sm .stats-metric-value {
-        font-size: 32px;
-      }
-      .stats-metric-unit {
-        font-size: 20px;
-        color: #71717a;
-      }
-      .stats-metric-label {
-        font-size: 14px;
-        font-weight: 500;
-        color: #52525b;
-        text-transform: lowercase;
-      }
-      .stats-metric-row {
-        display: flex;
-        gap: 1rem;
-        margin-top: -0.25rem;
-      }
-      .stats-metric-item {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 13px;
-        color: #71717a;
-      }
-
-      /* Session/run info */
-      .stats-session {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-        color: var(--text);
-      }
-      .stats-run {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-        color: #3b82f6;
-      }
-
-      /* Progress bar for expanded stats - inline with tests */
-      .stats-metric-row-main {
-        display: flex;
-        align-items: flex-start;
-        gap: 16px;
-        flex: 1;
-      }
-      .stats-progress {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex: 1;
-        max-width: 180px;
-        padding-top: 6px;
-      }
-      .stats-progress-bar {
-        flex: 1;
-        height: 8px;
-        background: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
-        border-radius: 4px;
-        overflow: hidden;
-        position: relative;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
-      }
-      .stats-progress-bar::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: 4px;
-        border: 1px solid rgba(255,255,255,0.05);
-        pointer-events: none;
-      }
-      .stats-progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
-        border-radius: 4px;
-        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.5), 0 0 4px rgba(59, 130, 246, 0.3);
-      }
-      .stats-progress-fill::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(
-          90deg,
-          transparent 0%,
-          rgba(255,255,255,0.3) 50%,
-          transparent 100%
-        );
-        animation: shimmer 1.5s ease-in-out infinite;
-      }
-      @keyframes shimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-      }
-      .stats-progress-text {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 12px;
-        font-weight: 500;
-        color: #60a5fa;
-        text-shadow: 0 0 8px rgba(96, 165, 250, 0.4);
-        white-space: nowrap;
-      }
-
-      .stats-toggle-btn {
-        display: flex;
-        width: 24px;
-        height: 24px;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid var(--btn-border);
-        border-radius: 4px;
-        background: var(--btn-bg);
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: all 0.15s;
-      }
-      .stats-toggle-btn:hover { background: var(--btn-bg-hover); color: var(--text); }
-
-      /* Right panel - chart + X-axis */
-      .stats-right {
-        width: 75%;
-        display: flex;
-        flex-direction: column;
-        padding: 1rem 1.5rem 1rem 0;
-      }
-      /* Chart area - gridlines extend from Y-axis */
-      .stats-chart-area {
-        height: 120px;
-        position: relative;
-        border-bottom: 1px solid var(--border-subtle); /* X-axis line */
-        margin-left: 0; /* Flush with Y-axis */
-      }
-      /* Gridlines */
-      .stats-gridline {
-        position: absolute;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: var(--border);
-        pointer-events: none;
-      }
-      /* Bars container */
-      .stats-chart-bars {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        padding: 0 1.5rem;
-        gap: 1.5rem;
-      }
-      /* Each bar column */
-      .stats-bar-col {
-        flex: 1;
-        max-width: 80px;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        opacity: 1;
-        transform: translateY(0);
-        transition: opacity 0.4s ease-out, transform 0.4s ease-out;
-      }
-      .stats-bar-col.entering {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      .stats-bar-col.exiting {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      .stats-chart-fill {
-        width: 100%;
-        transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.4s ease-out;
-      }
-      /* X-axis area - juts out from Y-axis */
-      .stats-xaxis {
-        margin-left: 0; /* Aligned with chart */
-        padding-left: 1.5rem;
-        padding-top: 8px;
-      }
-      /* Labels row */
-      .stats-chart-labels {
-        display: flex;
-        gap: 1.5rem;
-      }
-      .stats-chart-label {
-        flex: 1;
-        max-width: 80px;
-        font-size: 10px;
-        font-weight: 500;
-        color: #a1a1aa;
-        text-align: center;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        opacity: 1;
-        transition: opacity 0.3s ease-out;
-      }
-      .stats-chart-label.entering { opacity: 0; }
-      /* Values row */
-      .stats-chart-values {
-        display: flex;
-        gap: 1.5rem;
-        margin-top: 2px;
-      }
-      .stats-chart-value {
-        flex: 1;
-        max-width: 80px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text);
-        text-align: center;
-        opacity: 1;
-        transition: opacity 0.15s ease-out;
-      }
-      .stats-chart-value.updating {
-        opacity: 0.5;
-      }
-
-      /* Bar colors */
-      .vbar-green { background: #10b981; }
-      .vbar-amber { background: #f59e0b; }
-      .vbar-red { background: #ef4444; }
-    </style>
-    <script>
-      (function() {
-        const saved = localStorage.getItem('twevals:theme');
-        if (saved === 'light') document.documentElement.classList.remove('dark');
-      })();
-    </script>
-  </head>
-  <body class="min-h-screen bg-theme-bg font-sans text-theme-text">
-    <!-- Header -->
+{% block header %}
     <header class="sticky top-0 z-40 border-b border-theme-border bg-theme-bg/95 backdrop-blur-sm">
-      <div class="flex items-center justify-between px-4 py-2">
-        <!-- Left: Logo & Title -->
-        <div class="flex items-center gap-3">
-          <img src="/static/logo.png" alt="twevals" class="h-7 w-7" />
-          <span class="font-mono text-base font-semibold tracking-tight text-theme-text">twevals</span>
-        </div>
-
-        <!-- Right: Controls -->
-        <div class="flex items-center gap-2">
-          <!-- Search -->
-          <div class="relative">
-            <svg class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input id="search-input" type="search" class="w-56 rounded border border-theme-border bg-theme-bg-secondary py-1.5 pl-7 pr-3 text-xs text-theme-text placeholder:text-theme-text-muted focus:border-blue-500 focus:outline-none" placeholder="Search..." />
-          </div>
-
-          <!-- Filters -->
-          <div class="dropdown relative">
-            <button id="filters-toggle" class="relative flex h-7 w-7 items-center justify-center rounded border border-theme-btn-border bg-theme-btn-bg text-theme-text-secondary hover:bg-theme-btn-bg-hover hover:text-theme-text">
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-              <span id="filters-count-badge" class="filter-badge absolute -right-1 -top-1 h-4 min-w-[14px] items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-bold text-white"></span>
-            </button>
-            <div id="filters-menu" class="filters-panel absolute right-0 z-50 mt-1 w-80 rounded border border-zinc-700 bg-zinc-900 p-3 text-xs shadow-xl">
-              <div class="mb-2 flex items-center justify-between">
-                <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Filters</span>
-                <button id="clear-filters" class="text-[10px] text-blue-400 hover:text-blue-300">Clear</button>
-              </div>
-              <!-- Score Filter -->
-              <div class="mb-2 rounded bg-zinc-800/50 p-2">
-                <div class="flex items-center gap-1.5 mb-1.5">
-                  <span class="text-[9px] font-medium uppercase tracking-wider text-zinc-500">Score</span>
-                  <select id="key-select" class="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-200 focus:border-blue-500 focus:outline-none"></select>
-                </div>
-                <div class="flex gap-1" id="value-section">
-                  <select id="fv-op" class="w-12 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[11px] text-zinc-200 focus:outline-none">
-                    <option value=">">&gt;</option><option value=">=">&gt;=</option><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="==">=</option><option value="!=">!=</option>
-                  </select>
-                  <input id="fv-val" type="number" step="any" placeholder="val" class="w-14 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-200 focus:outline-none" />
-                  <button id="add-fv" class="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500">+</button>
-                </div>
-                <div class="flex gap-1 mt-1" id="passed-section">
-                  <select id="fp-val" class="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-200 focus:outline-none">
-                    <option value="true">Passed</option><option value="false">Failed</option>
-                  </select>
-                  <button id="add-fp" class="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500">+</button>
-                </div>
-              </div>
-              <!-- Quick filters -->
-              <div class="mb-2 flex flex-wrap gap-1">
-                <button id="filter-has-annotation" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Note</button>
-                <button id="filter-has-error" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Error</button>
-                <button id="filter-has-url" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has URL</button>
-                <button id="filter-has-messages" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Messages</button>
-              </div>
-              <!-- Dataset pills -->
-              <div class="mb-2">
-                <div class="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-1">Dataset</div>
-                <div id="dataset-pills" class="flex flex-wrap gap-1"></div>
-              </div>
-              <!-- Label pills -->
-              <div class="mb-2">
-                <div class="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-1">Labels</div>
-                <div id="label-pills" class="flex flex-wrap gap-1"></div>
-              </div>
-              <!-- Active filters -->
-              <div id="active-filters" class="flex flex-wrap gap-1 border-t border-zinc-800 pt-2"></div>
+        <div class="flex items-center justify-between px-4 py-2">
+            <div class="flex items-center gap-3">
+                <img src="/static/logo.png" alt="twevals" class="h-7 w-7" />
+                <span class="font-mono text-base font-semibold tracking-tight text-theme-text">twevals</span>
             </div>
-          </div>
-
-          <!-- Columns -->
-          <div class="dropdown relative">
-            <button id="columns-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-theme-btn-border bg-theme-btn-bg text-theme-text-secondary hover:bg-theme-btn-bg-hover hover:text-theme-text">
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            </button>
-            <div id="columns-menu" class="columns-panel absolute right-0 z-50 mt-1 w-48 rounded border border-zinc-700 bg-zinc-900 p-2 text-xs shadow-xl">
-              <div class="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-2">Columns</div>
-              <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="function" checked class="accent-blue-500" /><span>Function</span></label>
-              <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="input" checked class="accent-blue-500" /><span>Input</span></label>
-              <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="reference" checked class="accent-blue-500" /><span>Reference</span></label>
-              <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="output" checked class="accent-blue-500" /><span>Output</span></label>
-              <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="error" class="accent-blue-500" /><span>Error</span></label>
-              <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="scores" checked class="accent-blue-500" /><span>Scores</span></label>
-              <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="latency" checked class="accent-blue-500" /><span>Latency</span></label>
-              <div class="mt-2 flex gap-1 border-t border-zinc-800 pt-2">
-                <button id="reset-columns" class="flex-1 rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Reset</button>
-                <button id="reset-sorting" class="flex-1 rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Sort</button>
-                <button id="reset-widths" class="flex-1 rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Width</button>
-              </div>
+            <div class="flex items-center gap-2">
+                <div class="relative">
+                    <svg class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <use href="#icon-search"></use>
+                    </svg>
+                    <input id="search-input" type="search" class="w-56 rounded border border-theme-border bg-theme-bg-secondary py-1.5 pl-7 pr-3 text-xs text-theme-text placeholder:text-theme-text-muted focus:border-blue-500 focus:outline-none" placeholder="Search..." />
+                </div>
+                <div class="dropdown relative">
+                    <button id="filters-toggle" class="relative flex h-7 w-7 items-center justify-center rounded border border-theme-btn-border bg-theme-btn-bg text-theme-text-secondary hover:bg-theme-btn-bg-hover hover:text-theme-text">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <use href="#icon-filter"></use>
+                        </svg>
+                        <span id="filters-count-badge" class="filter-badge absolute -right-1 -top-1 h-4 min-w-[14px] items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-bold text-white"></span>
+                    </button>
+                    <div id="filters-menu" class="filters-panel absolute right-0 z-50 mt-1 w-80 rounded border border-zinc-700 bg-zinc-900 p-3 text-xs shadow-xl">
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Filters</span>
+                            <button id="clear-filters" class="text-[10px] text-blue-400 hover:text-blue-300">Clear</button>
+                        </div>
+                        <div class="mb-2 rounded bg-zinc-800/50 p-2">
+                            <div class="flex items-center gap-1.5 mb-1.5">
+                                <span class="text-[9px] font-medium uppercase tracking-wider text-zinc-500">Score</span>
+                                <select id="key-select" class="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-200 focus:border-blue-500 focus:outline-none"></select>
+                            </div>
+                            <div class="flex gap-1" id="value-section">
+                                <select id="fv-op" class="w-12 rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[11px] text-zinc-200 focus:outline-none">
+                                    <option value=">">&gt;</option><option value=">=">&gt;=</option><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="==">=</option><option value="!=">!=</option>
+                                </select>
+                                <input id="fv-val" type="number" step="any" placeholder="val" class="w-14 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-200 focus:outline-none" />
+                                <button id="add-fv" class="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500">+</button>
+                            </div>
+                            <div class="flex gap-1 mt-1" id="passed-section">
+                                <select id="fp-val" class="flex-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-200 focus:outline-none">
+                                    <option value="true">Passed</option><option value="false">Failed</option>
+                                </select>
+                                <button id="add-fp" class="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500">+</button>
+                            </div>
+                        </div>
+                        <div class="mb-2 flex flex-wrap gap-1">
+                            <button id="filter-has-annotation" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Note</button>
+                            <button id="filter-has-error" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Error</button>
+                            <button id="filter-has-url" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has URL</button>
+                            <button id="filter-has-messages" class="rounded px-2 py-0.5 text-[10px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Has Messages</button>
+                        </div>
+                        <div class="mb-2">
+                            <div class="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-1">Dataset</div>
+                            <div id="dataset-pills" class="flex flex-wrap gap-1"></div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-1">Labels</div>
+                            <div id="label-pills" class="flex flex-wrap gap-1"></div>
+                        </div>
+                        <div id="active-filters" class="flex flex-wrap gap-1 border-t border-zinc-800 pt-2"></div>
+                    </div>
+                </div>
+                <div class="dropdown relative">
+                    <button id="columns-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-theme-btn-border bg-theme-btn-bg text-theme-text-secondary hover:bg-theme-btn-bg-hover hover:text-theme-text">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <use href="#icon-grid"></use>
+                        </svg>
+                    </button>
+                    <div id="columns-menu" class="columns-panel absolute right-0 z-50 mt-1 w-48 rounded border border-zinc-700 bg-zinc-900 p-2 text-xs shadow-xl">
+                        <div class="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-2">Columns</div>
+                        <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="function" checked class="accent-blue-500" /><span>Function</span></label>
+                        <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="input" checked class="accent-blue-500" /><span>Input</span></label>
+                        <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="reference" checked class="accent-blue-500" /><span>Reference</span></label>
+                        <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="output" checked class="accent-blue-500" /><span>Output</span></label>
+                        <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="error" class="accent-blue-500" /><span>Error</span></label>
+                        <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="scores" checked class="accent-blue-500" /><span>Scores</span></label>
+                        <label class="flex items-center gap-2 py-0.5 text-zinc-300 hover:text-zinc-100"><input type="checkbox" data-col="latency" checked class="accent-blue-500" /><span>Latency</span></label>
+                        <div class="mt-2 flex gap-1 border-t border-zinc-800 pt-2">
+                            <button id="reset-columns" class="flex-1 rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Reset</button>
+                            <button id="reset-sorting" class="flex-1 rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Sort</button>
+                            <button id="reset-widths" class="flex-1 rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300">Width</button>
+                        </div>
+                    </div>
+                </div>
+                <button id="settings-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-theme-btn-border bg-theme-btn-bg text-theme-text-secondary hover:bg-theme-btn-bg-hover hover:text-theme-text">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <use href="#icon-gear"></use>
+                    </svg>
+                </button>
+                <button id="play-btn" class="flex h-7 items-center gap-1.5 rounded bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-500">
+                    <svg class="play-icon h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                        <use href="#icon-play"></use>
+                    </svg>
+                    <svg class="stop-icon hidden h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                        <use href="#icon-stop"></use>
+                    </svg>
+                    <span id="play-btn-text">Run</span>
+                </button>
             </div>
-          </div>
-
-          <!-- Settings -->
-          <button id="settings-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-theme-btn-border bg-theme-btn-bg text-theme-text-secondary hover:bg-theme-btn-bg-hover hover:text-theme-text">
-            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          </button>
-
-          <!-- Run Button -->
-          <button id="play-btn" class="flex h-7 items-center gap-1.5 rounded bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-500">
-            <svg class="play-icon h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <svg class="stop-icon hidden h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
-            <span id="play-btn-text">Run</span>
-          </button>
         </div>
-      </div>
     </header>
+{% endblock %}
 
-    <!-- Main Content -->
+{% block content %}
     <main class="px-4 py-4">
-      <div id="results"></div>
+        <div id="results"></div>
     </main>
+{% endblock %}
 
-    <!-- Footer -->
+{% block footer %}
     <footer class="border-t border-theme-border py-3">
-      <div class="flex items-center justify-center gap-6 text-xs text-theme-text-muted">
-        <a href="https://github.com/camronh/Twevals" target="_blank" class="flex items-center gap-1.5 hover:text-theme-text-secondary">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-          GitHub
-        </a>
-        <a href="https://twevals.com" target="_blank" class="flex items-center gap-1.5 hover:text-theme-text-secondary">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          Docs
-        </a>
-      </div>
-    </footer>
-
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="fixed inset-0 z-50 hidden">
-      <div class="absolute inset-0 bg-black/60" id="settings-backdrop"></div>
-      <div class="absolute left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-theme-border bg-theme-bg p-4 shadow-xl">
-        <div class="mb-4 flex items-center justify-between">
-          <span class="text-sm font-medium text-theme-text">Settings</span>
-          <button id="settings-close" class="text-theme-text-muted hover:text-theme-text-secondary">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+        <div class="flex items-center justify-center gap-6 text-xs text-theme-text-muted">
+            <a href="https://github.com/camronh/Twevals" target="_blank" class="flex items-center gap-1.5 hover:text-theme-text-secondary">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <use href="#icon-github"></use>
+                </svg>
+                GitHub
+            </a>
+            <a href="https://twevals.com" target="_blank" class="flex items-center gap-1.5 hover:text-theme-text-secondary">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <use href="#icon-doc"></use>
+                </svg>
+                Docs
+            </a>
         </div>
-        <form id="settings-form" class="space-y-3 text-xs">
-          <div class="flex items-center justify-between">
-            <label class="text-theme-text-muted">Concurrency</label>
-            <input type="number" name="concurrency" min="0" class="w-20 rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-theme-text focus:border-blue-500 focus:outline-none" />
-          </div>
-          <div class="flex items-center justify-between">
-            <label class="text-theme-text-muted">Results dir</label>
-            <input type="text" name="results_dir" class="w-32 rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-theme-text focus:border-blue-500 focus:outline-none" />
-          </div>
-          <div class="flex items-center justify-between">
-            <label class="text-theme-text-muted">Timeout (s)</label>
-            <input type="number" name="timeout" min="0" step="0.1" class="w-20 rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-theme-text focus:border-blue-500 focus:outline-none" placeholder="none" />
-          </div>
-          <div class="flex items-center justify-between">
-            <label class="text-theme-text-muted">Theme</label>
-            <button type="button" id="theme-toggle" class="flex items-center gap-1.5 rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-theme-text-secondary hover:bg-theme-bg-elevated">
-              <svg class="hidden dark:block h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              <svg class="block dark:hidden h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-              <span class="dark:hidden">Dark</span><span class="hidden dark:inline">Light</span>
-            </button>
-          </div>
-          <div class="border-t border-theme-border pt-3">
-            <div class="mb-2 text-[9px] font-medium uppercase tracking-wider text-theme-text-muted">Export</div>
-            <div class="flex gap-2">
-              <button type="button" id="export-json-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-theme-border bg-theme-bg-secondary py-1.5 text-theme-text-secondary hover:bg-theme-bg-elevated">
-                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                JSON
-              </button>
-              <button type="button" id="export-csv-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-theme-border bg-theme-bg-secondary py-1.5 text-theme-text-secondary hover:bg-theme-bg-elevated">
-                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                CSV
-              </button>
+    </footer>
+{% endblock %}
+
+{% block modals %}
+    <div id="settings-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/60" id="settings-backdrop"></div>
+        <div class="absolute left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-theme-border bg-theme-bg p-4 shadow-xl">
+            <div class="mb-4 flex items-center justify-between">
+                <span class="text-sm font-medium text-theme-text">Settings</span>
+                <button id="settings-close" class="text-theme-text-muted hover:text-theme-text-secondary">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <use href="#icon-close"></use>
+                    </svg>
+                </button>
             </div>
-          </div>
-          <div class="flex justify-end gap-2 border-t border-theme-border pt-3">
-            <button type="button" id="settings-cancel" class="rounded border border-theme-border bg-theme-bg-secondary px-3 py-1.5 text-theme-text-muted hover:bg-theme-bg-elevated">Cancel</button>
-            <button type="submit" class="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-500">Save</button>
-          </div>
-        </form>
-      </div>
+            <form id="settings-form" class="space-y-3 text-xs">
+                <div class="flex items-center justify-between">
+                    <label class="text-theme-text-muted">Concurrency</label>
+                    <input type="number" name="concurrency" min="0" class="w-20 rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-theme-text focus:border-blue-500 focus:outline-none" />
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-theme-text-muted">Results dir</label>
+                    <input type="text" name="results_dir" class="w-32 rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-theme-text focus:border-blue-500 focus:outline-none" />
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-theme-text-muted">Timeout (s)</label>
+                    <input type="number" name="timeout" min="0" step="0.1" class="w-20 rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-theme-text focus:border-blue-500 focus:outline-none" placeholder="none" />
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-theme-text-muted">Theme</label>
+                    <button type="button" id="theme-toggle" class="flex items-center gap-1.5 rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-theme-text-secondary hover:bg-theme-bg-elevated">
+                        <svg class="hidden dark:block h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <use href="#icon-sun"></use>
+                        </svg>
+                        <svg class="block dark:hidden h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <use href="#icon-moon"></use>
+                        </svg>
+                        <span class="dark:hidden">Dark</span><span class="hidden dark:inline">Light</span>
+                    </button>
+                </div>
+                <div class="border-t border-theme-border pt-3">
+                    <div class="mb-2 text-[9px] font-medium uppercase tracking-wider text-theme-text-muted">Export</div>
+                    <div class="flex gap-2">
+                        <button type="button" id="export-json-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-theme-border bg-theme-bg-secondary py-1.5 text-theme-text-secondary hover:bg-theme-bg-elevated">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <use href="#icon-download"></use>
+                            </svg>
+                            JSON
+                        </button>
+                        <button type="button" id="export-csv-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-theme-border bg-theme-bg-secondary py-1.5 text-theme-text-secondary hover:bg-theme-bg-elevated">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <use href="#icon-download"></use>
+                            </svg>
+                            CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 border-t border-theme-border pt-3">
+                    <button type="button" id="settings-cancel" class="rounded border border-theme-border bg-theme-bg-secondary px-3 py-1.5 text-theme-text-muted hover:bg-theme-bg-elevated">Cancel</button>
+                    <button type="submit" class="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-500">Save</button>
+                </div>
+            </form>
+        </div>
     </div>
-
-    <script>
-      const STORAGE_KEY = "twevals:hidden_columns";
-      const WIDTHS_STORAGE_KEY = "twevals:col_widths";
-      const THEME_STORAGE_KEY = "twevals:theme";
-
-      document.getElementById('theme-toggle')?.addEventListener('click', () => {
-        const html = document.documentElement;
-        const isDark = html.classList.contains('dark');
-        if (isDark) { html.classList.remove('dark'); localStorage.setItem(THEME_STORAGE_KEY, 'light'); }
-        else { html.classList.add('dark'); localStorage.setItem(THEME_STORAGE_KEY, 'dark'); }
-      });
-
-      let _sortState = [];
-      let _filters = defaultFilters();
-      const selectedIndices = new Set();
-
-      const DEFAULT_HIDDEN_COLS = ["error"];
-      function getHiddenCols() { const s = localStorage.getItem(STORAGE_KEY); if (s === null) return DEFAULT_HIDDEN_COLS; try { return JSON.parse(s); } catch { return DEFAULT_HIDDEN_COLS; } }
-      function setHiddenCols(cols) { localStorage.setItem(STORAGE_KEY, JSON.stringify(cols)); }
-      function getSortState() { return _sortState; }
-      function setSortState(state) { _sortState = state; }
-      function getColWidths() { try { return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}"); } catch { return {}; } }
-      function setColWidths(map) { localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map)); }
-      function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: { include: [], exclude: [] }, selectedLabels: { include: [], exclude: [] }, hasUrl: null, hasMessages: null, hasError: null }; }
-
-      // Current data for updates
-      let _currentData = null;
-      let _currentRunId = null;
-
-      const PILL_TONES = {
-        'not_started': 'text-zinc-400 bg-zinc-500/10 border border-zinc-500/40',
-        'pending': 'text-blue-300 bg-blue-500/10 border border-blue-500/40',
-        'running': 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/40',
-        'completed': 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/40',
-        'error': 'text-rose-300 bg-rose-500/10 border border-rose-500/40',
-        'cancelled': 'text-amber-300 bg-amber-500/10 border border-amber-500/40'
-      };
-
-      function escapeHtml(str) {
-        if (str == null) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      }
-
-      function formatValue(val) {
-        if (val == null) return '';
-        if (typeof val === 'object') return JSON.stringify(val);
-        return String(val);
-      }
-
-      function getBarColor(pct) {
-        return pct >= 80 ? 'vbar-green' : (pct >= 50 ? 'vbar-amber' : 'vbar-red');
-      }
-
-      function getBgBarColor(pct) {
-        return pct >= 80 ? 'bg-emerald-500' : (pct >= 50 ? 'bg-amber-500' : 'bg-rose-500');
-      }
-
-      function getTextColor(pct) {
-        return pct >= 80 ? 'text-accent-success' : (pct >= 50 ? 'text-amber-500' : 'text-accent-error');
-      }
-
-      function renderStatsExpanded(data) {
-        const total = data.total_evaluations || 0;
-        const avgLatency = data.average_latency || 0;
-        const chips = data.score_chips || [];
-        const results = data.results || [];
-
-        // Count statuses for progress
-        let completed = 0;
-        results.forEach(r => {
-          const status = r.result?.status || 'completed';
-          if (status === 'completed' || status === 'error') completed++;
-        });
-        const isRunning = completed < total && total > 0;
-        const pctDone = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-        let headerHtml = '';
-        if (data.session_name || data.run_name) {
-          headerHtml = '<div class="stats-left-header">';
-          if (data.session_name) {
-            headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session">${escapeHtml(data.session_name)}</span></div>`;
-          }
-          if (data.run_name) {
-            headerHtml += `<div class="stats-info-row"><span class="stats-info-label">run</span><span class="stats-run">${escapeHtml(data.run_name)}</span></div>`;
-          }
-          headerHtml += '</div>';
-        }
-
-        let latencyHtml = '';
-        if (avgLatency > 0) {
-          latencyHtml = `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span></span><span class="stats-metric-label">avg latency</span></div>`;
-        }
-
-        let progressHtml = '';
-        if (isRunning) {
-          progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text">${completed}/${total}</span></div>`;
-        }
-
-        let barsHtml = '';
-        let labelsHtml = '';
-        let valuesHtml = '';
-        chips.forEach((chip, i) => {
-          let pct, value;
-          if (chip.type === 'ratio') {
-            pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
-            value = `${chip.passed}/${chip.total}`;
-          } else {
-            const avg = chip.avg;
-            pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
-            value = avg.toFixed(2);
-          }
-          // Start at 0 height, will animate to target via JS
-          barsHtml += `<div class="stats-bar-col" style="opacity:0;transform:translateY(20px)"><div class="stats-chart-fill ${getBarColor(pct)}" data-target-height="${pct}" style="height: 0%"></div></div>`;
-          labelsHtml += `<span class="stats-chart-label" style="opacity:0">${escapeHtml(chip.key)}</span>`;
-          valuesHtml += `<span class="stats-chart-value" style="opacity:0">${value}</span>`;
-        });
-
-        const isCollapsed = localStorage.getItem('twevals:statsExpanded') === 'false';
-        return `
-          <div id="stats-expanded" class="stats-expanded${isCollapsed ? ' hidden' : ''}">
-            <div class="stats-layout">
-              <button id="stats-collapse-btn" class="stats-collapse-btn" title="Collapse">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
-              </button>
-              <div class="stats-left">
-                <div class="stats-left-content">
-                  ${headerHtml}
-                  <div class="stats-metric-row-main">
-                    <div class="stats-metric"><span class="stats-metric-value">${total}</span><span class="stats-metric-label">tests</span></div>
-                    ${progressHtml}
-                  </div>
-                  ${latencyHtml}
-                </div>
-                <div class="stats-yaxis">
-                  <span class="stats-axis-label">100%</span>
-                  <span class="stats-axis-label">75%</span>
-                  <span class="stats-axis-label">50%</span>
-                  <span class="stats-axis-label">25%</span>
-                  <span class="stats-axis-label">0%</span>
-                </div>
-              </div>
-              <div class="stats-right">
-                <div class="stats-chart-area">
-                  <div class="stats-gridline" style="top: 0%"></div>
-                  <div class="stats-gridline" style="top: 25%"></div>
-                  <div class="stats-gridline" style="top: 50%"></div>
-                  <div class="stats-gridline" style="top: 75%"></div>
-                  <div class="stats-chart-bars">${barsHtml}</div>
-                </div>
-                <div class="stats-xaxis">
-                  <div class="stats-chart-labels">${labelsHtml}</div>
-                  <div class="stats-chart-values">${valuesHtml}</div>
-                </div>
-              </div>
-            </div>
-          </div>`;
-      }
-
-      function renderStatsCompact(data) {
-        const total = data.total_evaluations || 0;
-        const avgLatency = data.average_latency || 0;
-        const chips = data.score_chips || [];
-        const results = data.results || [];
-
-        // Count statuses
-        let notStarted = 0, pending = 0, running = 0, completed = 0;
-        results.forEach(r => {
-          const status = r.result?.status || 'completed';
-          if (status === 'not_started') notStarted++;
-          else if (status === 'pending') pending++;
-          else if (status === 'running') running++;
-          else completed++;
-        });
-        const progressPending = pending + running;
-        const pctDone = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-        let sessionRunHtml = '';
-        if (data.session_name || data.run_name) {
-          sessionRunHtml = '<div class="flex items-center gap-2">';
-          if (data.session_name) {
-            sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Session</span>
-              <div class="group flex items-center gap-1">
-                <span id="session-name-text" class="font-mono text-[11px] text-theme-text">${escapeHtml(data.session_name)}</span>
-                <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" data-copy="session-name-text">
-                  <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                  <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-                </button>
-              </div>`;
-          }
-          if (data.run_name) {
-            if (data.session_name) sessionRunHtml += '<span class="text-zinc-600">·</span>';
-            sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
-              <div class="group flex items-center gap-1">
-                <span id="run-name-text" class="font-mono text-[11px] text-accent-link">${escapeHtml(data.run_name)}</span>
-                <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" data-copy="run-name-text">
-                  <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                  <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-                </button>
-              </div>`;
-          }
-          sessionRunHtml += '</div><div class="h-3 w-px bg-zinc-700"></div>';
-        }
-
-        let progressHtml;
-        if (notStarted === total) {
-          progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Discovered</span><span class="font-mono text-[11px] text-zinc-400">${total} eval${total !== 1 ? 's' : ''}</span></div>`;
-        } else if (progressPending > 0) {
-          progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${completed}/${total}</span></div>`;
-        } else {
-          progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span><span class="font-mono text-[11px] text-accent-link">${total}</span></div>`;
-        }
-
-        let chipsHtml = '';
-        chips.forEach((chip, i) => {
-          let pct, value;
-          if (chip.type === 'ratio') {
-            pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
-            value = `${chip.passed}/${chip.total}`;
-          } else {
-            const avg = chip.avg;
-            pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
-            value = avg.toFixed(1);
-          }
-          chipsHtml += `<div class="flex items-center gap-2">
-            <span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">${escapeHtml(chip.key)}</span>
-            <div class="h-1 w-5 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full ${getBgBarColor(pct)}" style="width: ${pct}%"></div></div>
-            <span class="font-mono text-[11px] ${getTextColor(pct)}">${value}</span>
-          </div>`;
-          if (i < chips.length - 1) chipsHtml += '<div class="h-3 w-px bg-zinc-700"></div>';
-        });
-
-        let latencyHtml = '';
-        if (avgLatency > 0) {
-          latencyHtml = `<div class="h-3 w-px bg-zinc-700"></div><div class="flex items-center gap-2"><span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">Latency</span><span class="font-mono text-[11px] text-zinc-400">${avgLatency.toFixed(2)}s</span></div>`;
-        }
-
-        const isCollapsed = localStorage.getItem('twevals:statsExpanded') === 'false';
-        return `
-          <div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-theme-border bg-theme-bg-secondary/50 px-4 py-2${isCollapsed ? '' : ' hidden'}">
-            ${sessionRunHtml}
-            ${progressHtml}
-            <div class="h-3 w-px bg-zinc-700"></div>
-            ${chipsHtml}
-            ${latencyHtml}
-            <div class="ml-auto">
-              <button id="stats-expand-btn" class="stats-toggle-btn" title="Expand stats">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-              </button>
-            </div>
-          </div>`;
-      }
-
-      function renderRow(r, index, runId) {
-        const result = r.result || {};
-        const status = result.status || 'completed';
-        const isRunning = status === 'running';
-        const isNotStarted = status === 'not_started';
-        const scores = result.scores || [];
-        const hasUrl = !!(result.trace_data?.trace_url);
-        const hasMessages = !!(result.trace_data?.messages?.length);
-        const hasError = !!result.error;
-
-        const functionCell = isNotStarted
-          ? `<span class="font-mono text-[12px] font-medium text-zinc-500">${escapeHtml(r.function)}</span>`
-          : `<a href="/runs/${runId}/results/${index}" class="font-mono text-[12px] font-medium text-accent-link hover:text-accent-link-hover">${escapeHtml(r.function)}</a>`;
-
-        let statusPill = '';
-        if (status === 'running') statusPill = `<span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.running}">running</span>`;
-        else if (status === 'error') statusPill = `<span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.error}">err</span>`;
-
-        let labelsHtml = '';
-        if (r.labels?.length) {
-          labelsHtml = '<span class="text-zinc-700">·</span>' + r.labels.map(la => `<span class="rounded bg-theme-bg-elevated px-1 py-0.5 text-[9px] text-theme-text-muted">${escapeHtml(la)}</span>`).join('');
-        }
-
-        let outputCell;
-        if (isNotStarted) outputCell = '<span class="text-zinc-600">—</span>';
-        else if (isRunning) outputCell = '<div class="space-y-1"><div class="h-2.5 w-3/4 animate-pulse rounded bg-zinc-800"></div><div class="h-2.5 w-1/2 animate-pulse rounded bg-zinc-800"></div></div>';
-        else if (result.output != null) outputCell = `<div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.output))}</div>`;
-        else outputCell = '<span class="text-zinc-600">—</span>';
-
-        let scoresCell;
-        if (isNotStarted) scoresCell = '<span class="text-zinc-600">—</span>';
-        else if (isRunning) scoresCell = '<div class="flex gap-1"><div class="h-4 w-14 animate-pulse rounded bg-zinc-800"></div><div class="h-4 w-10 animate-pulse rounded bg-zinc-800"></div></div>';
-        else if (scores.length) {
-          const maxScores = 2;
-          let badgesHtml = scores.map((s, i) => {
-            let badgeClass = 'bg-theme-bg-elevated text-theme-text-muted';
-            if (s.passed === true) badgeClass = 'bg-accent-success-bg text-accent-success';
-            else if (s.passed === false) badgeClass = 'bg-accent-error-bg text-accent-error';
-            const extraClass = i >= maxScores ? ' score-extra hidden' : '';
-            const val = s.value != null ? `:${typeof s.value === 'number' ? s.value.toFixed(1) : s.value}` : '';
-            const title = `${s.key}${s.value != null ? ': ' + (typeof s.value === 'number' ? s.value.toFixed(3) : s.value) : ''}${s.notes ? ' — ' + s.notes : ''}`;
-            return `<span class="score-badge shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}${extraClass}" title="${escapeHtml(title)}">${escapeHtml(s.key)}${val}</span>`;
-          }).join('');
-          if (scores.length > maxScores) badgesHtml += `<span class="score-overflow shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">+${scores.length - maxScores}</span>`;
-          scoresCell = `<div class="flex gap-1 overflow-hidden">${badgesHtml}</div>`;
-        } else scoresCell = '<span class="text-zinc-600">—</span>';
-
-        let latencyCell;
-        if (result.latency != null) {
-          const lat = result.latency;
-          const latColor = lat <= 1 ? 'text-accent-success' : (lat <= 5 ? 'text-theme-text-muted' : 'text-accent-error');
-          latencyCell = `<span class="latency-value font-mono text-[11px] ${latColor}">${lat.toFixed(2)}s</span>`;
-        } else if (isRunning) latencyCell = '<div class="latency-skeleton ml-auto h-3 w-8 animate-pulse rounded bg-zinc-800"></div>';
-        else latencyCell = '<span class="text-zinc-600">—</span>';
-
-        return `
-          <tr data-row="main" data-row-id="${index}" data-status="${status}" data-scores='${JSON.stringify(scores)}' data-annotation="${escapeHtml(result.annotation || '')}" data-dataset="${escapeHtml(r.dataset || '')}" data-labels='${JSON.stringify(r.labels || [])}' data-has-url="${hasUrl}" data-has-messages="${hasMessages}" data-has-error="${hasError}" class="group cursor-pointer hover:bg-theme-bg-elevated/50 transition-colors${isNotStarted ? ' opacity-60' : ''}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
-            <td class="px-2 py-2 text-center align-middle" onclick="event.stopPropagation()">
-              <input type="checkbox" class="row-checkbox" data-row-id="${index}" />
-            </td>
-            <td data-col="function" class="px-3 py-2 align-middle">
-              <div class="flex flex-col gap-0.5">
-                <div class="flex items-center gap-2">${functionCell}${statusPill}</div>
-                <div class="flex items-center gap-1.5 text-[10px] text-zinc-500"><span>${escapeHtml(r.dataset || '')}</span>${labelsHtml}</div>
-              </div>
-            </td>
-            <td data-col="input" title="${escapeHtml(formatValue(result.input))}" class="px-3 py-2 align-middle">
-              <div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.input))}</div>
-            </td>
-            <td data-col="reference" title="${escapeHtml(formatValue(result.reference))}" class="px-3 py-2 align-middle">
-              ${result.reference != null ? `<div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.reference))}</div>` : '<span class="text-zinc-600">—</span>'}
-            </td>
-            <td data-col="output" title="${escapeHtml(formatValue(result.output))}" class="px-3 py-2 align-middle">${outputCell}</td>
-            <td data-col="error" title="${escapeHtml(result.error || '')}" class="px-3 py-2 align-middle">
-              ${result.error ? `<div class="line-clamp-2 text-[12px] text-accent-error">${escapeHtml(result.error)}</div>` : '<span class="text-zinc-600">—</span>'}
-            </td>
-            <td data-col="scores" class="px-3 py-2 align-middle max-w-[180px]">${scoresCell}</td>
-            <td data-col="latency" data-value="${result.latency ?? ''}" class="px-3 py-2 align-middle text-right">${latencyCell}</td>
-            <td class="px-1 py-2 align-middle">
-              <span class="expand-chevron text-zinc-700 group-hover:text-zinc-400">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-              </span>
-            </td>
-          </tr>`;
-      }
-
-      function renderResultsTable(data, runId) {
-        const results = data.results || [];
-        const rowsHtml = results.map((r, i) => renderRow(r, i, runId)).join('');
-        return `
-          <div id="filtered-summary" class="hidden mb-3 border-b border-zinc-800 bg-zinc-900/30 px-4 py-2 text-sm">
-            <div class="flex flex-wrap items-center gap-2">
-              <span id="filtered-count-chip" class="inline-flex items-center gap-2 rounded bg-theme-bg-elevated px-2 py-0.5 text-[11px] font-medium text-theme-text"></span>
-              <span id="filtered-avg-latency" class="inline-flex items-center gap-2 rounded bg-theme-bg-elevated px-2 py-0.5 text-[11px] font-medium text-theme-text"></span>
-              <span id="filtered-score-chips" class="flex flex-wrap gap-2"></span>
-            </div>
-          </div>
-          <table id="results-table" data-run-id="${runId}" class="w-full table-fixed border-collapse text-sm text-theme-text">
-            <thead>
-              <tr class="border-b border-theme-border">
-                <th style="width:32px;" class="sticky top-[41px] z-20 bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
-                <th data-col="function" style="width:15%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Function</th>
-                <th data-col="input" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
-                <th data-col="reference" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
-                <th data-col="output" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
-                <th data-col="error" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
-                <th data-col="scores" style="width:140px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
-                <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
-                <th style="width:28px;" class="sticky top-[41px] z-20 bg-theme-bg px-1 py-2"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-theme-border-subtle">${rowsHtml}</tbody>
-          </table>`;
-      }
-
-      function renderResults(data) {
-        _currentData = data;
-        _currentRunId = data.run_id;
-        const container = document.getElementById('results');
-        container.innerHTML = renderStatsExpanded(data) + renderStatsCompact(data) + renderResultsTable(data, data.run_id);
-        onResultsRendered();
-      }
-
-      function onResultsRendered() {
-        const table = document.getElementById('results-table');
-        if (table) { applySortState(table); applyColumnWidths(table); initResizableColumns(table); }
-        applyColumnVisibility();
-        initScrollRestoration();
-        wireExportButtons();
-        restoreFiltersAndSearch();
-        try { populateScoreKeySelects(); populateDatasetLabelPills(); updateTraceFilterButtons(); updateAnnotationButton(); renderActiveFilters(); applyAllFilters(); } catch {}
-        syncCheckboxesToSelection();
-        checkRunningState();
-        scheduleLiveRefresh();
-        initStatsToggle();
-        animateInitialBars();
-      }
-
-      function animateInitialBars() {
-        const bars = document.querySelectorAll('.stats-bar-col');
-        const labels = document.querySelectorAll('.stats-chart-label');
-        const values = document.querySelectorAll('.stats-chart-value');
-
-        bars.forEach((bar, i) => {
-          const fill = bar.querySelector('.stats-chart-fill');
-          const targetHeight = fill?.dataset.targetHeight;
-          setTimeout(() => {
-            bar.style.opacity = '';
-            bar.style.transform = '';
-            if (fill && targetHeight) {
-              fill.style.height = targetHeight + '%';
-            }
-          }, 50 + i * 80);
-        });
-
-        labels.forEach((label, i) => {
-          setTimeout(() => { label.style.opacity = ''; }, 100 + i * 80);
-        });
-
-        values.forEach((val, i) => {
-          setTimeout(() => { val.style.opacity = ''; }, 150 + i * 80);
-        });
-      }
-
-      function updateRowInPlace(index, newResult) {
-        const row = document.querySelector(`tr[data-row="main"][data-row-id="${index}"]`);
-        if (!row || !_currentData) return;
-
-        const oldResult = _currentData.results[index].result || {};
-        const oldStatus = oldResult.status || 'completed';
-        const newStatus = newResult.status || 'completed';
-        const statusChanged = oldStatus !== newStatus;
-
-        // Update the data
-        _currentData.results[index].result = newResult;
-
-        // Update data attributes
-        row.dataset.status = newStatus;
-        row.dataset.scores = JSON.stringify(newResult.scores || []);
-        row.dataset.annotation = newResult.annotation || '';
-        row.dataset.hasUrl = !!(newResult.trace_data?.trace_url);
-        row.dataset.hasMessages = !!(newResult.trace_data?.messages?.length);
-        row.dataset.hasError = !!newResult.error;
-
-        // Update opacity for not_started transition
-        if (oldStatus === 'not_started' && newStatus !== 'not_started') {
-          row.classList.remove('opacity-60');
-        }
-
-        // Update status pill with animation
-        const functionCell = row.querySelector('td[data-col="function"]');
-        if (functionCell && statusChanged) {
-          const oldPill = functionCell.querySelector('.status-pill');
-          if (oldPill) {
-            oldPill.classList.add('fade-out');
-            setTimeout(() => oldPill.remove(), 300);
-          }
-
-          if (newStatus === 'running') {
-            const pill = document.createElement('span');
-            pill.className = `status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.running} fade-out`;
-            pill.textContent = 'running';
-            const fnLink = functionCell.querySelector('a, span');
-            if (fnLink) fnLink.parentElement.appendChild(pill);
-            requestAnimationFrame(() => pill.classList.remove('fade-out'));
-          } else if (newStatus === 'error') {
-            const pill = document.createElement('span');
-            pill.className = `status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.error} fade-out`;
-            pill.textContent = 'err';
-            const fnLink = functionCell.querySelector('a, span');
-            if (fnLink) fnLink.parentElement.appendChild(pill);
-            requestAnimationFrame(() => pill.classList.remove('fade-out'));
-          }
-
-          // Update function link (make clickable when completed)
-          const fnSpan = functionCell.querySelector('span.font-mono');
-          if (fnSpan && newStatus !== 'not_started') {
-            const link = document.createElement('a');
-            link.href = `/runs/${_currentRunId}/results/${index}`;
-            link.className = 'font-mono text-[12px] font-medium text-accent-link hover:text-accent-link-hover';
-            link.textContent = fnSpan.textContent;
-            fnSpan.replaceWith(link);
-          }
-        }
-
-        // Update output cell
-        const outputCell = row.querySelector('td[data-col="output"]');
-        if (outputCell) {
-          if (newStatus === 'running') {
-            outputCell.innerHTML = '<div class="space-y-1"><div class="h-2.5 w-3/4 animate-pulse rounded bg-zinc-800"></div><div class="h-2.5 w-1/2 animate-pulse rounded bg-zinc-800"></div></div>';
-          } else if (newResult.output != null) {
-            const content = `<div class="cell-content line-clamp-2 text-[12px] text-theme-text updating">${escapeHtml(formatValue(newResult.output))}</div>`;
-            outputCell.innerHTML = content;
-            requestAnimationFrame(() => outputCell.querySelector('.cell-content')?.classList.remove('updating'));
-          }
-          outputCell.title = formatValue(newResult.output) || '';
-        }
-
-        // Update scores cell with staggered animation
-        const scoresCell = row.querySelector('td[data-col="scores"]');
-        if (scoresCell && newStatus !== 'running' && newResult.scores?.length) {
-          const scores = newResult.scores;
-          const maxScores = 2;
-          let badgesHtml = scores.map((s, i) => {
-            let badgeClass = 'bg-theme-bg-elevated text-theme-text-muted';
-            if (s.passed === true) badgeClass = 'bg-accent-success-bg text-accent-success';
-            else if (s.passed === false) badgeClass = 'bg-accent-error-bg text-accent-error';
-            const extraClass = i >= maxScores ? ' score-extra hidden' : '';
-            const val = s.value != null ? `:${typeof s.value === 'number' ? s.value.toFixed(1) : s.value}` : '';
-            const title = `${s.key}${s.value != null ? ': ' + (typeof s.value === 'number' ? s.value.toFixed(3) : s.value) : ''}${s.notes ? ' — ' + s.notes : ''}`;
-            return `<span class="score-badge entering shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}${extraClass}" title="${escapeHtml(title)}" style="transition-delay: ${i * 60}ms">${escapeHtml(s.key)}${val}</span>`;
-          }).join('');
-          if (scores.length > maxScores) badgesHtml += `<span class="score-overflow shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">+${scores.length - maxScores}</span>`;
-          scoresCell.innerHTML = `<div class="flex gap-1 overflow-hidden">${badgesHtml}</div>`;
-          requestAnimationFrame(() => {
-            scoresCell.querySelectorAll('.score-badge').forEach(badge => badge.classList.remove('entering'));
-          });
-        }
-
-        // Update latency cell with pop-in animation
-        const latencyCell = row.querySelector('td[data-col="latency"]');
-        if (latencyCell && newResult.latency != null) {
-          const lat = newResult.latency;
-          const latColor = lat <= 1 ? 'text-accent-success' : (lat <= 5 ? 'text-theme-text-muted' : 'text-accent-error');
-          latencyCell.innerHTML = `<span class="latency-value entering font-mono text-[11px] ${latColor}">${lat.toFixed(2)}s</span>`;
-          latencyCell.dataset.value = lat;
-          requestAnimationFrame(() => latencyCell.querySelector('.latency-value')?.classList.remove('entering'));
-        }
-
-        // Update error cell
-        const errorCell = row.querySelector('td[data-col="error"]');
-        if (errorCell) {
-          if (newResult.error) {
-            errorCell.innerHTML = `<div class="cell-content line-clamp-2 text-[12px] text-accent-error updating">${escapeHtml(newResult.error)}</div>`;
-            requestAnimationFrame(() => errorCell.querySelector('.cell-content')?.classList.remove('updating'));
-          }
-          errorCell.title = newResult.error || '';
-        }
-
-        // Re-sync checkbox
-        const cb = row.querySelector('.row-checkbox');
-        if (cb) cb.checked = selectedIndices.has(index);
-      }
-
-      function hasRunningResults(data) {
-        return (data.results || []).some(r => ['pending', 'running'].includes(r.result?.status));
-      }
-      function getFilters() { return _filters; }
-      function setFilters(f) { _filters = f || defaultFilters(); sessionStorage.setItem('twevals:filters', JSON.stringify(_filters)); renderActiveFilters(); applyAllFilters(); }
-
-      let _isRunning = false;
-      function updateSelectionUI() {
-        const count = selectedIndices.size;
-        const playBtnText = document.getElementById('play-btn-text');
-        if (playBtnText && !_isRunning) playBtnText.textContent = count ? `Run (${count})` : 'Run';
-        updateSelectAllState();
-      }
-      function setRunningState(running) {
-        _isRunning = running;
-        const btn = document.getElementById('play-btn');
-        const playIcon = btn?.querySelector('.play-icon');
-        const stopIcon = btn?.querySelector('.stop-icon');
-        const btnText = document.getElementById('play-btn-text');
-        if (running) {
-          btn?.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
-          btn?.classList.add('bg-rose-600', 'hover:bg-rose-500');
-          playIcon?.classList.add('hidden'); stopIcon?.classList.remove('hidden');
-          if (btnText) btnText.textContent = 'Stop';
-        } else {
-          btn?.classList.remove('bg-rose-600', 'hover:bg-rose-500');
-          btn?.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
-          playIcon?.classList.remove('hidden'); stopIcon?.classList.add('hidden');
-          updateSelectionUI();
-        }
-      }
-      function checkRunningState() { setRunningState(!!document.querySelector('[data-status="pending"], [data-status="running"]')); }
-      function updateSelectAllState() {
-        const selectAll = document.getElementById('select-all-checkbox');
-        if (!selectAll) return;
-        const visibleRows = getVisibleMainRows();
-        if (visibleRows.length === 0) { selectAll.checked = false; selectAll.indeterminate = false; return; }
-        const visibleSelected = visibleRows.filter(r => selectedIndices.has(parseInt(r.dataset.rowId))).length;
-        selectAll.checked = visibleSelected === visibleRows.length;
-        selectAll.indeterminate = visibleSelected > 0 && visibleSelected < visibleRows.length;
-      }
-      function getVisibleMainRows() { return Array.from(document.querySelectorAll('tr[data-row="main"]:not(.hidden)')); }
-      function syncCheckboxesToSelection() { document.querySelectorAll('.row-checkbox').forEach(cb => { cb.checked = selectedIndices.has(parseInt(cb.dataset.rowId)); }); updateSelectionUI(); }
-
-      function setupDropdown(toggleId, menuId) {
-        const toggle = document.getElementById(toggleId);
-        const menu = document.getElementById(menuId);
-        if (!toggle || !menu) return;
-        toggle.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const isActive = menu.classList.contains('active');
-          document.querySelectorAll('.dropdown-menu.active, .filters-panel.active, .columns-panel.active').forEach(m => m.classList.remove('active'));
-          if (!isActive) menu.classList.add('active');
-        });
-      }
-      document.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown') && !e.target.closest('.filters-panel') && !e.target.closest('.columns-panel'))
-          document.querySelectorAll('.dropdown-menu.active, .filters-panel.active, .columns-panel.active').forEach(m => m.classList.remove('active'));
-      });
-      setupDropdown('filters-toggle', 'filters-menu');
-      setupDropdown('columns-toggle', 'columns-menu');
-
-      function renderActiveFilters() {
-        const f = getFilters();
-        const ct = document.getElementById('active-filters');
-        const badge = document.getElementById('filters-count-badge');
-        if (!ct) return;
-        ct.innerHTML = '';
-        let count = 0;
-        f.valueRules.forEach((r, idx) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300'; el.innerHTML = `${r.key} ${r.op} ${r.value}<button class="ml-1 hover:text-white" onclick="removeValueRule(${idx})">×</button>`; ct.appendChild(el); });
-        f.passedRules.forEach((r, idx) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300'; el.innerHTML = `${r.key} = ${r.value ? 'pass' : 'fail'}<button class="ml-1 hover:text-white" onclick="removePassedRule(${idx})">×</button>`; ct.appendChild(el); });
-        if (f.annotation && f.annotation !== 'any') { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300'; el.innerHTML = `note: ${f.annotation}<button class="ml-1 hover:text-white" onclick="removeAnnotationFilter()">×</button>`; ct.appendChild(el); }
-        (f.selectedDatasets?.include || []).forEach((ds) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300'; el.innerHTML = `${ds}<button class="ml-1 hover:text-white" onclick="removeDatasetFilter('${ds}', 'include')">×</button>`; ct.appendChild(el); });
-        (f.selectedDatasets?.exclude || []).forEach((ds) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300'; el.innerHTML = `✕ ${ds}<button class="ml-1 hover:text-white" onclick="removeDatasetFilter('${ds}', 'exclude')">×</button>`; ct.appendChild(el); });
-        (f.selectedLabels?.include || []).forEach((la) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300'; el.innerHTML = `${la}<button class="ml-1 hover:text-white" onclick="removeLabelFilter('${la}', 'include')">×</button>`; ct.appendChild(el); });
-        (f.selectedLabels?.exclude || []).forEach((la) => { count++; const el = document.createElement('span'); el.className = 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300'; el.innerHTML = `✕ ${la}<button class="ml-1 hover:text-white" onclick="removeLabelFilter('${la}', 'exclude')">×</button>`; ct.appendChild(el); });
-        if (f.hasError !== null) { count++; const el = document.createElement('span'); el.className = f.hasError ? 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300' : 'inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300'; el.innerHTML = `${f.hasError ? 'has' : 'no'} error<button class="ml-1 hover:text-white" onclick="removeTraceFilter('hasError')">×</button>`; ct.appendChild(el); }
-        if (f.hasUrl !== null) { count++; const el = document.createElement('span'); el.className = f.hasUrl ? 'inline-flex items-center gap-1 rounded bg-cyan-500/20 px-2 py-0.5 text-[10px] text-cyan-300' : 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300'; el.innerHTML = `${f.hasUrl ? 'has' : 'no'} URL<button class="ml-1 hover:text-white" onclick="removeTraceFilter('hasUrl')">×</button>`; ct.appendChild(el); }
-        if (f.hasMessages !== null) { count++; const el = document.createElement('span'); el.className = f.hasMessages ? 'inline-flex items-center gap-1 rounded bg-cyan-500/20 px-2 py-0.5 text-[10px] text-cyan-300' : 'inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-300'; el.innerHTML = `${f.hasMessages ? 'has' : 'no'} messages<button class="ml-1 hover:text-white" onclick="removeTraceFilter('hasMessages')">×</button>`; ct.appendChild(el); }
-        if (badge) { badge.textContent = count; badge.classList.toggle('active', count > 0); }
-      }
-
-      window.removeValueRule = (idx) => { const f = getFilters(); f.valueRules.splice(idx, 1); setFilters(f); };
-      window.removePassedRule = (idx) => { const f = getFilters(); f.passedRules.splice(idx, 1); setFilters(f); };
-      window.removeAnnotationFilter = () => { const f = getFilters(); f.annotation = 'any'; setFilters(f); };
-      window.removeDatasetFilter = (ds, type) => { const f = getFilters(); const idx = f.selectedDatasets[type].indexOf(ds); if (idx >= 0) f.selectedDatasets[type].splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
-      window.removeLabelFilter = (lbl, type) => { const f = getFilters(); const idx = f.selectedLabels[type].indexOf(lbl); if (idx >= 0) f.selectedLabels[type].splice(idx, 1); setFilters(f); populateDatasetLabelPills(); };
-      window.removeTraceFilter = (key) => { const f = getFilters(); f[key] = null; setFilters(f); updateTraceFilterButtons(); };
-
-      function applyColumnVisibility() {
-        const toggles = Array.from(document.querySelectorAll('#columns-menu input[data-col]'));
-        if (!toggles.length) return;
-        const cols = toggles.map((cb) => cb.getAttribute("data-col"));
-        const stored = getHiddenCols();
-        const hidden = new Set(stored.filter((c) => cols.includes(c)));
-        if (hidden.size !== stored.length) setHiddenCols([...hidden]);
-        cols.forEach((col) => { document.querySelectorAll(`#results-table [data-col="${col}"]`).forEach((el) => { el.classList.toggle('hidden', hidden.has(col)); }); });
-        toggles.forEach((cb) => { cb.checked = !hidden.has(cb.getAttribute("data-col")); });
-      }
-      document.querySelectorAll('#columns-menu input[data-col]').forEach((cb) => {
-        cb.addEventListener("change", (e) => { const col = e.target.getAttribute("data-col"); const hidden = new Set(getHiddenCols()); if (e.target.checked) hidden.delete(col); else hidden.add(col); setHiddenCols([...hidden]); applyColumnVisibility(); });
-      });
-      document.getElementById("reset-columns")?.addEventListener("click", () => { setHiddenCols(DEFAULT_HIDDEN_COLS); applyColumnVisibility(); });
-      document.getElementById("reset-sorting")?.addEventListener("click", () => { setSortState([]); const table = document.getElementById("results-table"); if (table) applySortState(table); });
-      document.getElementById("reset-widths")?.addEventListener("click", () => { setColWidths({}); document.querySelectorAll('#results-table thead th[data-col]').forEach((th) => { th.style.width = ''; }); });
-      document.getElementById('clear-filters')?.addEventListener('click', () => { setFilters(defaultFilters()); populateDatasetLabelPills(); });
-
-      (function wireFilters() {
-        const keySelect = document.getElementById('key-select');
-        const addFv = document.getElementById('add-fv');
-        const fvOp = document.getElementById('fv-op');
-        const fvVal = document.getElementById('fv-val');
-        const addFp = document.getElementById('add-fp');
-        const fpVal = document.getElementById('fp-val');
-        if (addFv) addFv.addEventListener('click', () => { const k = (keySelect?.value || '').trim(); const v = parseFloat(fvVal.value); if (!k || Number.isNaN(v)) return; const f = getFilters(); f.valueRules.push({ key: k, op: fvOp.value, value: v }); setFilters(f); fvVal.value = ''; });
-        if (addFp) addFp.addEventListener('click', () => { const k = (keySelect?.value || '').trim(); if (!k) return; const f = getFilters(); f.passedRules.push({ key: k, value: fpVal.value === 'true' }); setFilters(f); });
-        renderActiveFilters();
-      })();
-
-      function computeScoreKeys() {
-        const tbody = document.querySelector('#results-table tbody');
-        if (!tbody) return { all: [], meta: {} };
-        const keys = new Set();
-        const meta = {};
-        tbody.querySelectorAll("tr[data-row='main']").forEach(tr => {
-          let scores = []; try { scores = JSON.parse(tr.getAttribute('data-scores') || '[]') || []; } catch {}
-          (scores || []).forEach(s => { const k = s && s.key; if (!k) return; keys.add(k); const m = meta[k] || (meta[k] = { hasNumeric: false, hasPassed: false }); if (!Number.isNaN(parseFloat(s.value))) m.hasNumeric = true; if (s.passed === true || s.passed === false) m.hasPassed = true; });
-        });
-        return { all: Array.from(keys).sort(), meta };
-      }
-      function populateScoreKeySelects() {
-        const ks = computeScoreKeys();
-        const sel = document.getElementById('key-select');
-        if (!sel) return;
-        const current = sel.value;
-        sel.innerHTML = '';
-        ks.all.forEach(k => { const opt = document.createElement('option'); opt.value = k; opt.textContent = k; sel.appendChild(opt); });
-        if (current && ks.all.includes(current)) sel.value = current; else if (ks.all.length) sel.value = ks.all[0];
-        updateFilterSectionsVisibility();
-      }
-      function updateFilterSectionsVisibility() {
-        const sel = document.getElementById('key-select');
-        const ks = computeScoreKeys();
-        const k = sel?.value || '';
-        const m = ks.meta[k] || { hasNumeric: false, hasPassed: false };
-        document.getElementById('value-section')?.classList.toggle('hidden', !m.hasNumeric);
-        document.getElementById('passed-section')?.classList.toggle('hidden', !m.hasPassed);
-      }
-      document.getElementById('key-select')?.addEventListener('change', updateFilterSectionsVisibility);
-
-      function computeDatasetLabels() {
-        const tbody = document.querySelector('#results-table tbody');
-        if (!tbody) return { datasets: [], labels: [] };
-        const datasets = new Set();
-        const labels = new Set();
-        tbody.querySelectorAll("tr[data-row='main']").forEach(tr => {
-          const ds = (tr.getAttribute('data-dataset') || '').trim();
-          if (ds) datasets.add(ds);
-          try { const lbls = JSON.parse(tr.getAttribute('data-labels') || '[]') || []; lbls.forEach(l => labels.add(l)); } catch {}
-        });
-        return { datasets: Array.from(datasets).sort(), labels: Array.from(labels).sort() };
-      }
-      function populateDatasetLabelPills() {
-        const { datasets, labels } = computeDatasetLabels();
-        const f = getFilters();
-        const dsCt = document.getElementById('dataset-pills');
-        const laCt = document.getElementById('label-pills');
-        const base = 'rounded px-2 py-0.5 text-[10px] font-medium cursor-pointer ';
-        const gray = 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700';
-        const blue = 'bg-blue-600 text-white';
-        const rose = 'bg-rose-500/30 text-rose-300';
-        if (dsCt) { dsCt.innerHTML = ''; if (datasets.length === 0) { dsCt.innerHTML = '<span class="text-[10px] text-zinc-600 italic">None</span>'; } else { datasets.forEach(ds => { const isInc = f.selectedDatasets?.include?.includes(ds); const isExc = f.selectedDatasets?.exclude?.includes(ds); const pill = document.createElement('button'); pill.className = base + (isInc ? blue : isExc ? rose : gray); pill.textContent = isExc ? '✕ ' + ds : ds; pill.onclick = (e) => { e.stopPropagation(); toggleDatasetFilter(ds); }; dsCt.appendChild(pill); }); } }
-        if (laCt) { laCt.innerHTML = ''; if (labels.length === 0) { laCt.innerHTML = '<span class="text-[10px] text-zinc-600 italic">None</span>'; } else { labels.forEach(la => { const isInc = f.selectedLabels?.include?.includes(la); const isExc = f.selectedLabels?.exclude?.includes(la); const pill = document.createElement('button'); pill.className = base + (isInc ? blue : isExc ? rose : gray); pill.textContent = isExc ? '✕ ' + la : la; pill.onclick = (e) => { e.stopPropagation(); toggleLabelFilter(la); }; laCt.appendChild(pill); }); } }
-      }
-      function toggleDatasetFilter(ds) { const f = getFilters(); if (!f.selectedDatasets) f.selectedDatasets = { include: [], exclude: [] }; const incIdx = f.selectedDatasets.include.indexOf(ds); const excIdx = f.selectedDatasets.exclude.indexOf(ds); if (incIdx >= 0) { f.selectedDatasets.include.splice(incIdx, 1); f.selectedDatasets.exclude.push(ds); } else if (excIdx >= 0) { f.selectedDatasets.exclude.splice(excIdx, 1); } else { f.selectedDatasets.include.push(ds); } setFilters(f); populateDatasetLabelPills(); }
-      function toggleLabelFilter(la) { const f = getFilters(); if (!f.selectedLabels) f.selectedLabels = { include: [], exclude: [] }; const incIdx = f.selectedLabels.include.indexOf(la); const excIdx = f.selectedLabels.exclude.indexOf(la); if (incIdx >= 0) { f.selectedLabels.include.splice(incIdx, 1); f.selectedLabels.exclude.push(la); } else if (excIdx >= 0) { f.selectedLabels.exclude.splice(excIdx, 1); } else { f.selectedLabels.include.push(la); } setFilters(f); populateDatasetLabelPills(); }
-      function toggleTraceFilter(key) { const f = getFilters(); if (f[key] === null) f[key] = true; else if (f[key] === true) f[key] = false; else f[key] = null; setFilters(f); updateTraceFilterButtons(); }
-      function updateTraceFilterButtons() {
-        const f = getFilters();
-        [['hasError', 'filter-has-error'], ['hasUrl', 'filter-has-url'], ['hasMessages', 'filter-has-messages']].forEach(([key, id]) => {
-          const btn = document.getElementById(id);
-          if (!btn) return;
-          btn.className = 'rounded px-2 py-0.5 text-[10px] font-medium ';
-          if (f[key] === true) btn.className += 'bg-blue-600 text-white';
-          else if (f[key] === false) btn.className += 'bg-rose-500/30 text-rose-300';
-          else btn.className += 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300';
-        });
-      }
-      document.getElementById('filter-has-error')?.addEventListener('click', () => toggleTraceFilter('hasError'));
-      document.getElementById('filter-has-url')?.addEventListener('click', () => toggleTraceFilter('hasUrl'));
-      document.getElementById('filter-has-messages')?.addEventListener('click', () => toggleTraceFilter('hasMessages'));
-      function updateAnnotationButton() {
-        const f = getFilters();
-        const btn = document.getElementById('filter-has-annotation');
-        if (!btn) return;
-        btn.className = 'rounded px-2 py-0.5 text-[10px] font-medium ';
-        if (f.annotation === 'yes') { btn.className += 'bg-blue-600 text-white'; btn.textContent = 'Has Note'; }
-        else if (f.annotation === 'no') { btn.className += 'bg-rose-500/30 text-rose-300'; btn.textContent = 'No Note'; }
-        else { btn.className += 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300'; btn.textContent = 'Has Note'; }
-      }
-      document.getElementById('filter-has-annotation')?.addEventListener('click', () => { const f = getFilters(); if (f.annotation === 'any') f.annotation = 'yes'; else if (f.annotation === 'yes') f.annotation = 'no'; else f.annotation = 'any'; setFilters(f); updateAnnotationButton(); });
-
-      const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
-      function getCellValue(tr, col) { const td = tr.querySelector(`td[data-col="${col}"]`); if (!td) return ""; const dv = td.getAttribute("data-value"); return dv !== null ? dv : td.textContent.trim(); }
-      function parseValue(value, type) { if (type === "number") { const num = parseFloat(value); return isNaN(num) ? Number.POSITIVE_INFINITY : num; } return value; }
-      function compareValues(a, b, type) { if (type === "number") return a - b; return collator.compare(a, b); }
-      function applySortState(table) {
-        const state = getSortState();
-        const headers = table.querySelectorAll("thead th[data-col]");
-        headers.forEach((th) => th.setAttribute("aria-sort", "none"));
-        const tbody = table.querySelector("tbody");
-        const mainRows = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
-        mainRows.forEach((tr, i) => { if (!tr.hasAttribute("data-orig-index")) tr.setAttribute("data-orig-index", String(i)); });
-        if (!state.length) { mainRows.slice().sort((a, b) => Number(a.getAttribute("data-orig-index")) - Number(b.getAttribute("data-orig-index"))).forEach((tr) => { const id = tr.getAttribute('data-row-id'); const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`); tbody.appendChild(tr); if (detail) tbody.appendChild(detail); }); return; }
-        state.forEach((s) => { const th = table.querySelector(`thead th[data-col="${s.col}"]`); if (th) th.setAttribute("aria-sort", s.dir === "asc" ? "ascending" : "descending"); });
-        mainRows.slice().sort((ra, rb) => { for (const s of state) { const type = s.type || "string"; const va = parseValue(getCellValue(ra, s.col), type); const vb = parseValue(getCellValue(rb, s.col), type); const cmp = compareValues(va, vb, type); if (cmp !== 0) return s.dir === "asc" ? cmp : -cmp; } return Number(ra.getAttribute("data-orig-index")) - Number(rb.getAttribute("data-orig-index")); }).forEach((tr) => { const id = tr.getAttribute('data-row-id'); const detail = tbody.querySelector(`tr[data-row='detail'][data-row-id='${id}']`); tbody.appendChild(tr); if (detail) tbody.appendChild(detail); });
-      }
-      function toggleSort(table, col, type, multi) {
-        let state = getSortState();
-        const idx = state.findIndex((s) => s.col === col);
-        if (multi) { if (idx === -1) state.push({ col, dir: "asc", type }); else if (state[idx].dir === "asc") state[idx].dir = "desc"; else state.splice(idx, 1); }
-        else { if (idx === 0 && state[0].dir === "asc") state = [{ col, dir: "desc", type }]; else if (idx === 0 && state[0].dir === "desc") state = []; else state = [{ col, dir: "asc", type }]; }
-        setSortState(state);
-        applySortState(table);
-      }
-      document.addEventListener("click", function (e) { const th = e.target.closest("#results thead th[data-col]"); if (!th) return; const table = document.getElementById("results-table"); if (!table) return; const col = th.getAttribute("data-col"); const type = th.getAttribute("data-type") || "string"; toggleSort(table, col, type, e.shiftKey); });
-
-      function applyColumnWidths(table) { if (!table) return; const widths = getColWidths(); Object.keys(widths).forEach((col) => { const w = widths[col]; if (!w) return; const th = table.querySelector(`thead th[data-col="${col}"]`); if (th) th.style.width = `${w}px`; }); }
-      function initResizableColumns(table) {
-        if (!table) return;
-        const widths = getColWidths();
-        const ths = table.querySelectorAll('thead th[data-col]');
-        ths.forEach((th) => {
-          if (getComputedStyle(th).position === 'static') th.style.position = 'relative';
-          if (th.querySelector('.col-resizer')) return;
-          const handle = document.createElement('div'); handle.className = 'col-resizer'; th.appendChild(handle);
-          let startX = 0, startWidth = 0; const colKey = th.getAttribute('data-col'); const minWidth = 50, maxWidth = 500;
-          function onMouseMove(e) { const dx = e.clientX - startX; let newW = Math.max(minWidth, Math.min(maxWidth, startWidth + dx)); th.style.width = `${newW}px`; }
-          function onMouseUp() { document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); document.body.classList.remove('twevals-col-resize'); const map = getColWidths(); map[colKey] = Math.round(th.getBoundingClientRect().width); setColWidths(map); }
-          handle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startX = e.clientX; startWidth = th.getBoundingClientRect().width; document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp); document.body.classList.add('twevals-col-resize'); });
-          handle.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
-          const saved = widths[colKey]; if (saved) th.style.width = `${saved}px`;
-        });
-      }
-
-      const searchInput = document.getElementById('search-input');
-      if (searchInput) { let timer; searchInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { sessionStorage.setItem('twevals:search', searchInput.value); applyAllFilters(); }, 120); }); }
-      function compare(op, a, b) { if (op === '>') return a > b; if (op === '>=') return a >= b; if (op === '<') return a < b; if (op === '<=') return a <= b; if (op === '==') return a === b; if (op === '!=') return a !== b; return false; }
-      function rowMatchesFilters(mainTr) {
-        const f = getFilters();
-        if (f.annotation && f.annotation !== 'any') { const ann = (mainTr?.getAttribute('data-annotation') || '').trim(); const has = !!ann; if (f.annotation === 'yes' && !has) return false; if (f.annotation === 'no' && has) return false; }
-        const ds = (mainTr?.getAttribute('data-dataset') || '').trim();
-        if (f.selectedDatasets?.include?.length > 0) { if (!f.selectedDatasets.include.includes(ds)) return false; }
-        if (f.selectedDatasets?.exclude?.includes(ds)) return false;
-        let rowLabels = []; try { rowLabels = JSON.parse(mainTr?.getAttribute('data-labels') || '[]') || []; } catch {}
-        if (f.selectedLabels?.include?.length > 0) { if (!f.selectedLabels.include.some(l => rowLabels.includes(l))) return false; }
-        if (f.selectedLabels?.exclude?.length > 0) { if (f.selectedLabels.exclude.some(l => rowLabels.includes(l))) return false; }
-        if (f.hasError === true) { if (mainTr?.getAttribute('data-has-error') !== 'true') return false; } else if (f.hasError === false) { if (mainTr?.getAttribute('data-has-error') === 'true') return false; }
-        if (f.hasUrl === true) { if (mainTr?.getAttribute('data-has-url') !== 'true') return false; } else if (f.hasUrl === false) { if (mainTr?.getAttribute('data-has-url') === 'true') return false; }
-        if (f.hasMessages === true) { if (mainTr?.getAttribute('data-has-messages') !== 'true') return false; } else if (f.hasMessages === false) { if (mainTr?.getAttribute('data-has-messages') === 'true') return false; }
-        let scores = []; try { scores = JSON.parse(mainTr?.getAttribute('data-scores') || '[]') || []; } catch {}
-        for (const vr of (f.valueRules || [])) { const s = scores.find(x => x && x.key === vr.key); if (!s) return false; const val = parseFloat(s.value); if (Number.isNaN(val)) return false; if (!compare(vr.op, val, vr.value)) return false; }
-        for (const pr of (f.passedRules || [])) { const s = scores.find(x => x && x.key === pr.key); if (!s) return false; if ((s.passed === true) !== (pr.value === true)) return false; }
-        return true;
-      }
-      function applyAllFilters() {
-        const q = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
-        const tbody = document.querySelector('#results-table tbody');
-        if (!tbody) return;
-        tbody.querySelectorAll("tr[data-row='main']").forEach((tr) => { let show = true; if (q) { if (!tr.textContent.toLowerCase().includes(q)) show = false; } if (show) show = rowMatchesFilters(tr); tr.classList.toggle('hidden', !show); });
-        updateFilteredSummary();
-      }
-      function updateFilteredSummary() {
-        const container = document.getElementById('filtered-summary');
-        const table = document.getElementById('results-table');
-        if (!container || !table) return;
-        const tbody = table.querySelector('tbody');
-        const mains = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
-        const visible = mains.filter(tr => !tr.classList.contains('hidden'));
-        const hasActive = (() => { const f = getFilters(); const dsCount = (f.selectedDatasets?.include?.length || 0) + (f.selectedDatasets?.exclude?.length || 0); const lblCount = (f.selectedLabels?.include?.length || 0) + (f.selectedLabels?.exclude?.length || 0); const traceCount = (f.hasError !== null ? 1 : 0) + (f.hasUrl !== null ? 1 : 0) + (f.hasMessages !== null ? 1 : 0); return (f.valueRules.length + f.passedRules.length + dsCount + lblCount + traceCount + (f.annotation !== 'any' ? 1 : 0)) > 0 || (document.getElementById('search-input')?.value || '').trim().length > 0; })();
-        container.classList.toggle('hidden', !hasActive);
-        if (!hasActive) return;
-        document.getElementById('filtered-count-chip').textContent = `${visible.length}/${mains.length}`;
-        let sum = 0, cnt = 0;
-        visible.forEach(tr => { const td = tr.querySelector("td[data-col='latency']"); const v = parseFloat(td?.getAttribute('data-value') || ''); if (!Number.isNaN(v)) { sum += v; cnt += 1; } });
-        const avgEl = document.getElementById('filtered-avg-latency');
-        if (avgEl) avgEl.textContent = cnt > 0 ? `${(sum / cnt).toFixed(2)}s avg` : '—';
-        const chipsEl = document.getElementById('filtered-score-chips');
-        if (chipsEl) chipsEl.innerHTML = '';
-        const map = {};
-        visible.forEach(tr => { let scores = []; try { scores = JSON.parse(tr.getAttribute('data-scores') || '[]') || []; } catch {} scores.forEach(s => { const key = s?.key; if (!key) return; const d = map[key] || (map[key] = { passed: 0, failed: 0, bool: 0, sum: 0, count: 0 }); if (s.passed === true) { d.passed++; d.bool++; } else if (s.passed === false) { d.failed++; d.bool++; } const val = parseFloat(s.value); if (!Number.isNaN(val)) { d.sum += val; d.count += 1; } }); });
-        Object.entries(map).forEach(([k, d]) => { const el = document.createElement('span'); el.className = 'rounded px-2 py-0.5 text-[10px] font-medium '; if (d.bool > 0) { const total = d.passed + d.failed; if (d.passed === total) el.className += 'bg-emerald-500/20 text-emerald-300'; else if (d.passed === 0) el.className += 'bg-rose-500/20 text-rose-300'; else el.className += 'bg-blue-500/20 text-blue-300'; el.textContent = `${k}: ${d.passed}/${total}`; } else if (d.count > 0) { el.className += 'bg-zinc-800 text-zinc-300'; el.textContent = `${k}: ${(d.sum / d.count).toFixed(2)}`; } else return; chipsEl?.appendChild(el); });
-      }
-
-      function initScrollRestoration() { const savedY = sessionStorage.getItem('twevals:scrollY'); if (savedY !== null) { window.scrollTo(0, parseInt(savedY, 10)); sessionStorage.removeItem('twevals:scrollY'); } const params = new URLSearchParams(window.location.search); if (params.has('scroll')) { history.replaceState(null, '', window.location.pathname); } }
-      document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('twevals:scrollY', window.scrollY.toString()); } });
-      function wireExportButtons() { const table = document.getElementById('results-table'); const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest'; document.getElementById('export-json-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/json`; }); document.getElementById('export-csv-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/csv`; }); }
-
-      document.addEventListener('click', async (e) => { const btn = e.target.closest('.copy-btn'); if (!btn) return; const id = btn.getAttribute('data-copy'); const pre = document.getElementById(id); if (!pre) return; try { await navigator.clipboard.writeText(pre.innerText); const copyIcon = btn.querySelector('.copy-icon'); const checkIcon = btn.querySelector('.check-icon'); if (copyIcon && checkIcon) { copyIcon.classList.add('hidden'); checkIcon.classList.remove('hidden'); setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900); } } catch { alert('Copy failed'); } });
-
-      document.getElementById('play-btn')?.addEventListener('click', async () => {
-        if (_isRunning) {
-          try { await fetch('/api/runs/stop', { method: 'POST' }); } catch (e) { console.error('Stop failed:', e); }
-          await loadResults();
-          return;
-        }
-        let started = false;
-        try {
-          const body = selectedIndices.size > 0 ? { indices: Array.from(selectedIndices) } : {};
-          const resp = await fetch('/api/runs/rerun', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-          if (!resp.ok) {
-            let msg = '';
-            try { const data = await resp.json(); msg = data?.detail || data?.message || ''; }
-            catch { msg = await resp.text(); }
-            throw new Error(msg || `HTTP ${resp.status}`);
-          }
-          started = true;
-          setRunningState(true);
-          await loadResults();
-        } catch (e) { alert('Rerun failed: ' + e); }
-      });
-
-      let lastCheckedIdx = null;
-      let pendingShiftClick = null;
-      document.addEventListener('click', (e) => { if (e.target.classList.contains('row-checkbox') && e.shiftKey && lastCheckedIdx !== null) { pendingShiftClick = { idx: parseInt(e.target.dataset.rowId), checked: !e.target.checked }; } }, true);
-      document.addEventListener('change', (e) => {
-        if (e.target.id === 'select-all-checkbox') { const visibleRows = getVisibleMainRows(); visibleRows.forEach(row => { const idx = parseInt(row.dataset.rowId); const cb = row.querySelector('.row-checkbox'); if (e.target.checked) { selectedIndices.add(idx); if (cb) cb.checked = true; } else { selectedIndices.delete(idx); if (cb) cb.checked = false; } }); updateSelectionUI(); }
-        if (e.target.classList.contains('row-checkbox')) {
-          const idx = parseInt(e.target.dataset.rowId);
-          const shouldCheck = e.target.checked;
-          if (pendingShiftClick && pendingShiftClick.idx === idx) { const visibleRows = getVisibleMainRows(); const visibleIndices = visibleRows.map(r => parseInt(r.dataset.rowId)); const lastPos = visibleIndices.indexOf(lastCheckedIdx); const currentPos = visibleIndices.indexOf(idx); if (lastPos !== -1 && currentPos !== -1) { const start = Math.min(lastPos, currentPos); const end = Math.max(lastPos, currentPos); for (let i = start; i <= end; i++) { const rowIdx = visibleIndices[i]; const row = visibleRows[i]; const cb = row.querySelector('.row-checkbox'); if (shouldCheck) { selectedIndices.add(rowIdx); if (cb) cb.checked = true; } else { selectedIndices.delete(rowIdx); if (cb) cb.checked = false; } } } pendingShiftClick = null; } else { if (shouldCheck) { selectedIndices.add(idx); } else { selectedIndices.delete(idx); } }
-          lastCheckedIdx = idx;
-          updateSelectionUI();
-        }
-      });
-
-      let liveUpdateTimer = null;
-      function scheduleLiveRefresh() {
-        if (liveUpdateTimer) { clearTimeout(liveUpdateTimer); liveUpdateTimer = null; }
-        if (!hasRunningResults(_currentData)) return;
-        liveUpdateTimer = setTimeout(async () => {
-          try {
-            const resp = await fetch('/results');
-            if (!resp.ok) return;
-            const data = await resp.json();
-            // Update rows in place
-            data.results.forEach((r, i) => {
-              const oldResult = _currentData?.results?.[i]?.result;
-              const newResult = r.result;
-              // Only update if something changed
-              if (JSON.stringify(oldResult) !== JSON.stringify(newResult)) {
-                updateRowInPlace(i, newResult);
-              }
-            });
-            // Re-apply column visibility to newly replaced rows
-            applyColumnVisibility();
-            // Update stats
-            _currentData = data;
-            updateStatsInPlace(data);
-            checkRunningState();
-            scheduleLiveRefresh();
-          } catch (e) { console.error('Live refresh failed:', e); }
-        }, 500);
-      }
-
-      function updateStatsInPlace(data) {
-        const expandedPanel = document.getElementById('stats-expanded');
-        const compactBar = document.getElementById('stats-compact');
-        if (!expandedPanel || !compactBar) return;
-
-        const chips = data.score_chips || [];
-        const total = data.total_evaluations || 0;
-        const avgLatency = data.average_latency || 0;
-        const results = data.results || [];
-
-        // Count statuses for progress
-        let completed = 0;
-        results.forEach(r => {
-          const status = r.result?.status || 'completed';
-          if (status === 'completed' || status === 'error') completed++;
-        });
-        const pctDone = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-        // Update expanded panel bars in-place
-        const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
-        const labelsContainer = expandedPanel.querySelector('.stats-chart-labels');
-        const valuesContainer = expandedPanel.querySelector('.stats-chart-values');
-
-        if (barsContainer && labelsContainer && valuesContainer) {
-          const existingBars = barsContainer.querySelectorAll('.stats-bar-col');
-          const existingLabels = labelsContainer.querySelectorAll('.stats-chart-label');
-          const existingValues = valuesContainer.querySelectorAll('.stats-chart-value');
-
-          chips.forEach((chip, i) => {
-            let pct, value;
-            if (chip.type === 'ratio') {
-              pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
-              value = `${chip.passed}/${chip.total}`;
-            } else {
-              const avg = chip.avg;
-              pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
-              value = avg.toFixed(2);
-            }
-            const colorClass = getBarColor(pct);
-
-            if (existingBars[i]) {
-              // Update existing bar
-              const fill = existingBars[i].querySelector('.stats-chart-fill');
-              if (fill) {
-                fill.style.height = pct + '%';
-                fill.className = 'stats-chart-fill ' + colorClass;
-              }
-            } else {
-              // Add new bar with enter animation
-              const barCol = document.createElement('div');
-              barCol.className = 'stats-bar-col entering';
-              barCol.innerHTML = `<div class="stats-chart-fill ${colorClass}" style="height: 0%"></div>`;
-              barsContainer.appendChild(barCol);
-              requestAnimationFrame(() => {
-                barCol.classList.remove('entering');
-                barCol.querySelector('.stats-chart-fill').style.height = pct + '%';
-              });
-            }
-
-            if (existingLabels[i]) {
-              existingLabels[i].textContent = chip.key;
-            } else {
-              const label = document.createElement('span');
-              label.className = 'stats-chart-label entering';
-              label.textContent = chip.key;
-              labelsContainer.appendChild(label);
-              requestAnimationFrame(() => label.classList.remove('entering'));
-            }
-
-            if (existingValues[i]) {
-              if (existingValues[i].textContent !== value) {
-                existingValues[i].classList.add('updating');
-                setTimeout(() => {
-                  existingValues[i].textContent = value;
-                  existingValues[i].classList.remove('updating');
-                }, 75);
-              }
-            } else {
-              const valSpan = document.createElement('span');
-              valSpan.className = 'stats-chart-value';
-              valSpan.textContent = value;
-              valuesContainer.appendChild(valSpan);
-            }
-          });
-
-          // Remove excess bars/labels/values with exit animation
-          for (let i = chips.length; i < existingBars.length; i++) {
-            existingBars[i].classList.add('exiting');
-            setTimeout(() => existingBars[i].remove(), 400);
-          }
-          for (let i = chips.length; i < existingLabels.length; i++) {
-            existingLabels[i].remove();
-          }
-          for (let i = chips.length; i < existingValues.length; i++) {
-            existingValues[i].remove();
-          }
-        }
-
-        // Update test count
-        const testMetric = expandedPanel.querySelector('.stats-metric-value');
-        if (testMetric && testMetric.textContent !== String(total)) {
-          testMetric.textContent = total;
-        }
-
-        // Update progress bar
-        const progressFill = expandedPanel.querySelector('.stats-progress-fill');
-        const progressText = expandedPanel.querySelector('.stats-progress-text');
-        if (progressFill) progressFill.style.width = pctDone + '%';
-        if (progressText) progressText.textContent = `${completed}/${total}`;
-
-        // Update latency
-        const latencyEl = expandedPanel.querySelector('.stats-metric-sm .stats-metric-value');
-        if (latencyEl && avgLatency > 0) {
-          const newLatency = avgLatency.toFixed(2);
-          if (!latencyEl.textContent.startsWith(newLatency)) {
-            latencyEl.innerHTML = `${newLatency}<span class="stats-metric-unit">s</span>`;
-          }
-        }
-
-        // Update compact bar (simpler, just re-render)
-        const wasExpanded = !expandedPanel.classList.contains('hidden');
-        const temp = document.createElement('div');
-        temp.innerHTML = renderStatsCompact(data);
-        const newCompact = temp.querySelector('#stats-compact');
-        if (wasExpanded) {
-          newCompact.classList.add('hidden');
-        } else {
-          newCompact.classList.remove('hidden');
-        }
-        compactBar.replaceWith(newCompact);
-        initStatsToggle();
-      }
-
-      (function wireSettingsModal() {
-        const modal = document.getElementById('settings-modal');
-        const toggle = document.getElementById('settings-toggle');
-        const close = document.getElementById('settings-close');
-        const cancel = document.getElementById('settings-cancel');
-        const backdrop = document.getElementById('settings-backdrop');
-        const form = document.getElementById('settings-form');
-        function openModal() { modal?.classList.remove('hidden'); loadConfig(); }
-        function closeModal() { modal?.classList.add('hidden'); }
-        async function loadConfig() { try { const resp = await fetch('/api/config'); const config = await resp.json(); form.querySelector('[name="concurrency"]').value = config.concurrency ?? ''; form.querySelector('[name="results_dir"]').value = config.results_dir ?? ''; form.querySelector('[name="timeout"]').value = config.timeout ?? ''; } catch (e) { console.error('Failed to load config:', e); } }
-        async function saveConfig(e) { e.preventDefault(); const data = {}; const concurrency = parseInt(form.querySelector('[name="concurrency"]').value); if (!isNaN(concurrency)) data.concurrency = concurrency; const results_dir = form.querySelector('[name="results_dir"]').value.trim(); if (results_dir) data.results_dir = results_dir; const timeout = parseFloat(form.querySelector('[name="timeout"]').value); if (!isNaN(timeout)) data.timeout = timeout; try { const resp = await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (!resp.ok) throw new Error('Save failed'); closeModal(); } catch (e) { alert('Failed to save settings: ' + e.message); } }
-        toggle?.addEventListener('click', openModal);
-        close?.addEventListener('click', closeModal);
-        cancel?.addEventListener('click', closeModal);
-        backdrop?.addEventListener('click', closeModal);
-        form?.addEventListener('submit', saveConfig);
-      })();
-
-      function restoreFiltersAndSearch() { const savedFilters = sessionStorage.getItem('twevals:filters'); if (savedFilters) { try { _filters = JSON.parse(savedFilters); } catch {} } const savedSearch = sessionStorage.getItem('twevals:search'); const searchEl = document.getElementById('search-input'); if (savedSearch && searchEl) { searchEl.value = savedSearch; } }
-
-      // Initial load
-      async function loadResults() {
-        try {
-          const resp = await fetch('/results');
-          if (!resp.ok) throw new Error('Failed to load results');
-          const data = await resp.json();
-          renderResults(data);
-        } catch (e) {
-          console.error('Failed to load results:', e);
-          document.getElementById('results').innerHTML = '<div class="p-4 text-theme-text-muted">Failed to load results. Please refresh the page.</div>';
-        }
-      }
-      loadResults();
-
-      /* Stats panel expand/collapse */
-      function initStatsToggle() {
-        const expandBtn = document.getElementById('stats-expand-btn');
-        const collapseBtn = document.getElementById('stats-collapse-btn');
-        const expandedPanel = document.getElementById('stats-expanded');
-        const compactBar = document.getElementById('stats-compact');
-        if (!expandBtn || !expandedPanel || !compactBar) return;
-
-        expandBtn.addEventListener('click', () => {
-          expandedPanel.classList.remove('hidden');
-          compactBar.classList.add('hidden');
-          localStorage.setItem('twevals:statsExpanded', 'true');
-        });
-
-        collapseBtn?.addEventListener('click', () => {
-          expandedPanel.classList.add('hidden');
-          compactBar.classList.remove('hidden');
-          localStorage.setItem('twevals:statsExpanded', 'false');
-        });
-
-        // Restore state (expanded by default, collapse only if explicitly set to false)
-        if (localStorage.getItem('twevals:statsExpanded') === 'false') {
-          expandedPanel.classList.add('hidden');
-          compactBar.classList.remove('hidden');
-        }
-      }
-    </script>
-  </body>
-</html>
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/index.js"></script>
+{% endblock %}
