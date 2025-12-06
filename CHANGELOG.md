@@ -2,7 +2,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.2a15 - 2025-12-05
 
 - Changed: `add_output()` and `add_score()` replaced with unified `store()` method. Use `ctx.store(output=..., scores=..., messages=..., trace_url=...)` for all context updates. Same score key overwrites, different key appends.
 - Changed: `run_data` renamed to `trace_data` with structured `TraceData` schema. First-class `messages` and `trace_url` properties, plus arbitrary extra fields via dict-style access.
