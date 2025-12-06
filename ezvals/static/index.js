@@ -865,10 +865,15 @@ document.addEventListener('click', (e) => {
   span.appendChild(input);
   input.focus();
   input.select();
-  let saved = false;
+  // Turn pencil into checkmark
+  const svg = btn.querySelector('svg use');
+  if (svg) svg.setAttribute('href', '#icon-check');
+  btn.classList.add('text-emerald-500', 'opacity-100');
+  btn.classList.remove('text-zinc-600', 'opacity-0');
+  let done = false;
   const save = async () => {
-    if (saved) return;
-    saved = true;
+    if (done) return;
+    done = true;
     const newName = input.value.trim();
     if (newName && newName !== originalText && _currentRunId) {
       try {
@@ -883,11 +888,14 @@ document.addEventListener('click', (e) => {
     }
     loadResults();
   };
-  input.addEventListener('blur', save);
+  const cancel = () => { if (!done) { done = true; loadResults(); } };
+  input.addEventListener('blur', cancel);
   input.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter') { ev.preventDefault(); save(); }
-    if (ev.key === 'Escape') { ev.preventDefault(); saved = true; loadResults(); }
+    if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
   });
+  // Clicking checkmark saves
+  btn.addEventListener('click', (ev) => { ev.stopPropagation(); save(); }, { once: true });
 });
 
 // Run button mode: 'run' (fresh), 'rerun', or 'new'
