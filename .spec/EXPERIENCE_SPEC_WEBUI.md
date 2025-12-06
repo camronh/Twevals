@@ -27,19 +27,60 @@ Scenario: View discovered evaluations
   And status is "not_started" for all rows
 ```
 
-### Running Evaluations
+### Run Button (GitHub-style Split Button)
+
+The Run button is context-aware with a split-button design like GitHub's "Create pull request" button.
+
+```gherkin
+Scenario: Fresh session (nothing run yet)
+  Given the UI starts with a new session
+  And no evaluations have been run
+  When the user views the Run button
+  Then the button shows only "Run" (no dropdown)
+  And clicking Run starts all evaluations
+
+Scenario: Checkboxes selected (selective run)
+  Given some evaluations are checked
+  When the user views the Run button
+  Then the button shows only "Rerun"
+  And clicking Rerun runs only the selected evaluations
+
+Scenario: No checkboxes, has previous runs (split button)
+  Given evaluations have been run before
+  And no checkboxes are selected
+  When the user views the Run button
+  Then the button is a split button with dropdown arrow
+  And the main button shows the last-used option ("Rerun" or "New Run")
+  And the dropdown shows both options:
+    - "Rerun" (overwrites current run)
+    - "New Run" (creates new run, prompts for optional name)
+
+Scenario: Rerun behavior
+  When the user clicks "Rerun"
+  Then the current run is overwritten
+  And the run_name stays the same
+  And the timestamp updates
+
+Scenario: New Run behavior
+  When the user clicks "New Run"
+  Then a prompt appears for optional run name
+  And if left blank, auto-generates a friendly name
+  And a new run file is created (does not overwrite)
+```
+
+### Run Execution
 
 ```gherkin
 Scenario: Run all evaluations
   Given evaluations are displayed
-  When the user clicks Run with nothing selected
+  When the user clicks Run/Rerun with nothing selected
   Then all evaluations begin running
   And results stream in real-time as each completes
   And progress indicators update live
 
 Scenario: Run selected evaluations
   Given the user selects rows via checkboxes
-  When the user clicks Run
+  When the user clicks Rerun
   Then only selected evaluations run
   And unselected rows retain their previous results
 
@@ -169,6 +210,52 @@ Scenario: Export as CSV
 
 ---
 
+## Session & Run Navigation
+
+### Session Selector
+
+```gherkin
+Scenario: View sessions
+  Given multiple sessions exist in .twevals/sessions/
+  When the user clicks the session dropdown
+  Then all sessions are listed
+  And the current session is highlighted
+
+Scenario: Switch session
+  When the user selects a different session
+  Then the run selector updates to show runs in that session
+  And the most recent run in the new session loads
+```
+
+### Run Selector
+
+```gherkin
+Scenario: View runs in session
+  Given a session is selected
+  When the user clicks the run dropdown
+  Then all runs in that session are listed
+  And each shows: run_name and timestamp
+  And runs are sorted newest-first
+
+Scenario: Switch run
+  When the user selects a different run
+  Then that run's results load in the table
+
+Scenario: Rename run
+  When the user right-clicks a run or uses the rename option
+  Then a prompt appears for the new name
+  And the filename and JSON metadata update
+  And the dropdown refreshes
+
+Scenario: Delete run
+  When the user clicks delete on a run
+  Then a confirmation appears
+  And on confirm, the run file is deleted
+  And the dropdown refreshes
+```
+
+---
+
 ## Stats Bar
 
 The top stats bar shows:
@@ -273,13 +360,16 @@ The UI is backed by these REST endpoints, also available programmatically.
 | `/api/runs/{run_id}/export/json` | GET | Download JSON |
 | `/api/runs/{run_id}/export/csv` | GET | Download CSV |
 
-### Sessions
+### Sessions & Runs
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/sessions` | GET | List all session names |
+| `/api/sessions` | GET | List all session names (from directories) |
 | `/api/sessions/{name}/runs` | GET | List runs in session |
-| `/api/runs/{run_id}` | PATCH | Update run metadata |
+| `/api/sessions/{name}` | DELETE | Delete entire session and all runs |
+| `/api/runs/{run_id}` | PATCH | Update run metadata (rename updates filename) |
+| `/api/runs/{run_id}` | DELETE | Delete specific run |
+| `/api/runs/new` | POST | Create new run (no overwrite) |
 
 ### Configuration
 
@@ -316,18 +406,28 @@ Scenario: Result index out of range
 
 ## File Storage
 
-Results are stored in `.twevals/runs/`:
+Results are stored in `.twevals/sessions/` with hierarchical session directories:
 
 ```
 .twevals/
-├── runs/
-│   ├── baseline_2024-01-15T10-30-00Z.json
-│   ├── swift-falcon_2024-01-15T14-45-00Z.json
-│   └── latest.json
+├── sessions/
+│   ├── default/
+│   │   └── swift-falcon_1705312200.json
+│   ├── emojis/
+│   │   ├── baseline_1705312300.json
+│   │   └── fixed_1705312500.json
+│   └── model-upgrade/
+│       ├── gpt5_1705313000.json
+│       └── gpt5-1_1705313200.json
 └── twevals.json
 ```
 
-**`latest.json`:** A copy of the most recent run. The UI uses this for quick loading without scanning the directory. Updated atomically after each run completes.
+**File naming:** `{run_name}_{unix_timestamp}.json`
+- Unix timestamps (integers) for easy sorting
+- Session = directory name
+- Run name = filename prefix
+
+**Overwrite behavior:** When `overwrite=true` (default), running with the same session + run name replaces the existing file.
 
 ### JSON Schema
 
@@ -335,7 +435,7 @@ Results are stored in `.twevals/runs/`:
 {
   "session_name": "model-upgrade",
   "run_name": "baseline",
-  "run_id": "2024-01-15T10-30-00Z",
+  "run_id": "1705312200",
   "path": "evals/",
   "total_evaluations": 50,
   "total_functions": 10,
@@ -364,6 +464,8 @@ Results are stored in `.twevals/runs/`:
   ]
 }
 ```
+
+**Note:** `run_id` is a Unix timestamp (string representation of integer) for sortability.
 
 ---
 

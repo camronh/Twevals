@@ -110,16 +110,33 @@ Scenario: No save (stdout JSON)
   And no file is written
 ```
 
-### Session Options
+### Session & Run Management
 
 ```gherkin
 Scenario: Named session and run
   When the user runs `twevals run evals/ --session model-upgrade --run-name baseline`
-  Then JSON contains session_name="model-upgrade" and run_name="baseline"
+  Then results save to .twevals/sessions/model-upgrade/baseline_{timestamp}.json
 
-Scenario: Auto-generated names
-  When the user runs `twevals run evals/` without naming flags
-  Then friendly adjective-noun names generate (e.g., "swift-falcon")
+Scenario: No session specified (CLI run)
+  When the user runs `twevals run evals/`
+  Then session defaults to "default"
+  And results save to .twevals/sessions/default/{run_name}_{timestamp}.json
+
+Scenario: No run name specified
+  When the user runs `twevals run evals/ --session emojis`
+  Then run name auto-generates as friendly adjective-noun (e.g., "swift-falcon")
+  And results save to .twevals/sessions/emojis/swift-falcon_{timestamp}.json
+
+Scenario: Overwrite behavior (same session + run name)
+  Given overwrite=true in twevals.json (default)
+  When the user runs `twevals run evals/ --session upgrade --run-name gpt5` twice
+  Then the second run REPLACES the first
+  And only one file exists: .twevals/sessions/upgrade/gpt5_{new_timestamp}.json
+
+Scenario: No overwrite (when disabled)
+  Given overwrite=false in twevals.json
+  When the user runs `twevals run evals/ --session upgrade --run-name gpt5` twice
+  Then both runs are kept as separate files with different timestamps
 ```
 
 ### Output Formats
@@ -127,7 +144,7 @@ Scenario: Auto-generated names
 **Minimal (default) Example:**
 ```
 Running evals.py
-Results saved to .twevals/runs/swift-falcon_2024-01-15T10-30-00Z.json
+Results saved to .twevals/sessions/default/swift-falcon_1705312200.json
 ```
 
 **Visual (`--visual`) Example:**
@@ -159,6 +176,17 @@ Scenario: Start web UI
   Then server starts at http://127.0.0.1:8000
   And browser opens automatically
   And evaluations are discovered but NOT auto-run
+
+Scenario: Session auto-generation (serve command)
+  When the user runs `twevals serve evals/` without --session
+  Then a session name auto-generates (e.g., "calm-dragon")
+  And each serve command creates a new session
+  Note: This differs from CLI run which defaults to "default"
+
+Scenario: Named session
+  When the user runs `twevals serve evals/ --session emojis`
+  Then the session is set to "emojis"
+  And all runs in this UI session save to .twevals/sessions/emojis/
 
 Scenario: Custom port
   When the user runs `twevals serve evals/ --port 3000`
@@ -201,9 +229,18 @@ Scenario: Auto-run with filters
   "concurrency": 1,
   "timeout": null,
   "verbose": false,
-  "results_dir": ".twevals/runs"
+  "results_dir": ".twevals/sessions",
+  "overwrite": true
 }
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `concurrency` | int | 1 | Parallel evaluations |
+| `timeout` | float | null | Global timeout (seconds) |
+| `verbose` | bool | false | Show eval stdout |
+| `results_dir` | string | `.twevals/sessions` | Storage directory |
+| `overwrite` | bool | true | Replace runs with same session + run name |
 
 **Precedence:** CLI flags > Config file > Defaults
 
@@ -260,6 +297,6 @@ Scenario: Concurrency set to zero
 | `--port` | int | 8000 | Server port |
 | `--session` | str | auto | Session name |
 | `--run-name` | str | auto | Run name |
-| `--results-dir` | path | .twevals/runs | Results directory |
+| `--results-dir` | path | .twevals/sessions | Results directory |
 | `--run` | flag | false | Auto-run all evals on startup |
 
