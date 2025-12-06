@@ -2,7 +2,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.2a16 - 2025-12-06
 
 - Changed: Results storage restructured to hierarchical sessions with overwrite-by-name semantics. New directory structure: `.twevals/sessions/{session_name}/{run_name}_{timestamp}.json`.
 - Changed: `serve` command auto-generates session names (each serve = new session). `run` command defaults to "default" session.
