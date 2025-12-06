@@ -95,8 +95,6 @@
       .dropdown-menu.active, .filters-panel.active, .columns-panel.active { display: block; }
       .filter-badge { display: none; }
       .filter-badge.active { display: flex; }
-      .loading-indicator { display: none; }
-      .loading-indicator.active { display: inline-flex; }
 
       /* Table sorting indicators */
       #results-table thead th[aria-sort="ascending"]::after { content: " ▲"; font-size: 8px; color: #3b82f6; }
@@ -291,6 +289,74 @@
         color: #3b82f6;
       }
 
+      /* Progress bar for expanded stats - inline with tests */
+      .stats-metric-row-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        flex: 1;
+      }
+      .stats-progress {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        max-width: 180px;
+        padding-top: 6px;
+      }
+      .stats-progress-bar {
+        flex: 1;
+        height: 8px;
+        background: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+      }
+      .stats-progress-bar::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 4px;
+        border: 1px solid rgba(255,255,255,0.05);
+        pointer-events: none;
+      }
+      .stats-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
+        border-radius: 4px;
+        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.5), 0 0 4px rgba(59, 130, 246, 0.3);
+      }
+      .stats-progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255,255,255,0.3) 50%,
+          transparent 100%
+        );
+        animation: shimmer 1.5s ease-in-out infinite;
+      }
+      @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      .stats-progress-text {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 500;
+        color: #60a5fa;
+        text-shadow: 0 0 8px rgba(96, 165, 250, 0.4);
+        white-space: nowrap;
+      }
+
       .stats-toggle-btn {
         display: flex;
         width: 24px;
@@ -347,10 +413,21 @@
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+      }
+      .stats-bar-col.entering {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      .stats-bar-col.exiting {
+        opacity: 0;
+        transform: translateY(-10px);
       }
       .stats-chart-fill {
         width: 100%;
-        transition: height 0.4s ease-out;
+        transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.4s ease-out;
       }
       /* X-axis area - juts out from Y-axis */
       .stats-xaxis {
@@ -373,7 +450,10 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        opacity: 1;
+        transition: opacity 0.3s ease-out;
       }
+      .stats-chart-label.entering { opacity: 0; }
       /* Values row */
       .stats-chart-values {
         display: flex;
@@ -388,6 +468,11 @@
         font-weight: 600;
         color: var(--text);
         text-align: center;
+        opacity: 1;
+        transition: opacity 0.15s ease-out;
+      }
+      .stats-chart-value.updating {
+        opacity: 0.5;
       }
 
       /* Bar colors */
@@ -414,11 +499,6 @@
 
         <!-- Right: Controls -->
         <div class="flex items-center gap-2">
-          <div id="loading-indicator" class="loading-indicator items-center gap-1.5 text-xs text-zinc-500 mr-2">
-            <svg class="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.75"/></svg>
-            <span>Loading</span>
-          </div>
-
           <!-- Search -->
           <div class="relative">
             <svg class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -651,6 +731,16 @@
         const total = data.total_evaluations || 0;
         const avgLatency = data.average_latency || 0;
         const chips = data.score_chips || [];
+        const results = data.results || [];
+
+        // Count statuses for progress
+        let completed = 0;
+        results.forEach(r => {
+          const status = r.result?.status || 'completed';
+          if (status === 'completed' || status === 'error') completed++;
+        });
+        const isRunning = completed < total && total > 0;
+        const pctDone = total > 0 ? Math.round((completed / total) * 100) : 0;
 
         let headerHtml = '';
         if (data.session_name || data.run_name) {
@@ -669,10 +759,15 @@
           latencyHtml = `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span></span><span class="stats-metric-label">avg latency</span></div>`;
         }
 
+        let progressHtml = '';
+        if (isRunning) {
+          progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text">${completed}/${total}</span></div>`;
+        }
+
         let barsHtml = '';
         let labelsHtml = '';
         let valuesHtml = '';
-        chips.forEach(chip => {
+        chips.forEach((chip, i) => {
           let pct, value;
           if (chip.type === 'ratio') {
             pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
@@ -682,9 +777,10 @@
             pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
             value = avg.toFixed(2);
           }
-          barsHtml += `<div class="stats-bar-col"><div class="stats-chart-fill ${getBarColor(pct)}" style="height: ${pct}%"></div></div>`;
-          labelsHtml += `<span class="stats-chart-label">${escapeHtml(chip.key)}</span>`;
-          valuesHtml += `<span class="stats-chart-value">${value}</span>`;
+          // Start at 0 height, will animate to target via JS
+          barsHtml += `<div class="stats-bar-col" style="opacity:0;transform:translateY(20px)"><div class="stats-chart-fill ${getBarColor(pct)}" data-target-height="${pct}" style="height: 0%"></div></div>`;
+          labelsHtml += `<span class="stats-chart-label" style="opacity:0">${escapeHtml(chip.key)}</span>`;
+          valuesHtml += `<span class="stats-chart-value" style="opacity:0">${value}</span>`;
         });
 
         const isCollapsed = localStorage.getItem('twevals:statsExpanded') === 'false';
@@ -697,7 +793,10 @@
               <div class="stats-left">
                 <div class="stats-left-content">
                   ${headerHtml}
-                  <div class="stats-metric"><span class="stats-metric-value">${total}</span><span class="stats-metric-label">tests</span></div>
+                  <div class="stats-metric-row-main">
+                    <div class="stats-metric"><span class="stats-metric-value">${total}</span><span class="stats-metric-label">tests</span></div>
+                    ${progressHtml}
+                  </div>
                   ${latencyHtml}
                 </div>
                 <div class="stats-yaxis">
@@ -954,6 +1053,33 @@
         checkRunningState();
         scheduleLiveRefresh();
         initStatsToggle();
+        animateInitialBars();
+      }
+
+      function animateInitialBars() {
+        const bars = document.querySelectorAll('.stats-bar-col');
+        const labels = document.querySelectorAll('.stats-chart-label');
+        const values = document.querySelectorAll('.stats-chart-value');
+
+        bars.forEach((bar, i) => {
+          const fill = bar.querySelector('.stats-chart-fill');
+          const targetHeight = fill?.dataset.targetHeight;
+          setTimeout(() => {
+            bar.style.opacity = '';
+            bar.style.transform = '';
+            if (fill && targetHeight) {
+              fill.style.height = targetHeight + '%';
+            }
+          }, 50 + i * 80);
+        });
+
+        labels.forEach((label, i) => {
+          setTimeout(() => { label.style.opacity = ''; }, 100 + i * 80);
+        });
+
+        values.forEach((val, i) => {
+          setTimeout(() => { val.style.opacity = ''; }, 150 + i * 80);
+        });
       }
 
       function updateRowInPlace(index, newResult) {
@@ -1272,9 +1398,6 @@
       document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('twevals:scrollY', window.scrollY.toString()); } });
       function wireExportButtons() { const table = document.getElementById('results-table'); const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest'; document.getElementById('export-json-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/json`; }); document.getElementById('export-csv-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/csv`; }); }
 
-      function showLoading() { document.getElementById('loading-indicator')?.classList.add('active'); }
-      function hideLoading() { document.getElementById('loading-indicator')?.classList.remove('active'); }
-
       document.addEventListener('click', async (e) => { const btn = e.target.closest('.copy-btn'); if (!btn) return; const id = btn.getAttribute('data-copy'); const pre = document.getElementById(id); if (!pre) return; try { await navigator.clipboard.writeText(pre.innerText); const copyIcon = btn.querySelector('.copy-icon'); const checkIcon = btn.querySelector('.check-icon'); if (copyIcon && checkIcon) { copyIcon.classList.add('hidden'); checkIcon.classList.remove('hidden'); setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900); } } catch { alert('Copy failed'); } });
 
       document.getElementById('play-btn')?.addEventListener('click', async () => {
@@ -1285,7 +1408,6 @@
         }
         let started = false;
         try {
-          showLoading();
           const body = selectedIndices.size > 0 ? { indices: Array.from(selectedIndices) } : {};
           const resp = await fetch('/api/runs/rerun', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
           if (!resp.ok) {
@@ -1298,7 +1420,6 @@
           setRunningState(true);
           await loadResults();
         } catch (e) { alert('Rerun failed: ' + e); }
-        finally { if (!started) hideLoading(); }
       });
 
       let lastCheckedIdx = null;
@@ -1345,36 +1466,135 @@
       }
 
       function updateStatsInPlace(data) {
-        // Re-render stats panels entirely to handle new elements appearing
         const expandedPanel = document.getElementById('stats-expanded');
         const compactBar = document.getElementById('stats-compact');
         if (!expandedPanel || !compactBar) return;
 
-        // Preserve expanded/collapsed state
-        const wasExpanded = !expandedPanel.classList.contains('hidden');
+        const chips = data.score_chips || [];
+        const total = data.total_evaluations || 0;
+        const avgLatency = data.average_latency || 0;
+        const results = data.results || [];
 
-        // Create temp container and render new stats
-        const temp = document.createElement('div');
-        temp.innerHTML = renderStatsExpanded(data) + renderStatsCompact(data);
+        // Count statuses for progress
+        let completed = 0;
+        results.forEach(r => {
+          const status = r.result?.status || 'completed';
+          if (status === 'completed' || status === 'error') completed++;
+        });
+        const pctDone = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-        // Extract new panels
-        const newExpanded = temp.querySelector('#stats-expanded');
-        const newCompact = temp.querySelector('#stats-compact');
+        // Update expanded panel bars in-place
+        const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
+        const labelsContainer = expandedPanel.querySelector('.stats-chart-labels');
+        const valuesContainer = expandedPanel.querySelector('.stats-chart-values');
 
-        // Preserve visibility state
-        if (wasExpanded) {
-          newExpanded.classList.remove('hidden');
-          newCompact.classList.add('hidden');
-        } else {
-          newExpanded.classList.add('hidden');
-          newCompact.classList.remove('hidden');
+        if (barsContainer && labelsContainer && valuesContainer) {
+          const existingBars = barsContainer.querySelectorAll('.stats-bar-col');
+          const existingLabels = labelsContainer.querySelectorAll('.stats-chart-label');
+          const existingValues = valuesContainer.querySelectorAll('.stats-chart-value');
+
+          chips.forEach((chip, i) => {
+            let pct, value;
+            if (chip.type === 'ratio') {
+              pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
+              value = `${chip.passed}/${chip.total}`;
+            } else {
+              const avg = chip.avg;
+              pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
+              value = avg.toFixed(2);
+            }
+            const colorClass = getBarColor(pct);
+
+            if (existingBars[i]) {
+              // Update existing bar
+              const fill = existingBars[i].querySelector('.stats-chart-fill');
+              if (fill) {
+                fill.style.height = pct + '%';
+                fill.className = 'stats-chart-fill ' + colorClass;
+              }
+            } else {
+              // Add new bar with enter animation
+              const barCol = document.createElement('div');
+              barCol.className = 'stats-bar-col entering';
+              barCol.innerHTML = `<div class="stats-chart-fill ${colorClass}" style="height: 0%"></div>`;
+              barsContainer.appendChild(barCol);
+              requestAnimationFrame(() => {
+                barCol.classList.remove('entering');
+                barCol.querySelector('.stats-chart-fill').style.height = pct + '%';
+              });
+            }
+
+            if (existingLabels[i]) {
+              existingLabels[i].textContent = chip.key;
+            } else {
+              const label = document.createElement('span');
+              label.className = 'stats-chart-label entering';
+              label.textContent = chip.key;
+              labelsContainer.appendChild(label);
+              requestAnimationFrame(() => label.classList.remove('entering'));
+            }
+
+            if (existingValues[i]) {
+              if (existingValues[i].textContent !== value) {
+                existingValues[i].classList.add('updating');
+                setTimeout(() => {
+                  existingValues[i].textContent = value;
+                  existingValues[i].classList.remove('updating');
+                }, 75);
+              }
+            } else {
+              const valSpan = document.createElement('span');
+              valSpan.className = 'stats-chart-value';
+              valSpan.textContent = value;
+              valuesContainer.appendChild(valSpan);
+            }
+          });
+
+          // Remove excess bars/labels/values with exit animation
+          for (let i = chips.length; i < existingBars.length; i++) {
+            existingBars[i].classList.add('exiting');
+            setTimeout(() => existingBars[i].remove(), 400);
+          }
+          for (let i = chips.length; i < existingLabels.length; i++) {
+            existingLabels[i].remove();
+          }
+          for (let i = chips.length; i < existingValues.length; i++) {
+            existingValues[i].remove();
+          }
         }
 
-        // Replace old with new
-        expandedPanel.replaceWith(newExpanded);
-        compactBar.replaceWith(newCompact);
+        // Update test count
+        const testMetric = expandedPanel.querySelector('.stats-metric-value');
+        if (testMetric && testMetric.textContent !== String(total)) {
+          testMetric.textContent = total;
+        }
 
-        // Re-init toggle buttons
+        // Update progress bar
+        const progressFill = expandedPanel.querySelector('.stats-progress-fill');
+        const progressText = expandedPanel.querySelector('.stats-progress-text');
+        if (progressFill) progressFill.style.width = pctDone + '%';
+        if (progressText) progressText.textContent = `${completed}/${total}`;
+
+        // Update latency
+        const latencyEl = expandedPanel.querySelector('.stats-metric-sm .stats-metric-value');
+        if (latencyEl && avgLatency > 0) {
+          const newLatency = avgLatency.toFixed(2);
+          if (!latencyEl.textContent.startsWith(newLatency)) {
+            latencyEl.innerHTML = `${newLatency}<span class="stats-metric-unit">s</span>`;
+          }
+        }
+
+        // Update compact bar (simpler, just re-render)
+        const wasExpanded = !expandedPanel.classList.contains('hidden');
+        const temp = document.createElement('div');
+        temp.innerHTML = renderStatsCompact(data);
+        const newCompact = temp.querySelector('#stats-compact');
+        if (wasExpanded) {
+          newCompact.classList.add('hidden');
+        } else {
+          newCompact.classList.remove('hidden');
+        }
+        compactBar.replaceWith(newCompact);
         initStatsToggle();
       }
 
