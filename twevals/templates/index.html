@@ -42,7 +42,6 @@
         }
       };
     </script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -155,9 +154,7 @@
       tr[data-row="main"].expanded .score-overflow { display: none; }
       #results-table td { overflow: hidden; text-overflow: ellipsis; max-width: 0; }
 
-      /* Smooth HTMX */
       #results { min-height: 200px; }
-      .htmx-swapping, .htmx-settling { opacity: 1; }
 
       /* ═══════════════════════════════════════════════════════════════
          EXPANDED STATS PANEL - Two-column layout
@@ -520,7 +517,7 @@
 
     <!-- Main Content -->
     <main class="px-4 py-4">
-      <div id="results" hx-get="/results" hx-trigger="load" hx-swap="innerHTML"></div>
+      <div id="results"></div>
     </main>
 
     <!-- Footer -->
@@ -613,6 +610,373 @@
       function getColWidths() { try { return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) || "{}"); } catch { return {}; } }
       function setColWidths(map) { localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(map)); }
       function defaultFilters() { return { valueRules: [], passedRules: [], annotation: 'any', selectedDatasets: { include: [], exclude: [] }, selectedLabels: { include: [], exclude: [] }, hasUrl: null, hasMessages: null, hasError: null }; }
+
+      // Current data for updates
+      let _currentData = null;
+      let _currentRunId = null;
+
+      const PILL_TONES = {
+        'not_started': 'text-zinc-400 bg-zinc-500/10 border border-zinc-500/40',
+        'pending': 'text-blue-300 bg-blue-500/10 border border-blue-500/40',
+        'running': 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/40',
+        'completed': 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/40',
+        'error': 'text-rose-300 bg-rose-500/10 border border-rose-500/40',
+        'cancelled': 'text-amber-300 bg-amber-500/10 border border-amber-500/40'
+      };
+
+      function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      function formatValue(val) {
+        if (val == null) return '';
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+      }
+
+      function getBarColor(pct) {
+        return pct >= 80 ? 'vbar-green' : (pct >= 50 ? 'vbar-amber' : 'vbar-red');
+      }
+
+      function getBgBarColor(pct) {
+        return pct >= 80 ? 'bg-emerald-500' : (pct >= 50 ? 'bg-amber-500' : 'bg-rose-500');
+      }
+
+      function getTextColor(pct) {
+        return pct >= 80 ? 'text-accent-success' : (pct >= 50 ? 'text-amber-500' : 'text-accent-error');
+      }
+
+      function renderStatsExpanded(data) {
+        const total = data.total_evaluations || 0;
+        const avgLatency = data.average_latency || 0;
+        const chips = data.score_chips || [];
+
+        let headerHtml = '';
+        if (data.session_name || data.run_name) {
+          headerHtml = '<div class="stats-left-header">';
+          if (data.session_name) {
+            headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session">${escapeHtml(data.session_name)}</span></div>`;
+          }
+          if (data.run_name) {
+            headerHtml += `<div class="stats-info-row"><span class="stats-info-label">run</span><span class="stats-run">${escapeHtml(data.run_name)}</span></div>`;
+          }
+          headerHtml += '</div>';
+        }
+
+        let latencyHtml = '';
+        if (avgLatency > 0) {
+          latencyHtml = `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span></span><span class="stats-metric-label">avg latency</span></div>`;
+        }
+
+        let barsHtml = '';
+        let labelsHtml = '';
+        let valuesHtml = '';
+        chips.forEach(chip => {
+          let pct, value;
+          if (chip.type === 'ratio') {
+            pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
+            value = `${chip.passed}/${chip.total}`;
+          } else {
+            const avg = chip.avg;
+            pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
+            value = avg.toFixed(2);
+          }
+          barsHtml += `<div class="stats-bar-col"><div class="stats-chart-fill ${getBarColor(pct)}" style="height: ${pct}%"></div></div>`;
+          labelsHtml += `<span class="stats-chart-label">${escapeHtml(chip.key)}</span>`;
+          valuesHtml += `<span class="stats-chart-value">${value}</span>`;
+        });
+
+        const isCollapsed = localStorage.getItem('twevals:statsExpanded') === 'false';
+        return `
+          <div id="stats-expanded" class="stats-expanded${isCollapsed ? ' hidden' : ''}">
+            <div class="stats-layout">
+              <button id="stats-collapse-btn" class="stats-collapse-btn" title="Collapse">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+              </button>
+              <div class="stats-left">
+                <div class="stats-left-content">
+                  ${headerHtml}
+                  <div class="stats-metric"><span class="stats-metric-value">${total}</span><span class="stats-metric-label">tests</span></div>
+                  ${latencyHtml}
+                </div>
+                <div class="stats-yaxis">
+                  <span class="stats-axis-label">100%</span>
+                  <span class="stats-axis-label">75%</span>
+                  <span class="stats-axis-label">50%</span>
+                  <span class="stats-axis-label">25%</span>
+                  <span class="stats-axis-label">0%</span>
+                </div>
+              </div>
+              <div class="stats-right">
+                <div class="stats-chart-area">
+                  <div class="stats-gridline" style="top: 0%"></div>
+                  <div class="stats-gridline" style="top: 25%"></div>
+                  <div class="stats-gridline" style="top: 50%"></div>
+                  <div class="stats-gridline" style="top: 75%"></div>
+                  <div class="stats-chart-bars">${barsHtml}</div>
+                </div>
+                <div class="stats-xaxis">
+                  <div class="stats-chart-labels">${labelsHtml}</div>
+                  <div class="stats-chart-values">${valuesHtml}</div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function renderStatsCompact(data) {
+        const total = data.total_evaluations || 0;
+        const avgLatency = data.average_latency || 0;
+        const chips = data.score_chips || [];
+        const results = data.results || [];
+
+        // Count statuses
+        let notStarted = 0, pending = 0, running = 0, completed = 0;
+        results.forEach(r => {
+          const status = r.result?.status || 'completed';
+          if (status === 'not_started') notStarted++;
+          else if (status === 'pending') pending++;
+          else if (status === 'running') running++;
+          else completed++;
+        });
+        const progressPending = pending + running;
+        const pctDone = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        let sessionRunHtml = '';
+        if (data.session_name || data.run_name) {
+          sessionRunHtml = '<div class="flex items-center gap-2">';
+          if (data.session_name) {
+            sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Session</span>
+              <div class="group flex items-center gap-1">
+                <span id="session-name-text" class="font-mono text-[11px] text-theme-text">${escapeHtml(data.session_name)}</span>
+                <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" data-copy="session-name-text">
+                  <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                </button>
+              </div>`;
+          }
+          if (data.run_name) {
+            if (data.session_name) sessionRunHtml += '<span class="text-zinc-600">·</span>';
+            sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
+              <div class="group flex items-center gap-1">
+                <span id="run-name-text" class="font-mono text-[11px] text-accent-link">${escapeHtml(data.run_name)}</span>
+                <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" data-copy="run-name-text">
+                  <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                </button>
+              </div>`;
+          }
+          sessionRunHtml += '</div><div class="h-3 w-px bg-zinc-700"></div>';
+        }
+
+        let progressHtml;
+        if (notStarted === total) {
+          progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Discovered</span><span class="font-mono text-[11px] text-zinc-400">${total} eval${total !== 1 ? 's' : ''}</span></div>`;
+        } else if (progressPending > 0) {
+          progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${completed}/${total}</span></div>`;
+        } else {
+          progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span><span class="font-mono text-[11px] text-accent-link">${total}</span></div>`;
+        }
+
+        let chipsHtml = '';
+        chips.forEach((chip, i) => {
+          let pct, value;
+          if (chip.type === 'ratio') {
+            pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
+            value = `${chip.passed}/${chip.total}`;
+          } else {
+            const avg = chip.avg;
+            pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
+            value = avg.toFixed(1);
+          }
+          chipsHtml += `<div class="flex items-center gap-2">
+            <span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">${escapeHtml(chip.key)}</span>
+            <div class="h-1 w-5 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full ${getBgBarColor(pct)}" style="width: ${pct}%"></div></div>
+            <span class="font-mono text-[11px] ${getTextColor(pct)}">${value}</span>
+          </div>`;
+          if (i < chips.length - 1) chipsHtml += '<div class="h-3 w-px bg-zinc-700"></div>';
+        });
+
+        let latencyHtml = '';
+        if (avgLatency > 0) {
+          latencyHtml = `<div class="h-3 w-px bg-zinc-700"></div><div class="flex items-center gap-2"><span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">Latency</span><span class="font-mono text-[11px] text-zinc-400">${avgLatency.toFixed(2)}s</span></div>`;
+        }
+
+        const isCollapsed = localStorage.getItem('twevals:statsExpanded') === 'false';
+        return `
+          <div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-theme-border bg-theme-bg-secondary/50 px-4 py-2${isCollapsed ? '' : ' hidden'}">
+            ${sessionRunHtml}
+            ${progressHtml}
+            <div class="h-3 w-px bg-zinc-700"></div>
+            ${chipsHtml}
+            ${latencyHtml}
+            <div class="ml-auto">
+              <button id="stats-expand-btn" class="stats-toggle-btn" title="Expand stats">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+            </div>
+          </div>`;
+      }
+
+      function renderRow(r, index, runId) {
+        const result = r.result || {};
+        const status = result.status || 'completed';
+        const isRunning = status === 'running';
+        const isNotStarted = status === 'not_started';
+        const scores = result.scores || [];
+        const hasUrl = !!(result.trace_data?.trace_url);
+        const hasMessages = !!(result.trace_data?.messages?.length);
+        const hasError = !!result.error;
+
+        const functionCell = isNotStarted
+          ? `<span class="font-mono text-[12px] font-medium text-zinc-500">${escapeHtml(r.function)}</span>`
+          : `<a href="/runs/${runId}/results/${index}" class="font-mono text-[12px] font-medium text-accent-link hover:text-accent-link-hover">${escapeHtml(r.function)}</a>`;
+
+        let statusPill = '';
+        if (status === 'running') statusPill = `<span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.running}">running</span>`;
+        else if (status === 'error') statusPill = `<span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.error}">err</span>`;
+
+        let labelsHtml = '';
+        if (r.labels?.length) {
+          labelsHtml = '<span class="text-zinc-700">·</span>' + r.labels.map(la => `<span class="rounded bg-theme-bg-elevated px-1 py-0.5 text-[9px] text-theme-text-muted">${escapeHtml(la)}</span>`).join('');
+        }
+
+        let outputCell;
+        if (isNotStarted) outputCell = '<span class="text-zinc-600">—</span>';
+        else if (isRunning) outputCell = '<div class="space-y-1"><div class="h-2.5 w-3/4 animate-pulse rounded bg-zinc-800"></div><div class="h-2.5 w-1/2 animate-pulse rounded bg-zinc-800"></div></div>';
+        else if (result.output != null) outputCell = `<div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.output))}</div>`;
+        else outputCell = '<span class="text-zinc-600">—</span>';
+
+        let scoresCell;
+        if (isNotStarted) scoresCell = '<span class="text-zinc-600">—</span>';
+        else if (isRunning) scoresCell = '<div class="flex gap-1"><div class="h-4 w-14 animate-pulse rounded bg-zinc-800"></div><div class="h-4 w-10 animate-pulse rounded bg-zinc-800"></div></div>';
+        else if (scores.length) {
+          const maxScores = 2;
+          let badgesHtml = scores.map((s, i) => {
+            let badgeClass = 'bg-theme-bg-elevated text-theme-text-muted';
+            if (s.passed === true) badgeClass = 'bg-accent-success-bg text-accent-success';
+            else if (s.passed === false) badgeClass = 'bg-accent-error-bg text-accent-error';
+            const extraClass = i >= maxScores ? ' score-extra hidden' : '';
+            const val = s.value != null ? `:${typeof s.value === 'number' ? s.value.toFixed(1) : s.value}` : '';
+            const title = `${s.key}${s.value != null ? ': ' + (typeof s.value === 'number' ? s.value.toFixed(3) : s.value) : ''}${s.notes ? ' — ' + s.notes : ''}`;
+            return `<span class="score-badge shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}${extraClass}" title="${escapeHtml(title)}">${escapeHtml(s.key)}${val}</span>`;
+          }).join('');
+          if (scores.length > maxScores) badgesHtml += `<span class="score-overflow shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">+${scores.length - maxScores}</span>`;
+          scoresCell = `<div class="flex gap-1 overflow-hidden">${badgesHtml}</div>`;
+        } else scoresCell = '<span class="text-zinc-600">—</span>';
+
+        let latencyCell;
+        if (result.latency != null) {
+          const lat = result.latency;
+          const latColor = lat <= 1 ? 'text-accent-success' : (lat <= 5 ? 'text-theme-text-muted' : 'text-accent-error');
+          latencyCell = `<span class="font-mono text-[11px] ${latColor}">${lat.toFixed(2)}s</span>`;
+        } else if (isRunning) latencyCell = '<div class="ml-auto h-3 w-8 animate-pulse rounded bg-zinc-800"></div>';
+        else latencyCell = '<span class="text-zinc-600">—</span>';
+
+        return `
+          <tr data-row="main" data-row-id="${index}" data-status="${status}" data-scores='${JSON.stringify(scores)}' data-annotation="${escapeHtml(result.annotation || '')}" data-dataset="${escapeHtml(r.dataset || '')}" data-labels='${JSON.stringify(r.labels || [])}' data-has-url="${hasUrl}" data-has-messages="${hasMessages}" data-has-error="${hasError}" class="group cursor-pointer hover:bg-theme-bg-elevated/50 transition-colors${isNotStarted ? ' opacity-60' : ''}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
+            <td class="px-2 py-2 text-center align-middle" onclick="event.stopPropagation()">
+              <input type="checkbox" class="row-checkbox" data-row-id="${index}" />
+            </td>
+            <td data-col="function" class="px-3 py-2 align-middle">
+              <div class="flex flex-col gap-0.5">
+                <div class="flex items-center gap-2">${functionCell}${statusPill}</div>
+                <div class="flex items-center gap-1.5 text-[10px] text-zinc-500"><span>${escapeHtml(r.dataset || '')}</span>${labelsHtml}</div>
+              </div>
+            </td>
+            <td data-col="input" title="${escapeHtml(formatValue(result.input))}" class="px-3 py-2 align-middle">
+              <div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.input))}</div>
+            </td>
+            <td data-col="reference" title="${escapeHtml(formatValue(result.reference))}" class="px-3 py-2 align-middle">
+              ${result.reference != null ? `<div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.reference))}</div>` : '<span class="text-zinc-600">—</span>'}
+            </td>
+            <td data-col="output" title="${escapeHtml(formatValue(result.output))}" class="px-3 py-2 align-middle">${outputCell}</td>
+            <td data-col="error" title="${escapeHtml(result.error || '')}" class="px-3 py-2 align-middle">
+              ${result.error ? `<div class="line-clamp-2 text-[12px] text-accent-error">${escapeHtml(result.error)}</div>` : '<span class="text-zinc-600">—</span>'}
+            </td>
+            <td data-col="scores" class="px-3 py-2 align-middle max-w-[180px]">${scoresCell}</td>
+            <td data-col="latency" data-value="${result.latency ?? ''}" class="px-3 py-2 align-middle text-right">${latencyCell}</td>
+            <td class="px-1 py-2 align-middle">
+              <span class="expand-chevron text-zinc-700 group-hover:text-zinc-400">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </span>
+            </td>
+          </tr>`;
+      }
+
+      function renderResultsTable(data, runId) {
+        const results = data.results || [];
+        const rowsHtml = results.map((r, i) => renderRow(r, i, runId)).join('');
+        return `
+          <div id="filtered-summary" class="hidden mb-3 border-b border-zinc-800 bg-zinc-900/30 px-4 py-2 text-sm">
+            <div class="flex flex-wrap items-center gap-2">
+              <span id="filtered-count-chip" class="inline-flex items-center gap-2 rounded bg-theme-bg-elevated px-2 py-0.5 text-[11px] font-medium text-theme-text"></span>
+              <span id="filtered-avg-latency" class="inline-flex items-center gap-2 rounded bg-theme-bg-elevated px-2 py-0.5 text-[11px] font-medium text-theme-text"></span>
+              <span id="filtered-score-chips" class="flex flex-wrap gap-2"></span>
+            </div>
+          </div>
+          <table id="results-table" data-run-id="${runId}" class="w-full table-fixed border-collapse text-sm text-theme-text">
+            <thead>
+              <tr class="border-b border-theme-border">
+                <th style="width:32px;" class="sticky top-[41px] z-20 bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
+                <th data-col="function" style="width:15%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Function</th>
+                <th data-col="input" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
+                <th data-col="reference" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
+                <th data-col="output" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
+                <th data-col="error" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
+                <th data-col="scores" style="width:140px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
+                <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
+                <th style="width:28px;" class="sticky top-[41px] z-20 bg-theme-bg px-1 py-2"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-theme-border-subtle">${rowsHtml}</tbody>
+          </table>`;
+      }
+
+      function renderResults(data) {
+        _currentData = data;
+        _currentRunId = data.run_id;
+        const container = document.getElementById('results');
+        container.innerHTML = renderStatsExpanded(data) + renderStatsCompact(data) + renderResultsTable(data, data.run_id);
+        onResultsRendered();
+      }
+
+      function onResultsRendered() {
+        const table = document.getElementById('results-table');
+        if (table) { applySortState(table); applyColumnWidths(table); initResizableColumns(table); }
+        applyColumnVisibility();
+        initScrollRestoration();
+        wireExportButtons();
+        restoreFiltersAndSearch();
+        try { populateScoreKeySelects(); populateDatasetLabelPills(); updateTraceFilterButtons(); updateAnnotationButton(); renderActiveFilters(); applyAllFilters(); } catch {}
+        syncCheckboxesToSelection();
+        checkRunningState();
+        scheduleLiveRefresh();
+        initStatsToggle();
+      }
+
+      function updateRowInPlace(index, newResult) {
+        const row = document.querySelector(`tr[data-row="main"][data-row-id="${index}"]`);
+        if (!row || !_currentData) return;
+        // Update the data
+        _currentData.results[index].result = newResult;
+        // Re-render just this row
+        const newRowHtml = renderRow(_currentData.results[index], index, _currentRunId);
+        const temp = document.createElement('tbody');
+        temp.innerHTML = newRowHtml;
+        const newRow = temp.firstElementChild;
+        // Preserve expanded state
+        if (row.classList.contains('expanded')) newRow.classList.add('expanded');
+        row.replaceWith(newRow);
+        // Re-sync checkbox
+        const cb = newRow.querySelector('.row-checkbox');
+        if (cb) cb.checked = selectedIndices.has(index);
+      }
+
+      function hasRunningResults(data) {
+        return (data.results || []).some(r => ['pending', 'running'].includes(r.result?.status));
+      }
       function getFilters() { return _filters; }
       function setFilters(f) { _filters = f || defaultFilters(); sessionStorage.setItem('twevals:filters', JSON.stringify(_filters)); renderActiveFilters(); applyAllFilters(); }
 
@@ -908,18 +1272,33 @@
       document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('twevals:scrollY', window.scrollY.toString()); } });
       function wireExportButtons() { const table = document.getElementById('results-table'); const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest'; document.getElementById('export-json-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/json`; }); document.getElementById('export-csv-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/csv`; }); }
 
-      function showLoading(evt) { const silent = evt?.detail?.requestConfig?.headers?.['X-Silent-Refresh']; if (silent) return; document.getElementById('loading-indicator')?.classList.add('active'); }
-      function hideLoading(evt) { const silent = evt?.detail?.requestConfig?.headers?.['X-Silent-Refresh']; if (silent) return; document.getElementById('loading-indicator')?.classList.remove('active'); }
-      document.body.addEventListener('htmx:beforeRequest', showLoading);
-      document.body.addEventListener('htmx:afterSwap', hideLoading);
-      document.body.addEventListener('htmx:responseError', hideLoading);
+      function showLoading() { document.getElementById('loading-indicator')?.classList.add('active'); }
+      function hideLoading() { document.getElementById('loading-indicator')?.classList.remove('active'); }
 
       document.addEventListener('click', async (e) => { const btn = e.target.closest('.copy-btn'); if (!btn) return; const id = btn.getAttribute('data-copy'); const pre = document.getElementById(id); if (!pre) return; try { await navigator.clipboard.writeText(pre.innerText); const copyIcon = btn.querySelector('.copy-icon'); const checkIcon = btn.querySelector('.check-icon'); if (copyIcon && checkIcon) { copyIcon.classList.add('hidden'); checkIcon.classList.remove('hidden'); setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900); } } catch { alert('Copy failed'); } });
 
       document.getElementById('play-btn')?.addEventListener('click', async () => {
-        if (_isRunning) { try { await fetch('/api/runs/stop', { method: 'POST' }); } catch (e) { console.error('Stop failed:', e); } htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' }); return; }
+        if (_isRunning) {
+          try { await fetch('/api/runs/stop', { method: 'POST' }); } catch (e) { console.error('Stop failed:', e); }
+          await loadResults();
+          return;
+        }
         let started = false;
-        try { showLoading(); const body = selectedIndices.size > 0 ? { indices: Array.from(selectedIndices) } : {}; const resp = await fetch('/api/runs/rerun', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!resp.ok) { let msg = ''; try { const data = await resp.json(); msg = data?.detail || data?.message || ''; } catch { msg = await resp.text(); } throw new Error(msg || `HTTP ${resp.status}`); } started = true; setRunningState(true); htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML' }); } catch (e) { alert('Rerun failed: ' + e); } finally { if (!started) hideLoading(); }
+        try {
+          showLoading();
+          const body = selectedIndices.size > 0 ? { indices: Array.from(selectedIndices) } : {};
+          const resp = await fetch('/api/runs/rerun', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          if (!resp.ok) {
+            let msg = '';
+            try { const data = await resp.json(); msg = data?.detail || data?.message || ''; }
+            catch { msg = await resp.text(); }
+            throw new Error(msg || `HTTP ${resp.status}`);
+          }
+          started = true;
+          setRunningState(true);
+          await loadResults();
+        } catch (e) { alert('Rerun failed: ' + e); }
+        finally { if (!started) hideLoading(); }
       });
 
       let lastCheckedIdx = null;
@@ -937,7 +1316,61 @@
       });
 
       let liveUpdateTimer = null;
-      function scheduleLiveRefresh() { if (liveUpdateTimer) { clearTimeout(liveUpdateTimer); liveUpdateTimer = null; } const hasPending = document.querySelector('[data-status="pending"], [data-status="running"]'); if (!hasPending) return; liveUpdateTimer = setTimeout(() => { htmx.ajax('GET', '/results', { target: '#results', swap: 'innerHTML', headers: { 'X-Silent-Refresh': '1' }, }); }, 1200); }
+      function scheduleLiveRefresh() {
+        if (liveUpdateTimer) { clearTimeout(liveUpdateTimer); liveUpdateTimer = null; }
+        if (!hasRunningResults(_currentData)) return;
+        liveUpdateTimer = setTimeout(async () => {
+          try {
+            const resp = await fetch('/results');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            // Update rows in place
+            data.results.forEach((r, i) => {
+              const oldResult = _currentData?.results?.[i]?.result;
+              const newResult = r.result;
+              // Only update if something changed
+              if (JSON.stringify(oldResult) !== JSON.stringify(newResult)) {
+                updateRowInPlace(i, newResult);
+              }
+            });
+            // Update stats
+            _currentData = data;
+            updateStatsInPlace(data);
+            checkRunningState();
+            scheduleLiveRefresh();
+          } catch (e) { console.error('Live refresh failed:', e); }
+        }, 500);
+      }
+
+      function updateStatsInPlace(data) {
+        // Update expanded stats values
+        const testsValue = document.querySelector('.stats-metric-value');
+        if (testsValue) testsValue.textContent = data.total_evaluations || 0;
+        const latencyEl = document.querySelector('.stats-metric-sm .stats-metric-value');
+        if (latencyEl && data.average_latency > 0) {
+          latencyEl.innerHTML = `${data.average_latency.toFixed(2)}<span class="stats-metric-unit">s</span>`;
+        }
+        // Update bars
+        const chips = data.score_chips || [];
+        const bars = document.querySelectorAll('.stats-chart-fill');
+        const values = document.querySelectorAll('.stats-chart-value');
+        chips.forEach((chip, i) => {
+          let pct, value;
+          if (chip.type === 'ratio') {
+            pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
+            value = `${chip.passed}/${chip.total}`;
+          } else {
+            const avg = chip.avg;
+            pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
+            value = avg.toFixed(2);
+          }
+          if (bars[i]) {
+            bars[i].style.height = `${pct}%`;
+            bars[i].className = `stats-chart-fill ${getBarColor(pct)}`;
+          }
+          if (values[i]) values[i].textContent = value;
+        });
+      }
 
       (function wireSettingsModal() {
         const modal = document.getElementById('settings-modal');
@@ -959,21 +1392,19 @@
 
       function restoreFiltersAndSearch() { const savedFilters = sessionStorage.getItem('twevals:filters'); if (savedFilters) { try { _filters = JSON.parse(savedFilters); } catch {} } const savedSearch = sessionStorage.getItem('twevals:search'); const searchEl = document.getElementById('search-input'); if (savedSearch && searchEl) { searchEl.value = savedSearch; } }
 
-      document.addEventListener("htmx:afterSwap", function (e) {
-        if (e.target.id === "results") {
-          const table = document.getElementById("results-table");
-          if (table) { applySortState(table); applyColumnWidths(table); initResizableColumns(table); }
-          applyColumnVisibility();
-          initScrollRestoration();
-          wireExportButtons();
-          restoreFiltersAndSearch();
-          try { populateScoreKeySelects(); populateDatasetLabelPills(); updateTraceFilterButtons(); updateAnnotationButton(); renderActiveFilters(); applyAllFilters(); } catch {}
-          syncCheckboxesToSelection();
-          checkRunningState();
-          scheduleLiveRefresh();
-          initStatsToggle();
+      // Initial load
+      async function loadResults() {
+        try {
+          const resp = await fetch('/results');
+          if (!resp.ok) throw new Error('Failed to load results');
+          const data = await resp.json();
+          renderResults(data);
+        } catch (e) {
+          console.error('Failed to load results:', e);
+          document.getElementById('results').innerHTML = '<div class="p-4 text-theme-text-muted">Failed to load results. Please refresh the page.</div>';
         }
-      });
+      }
+      loadResults();
 
       /* Stats panel expand/collapse */
       function initStatsToggle() {
