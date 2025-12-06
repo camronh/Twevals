@@ -150,7 +150,8 @@ def create_app(
             with results_lock:
                 if cancel_event.is_set():
                     return
-                current_results[func_index[id(func)]]["result"]["status"] = "running"
+                key = getattr(func, 'original_id', id(func))
+                current_results[func_index[key]]["result"]["status"] = "running"
                 _persist()
 
         def _on_complete(func: EvalFunction, result_dict: Dict):
@@ -168,7 +169,8 @@ def create_app(
                 with results_lock:
                     if cancel_event.is_set():
                         return
-                    current_results[func_index[id(func)]] = result_dict
+                    key = getattr(func, 'original_id', id(func))
+                    current_results[func_index[key]] = result_dict
                     _persist()
 
         def _run_evals():

@@ -117,9 +117,11 @@ class EvalRunner:
             return []
 
         expanded = []
+        original_id = id(func)
         for idx, example in enumerate(examples):
             context_kwargs = self._map_example_to_context(example)
             expanded_func = self._create_expanded_eval_func(func, context_kwargs, idx)
+            expanded_func.original_id = original_id  # Track original for callbacks
             expanded.append(expanded_func)
 
         return expanded
