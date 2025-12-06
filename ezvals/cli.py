@@ -177,6 +177,11 @@ def serve_cmd(
         console.print(f"[red]Error: Path {path} does not exist[/red]")
         sys.exit(1)
 
+    # Detect if path is a run JSON file
+    if path_obj.suffix == ".json" and path_obj.is_file():
+        _serve_from_json(json_path=path, results_dir=results_dir, port=port)
+        return
+
     labels = list(label) if label else None
 
     _serve(
@@ -401,6 +406,125 @@ def _serve(
             except urllib.error.URLError:
                 pass  # Server not ready, user can click Run manually
         Thread(target=do_auto_run, daemon=True).start()
+
+    def wait_for_stop_signal():
+        """Wait for Esc or Ctrl+C while preserving log output formatting."""
+        try:
+            if not sys.stdin.isatty():
+                server_thread.join()
+                return False
+
+            import termios
+            import select
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                mode = termios.tcgetattr(fd)
+                mode[3] = mode[3] & ~(termios.ICANON | termios.ECHO)
+                termios.tcsetattr(fd, termios.TCSADRAIN, mode)
+
+                while server_thread.is_alive():
+                    if select.select([sys.stdin], [], [], 0.5)[0]:
+                        ch = sys.stdin.read(1)
+                        if not ch:
+                            return False
+                        if ch == '\x1b' or ch == '\x03':
+                            return True
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        except (ImportError, AttributeError, OSError):
+            try:
+                while server_thread.is_alive():
+                    ch = click.getchar()
+                    if ch == '\x1b' or ch == '\x03':
+                        return True
+            except (EOFError, KeyboardInterrupt):
+                return True
+        return False
+
+    try:
+        if wait_for_stop_signal():
+            console.print("\nStopping server...")
+            server.should_exit = True
+    except (KeyboardInterrupt, SystemExit):
+        console.print("\nStopping server...")
+        server.should_exit = True
+
+    server_thread.join()
+
+
+def _serve_from_json(
+    json_path: str,
+    results_dir: str,
+    port: int,
+):
+    """Serve web UI loading an existing run JSON file."""
+    try:
+        from ezvals.server import create_app
+        import uvicorn
+    except Exception:
+        console.print("[red]Missing server dependencies. Install with:[/red] \n  uv add fastapi uvicorn jinja2")
+        raise
+
+    from ezvals.storage import ResultsStore
+
+    # Load the run JSON
+    with open(json_path, "r") as f:
+        run_data = json.load(f)
+
+    # Extract run metadata
+    run_id = run_data.get("run_id")
+    session_name = run_data.get("session_name", "default")
+    run_name = run_data.get("run_name")
+    eval_path = run_data.get("path")  # Source eval file path
+
+    # Check if source eval path exists (for rerun capability)
+    source_exists = eval_path and Path(eval_path).exists()
+
+    # Create store
+    store = ResultsStore(results_dir)
+
+    # Ensure the run is in the store (copy if loading from external path)
+    try:
+        store.load_run(run_id)
+    except FileNotFoundError:
+        # Run not in store - save it there
+        store.save_run(run_data, run_id=run_id, session_name=session_name, run_name=run_name)
+
+    # Discover functions if source exists (for rerun capability)
+    discovered_functions = []
+    if source_exists:
+        discovery = EvalDiscovery()
+        discovered_functions = discovery.discover(path=eval_path)
+
+    # Create app with pre-loaded run
+    app = create_app(
+        results_dir=results_dir,
+        active_run_id=run_id,
+        path=eval_path if source_exists else None,
+        dataset=None,
+        labels=None,
+        function_name=None,
+        discovered_functions=discovered_functions,
+        session_name=session_name,
+        run_name=run_name,
+    )
+
+    if not source_exists:
+        console.print(f"[yellow]Warning: Source eval path '{eval_path}' not found. View-only mode (rerun disabled).[/yellow]")
+
+    url = f"http://127.0.0.1:{port}"
+    console.print(f"\n[bold green]EZVals UI[/bold green] serving at: [bold blue]{url}[/bold blue]")
+    console.print(f"[cyan]Loaded run: {run_name} ({len(run_data.get('results', []))} results)[/cyan]")
+    console.print("Press Esc to stop (or Ctrl+C)\n")
+
+    Thread(target=lambda: (time.sleep(0.5), webbrowser.open(url)), daemon=True).start()
+
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", access_log=False)
+    server = uvicorn.Server(config)
+
+    server_thread = Thread(target=server.run)
+    server_thread.start()
 
     def wait_for_stop_signal():
         """Wait for Esc or Ctrl+C while preserving log output formatting."""

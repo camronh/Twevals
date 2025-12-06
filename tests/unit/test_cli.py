@@ -392,3 +392,16 @@ def test_failing():
             # Exit code should be 0 even when evals fail
             assert result.exit_code == 0
             assert 'FAIL' in result.output
+
+    def test_serve_nonexistent_json_fails(self):
+        """serve command with nonexistent JSON path should fail"""
+        result = self.runner.invoke(cli, ['serve', 'nonexistent.json'])
+        assert result.exit_code == 1
+        assert 'does not exist' in result.output
+
+    def test_serve_help_shows_path_argument(self):
+        """serve help should show PATH argument"""
+        result = self.runner.invoke(cli, ['serve', '--help'])
+        assert result.exit_code == 0
+        assert 'PATH' in result.output
+        assert '--port' in result.output

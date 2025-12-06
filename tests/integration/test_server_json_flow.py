@@ -516,3 +516,99 @@ def test_readonly_fields_not_editable(tmp_path: Path):
     assert result["output"] == "o1"  # Original value
     assert result["latency"] == 0.1  # Original value
     assert result["metadata"] == {"k": 1}  # Original value
+
+
+def test_serve_from_json_loads_existing_run(tmp_path: Path):
+    """Serving a run JSON file should load that run into the UI."""
+    # Create a run JSON file
+    store = ResultsStore(tmp_path / "runs")
+    summary = make_summary()
+    summary["path"] = str(tmp_path / "evals" / "test.py")  # Source path (doesn't exist yet)
+    summary["session_name"] = "loaded-session"
+    summary["run_name"] = "loaded-run"
+    run_id = store.save_run(summary, run_id="loaded-123", session_name="loaded-session", run_name="loaded-run")
+
+    # Create app with the pre-loaded run data (simulates _serve_from_json behavior)
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run_id,
+        path=None,  # Source doesn't exist = view-only mode
+        session_name="loaded-session",
+        run_name="loaded-run",
+    )
+    client = TestClient(app)
+
+    # Results endpoint should return the loaded run data
+    r = client.get("/results")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == run_id
+    assert data["run_name"] == "loaded-run"
+    assert data["session_name"] == "loaded-session"
+    assert len(data["results"]) == 2
+
+
+def test_serve_from_json_view_only_mode(tmp_path: Path):
+    """When source eval path doesn't exist, rerun should be unavailable."""
+    store = ResultsStore(tmp_path / "runs")
+    summary = make_summary()
+    summary["path"] = "/nonexistent/path/to/evals.py"
+    run_id = store.save_run(summary)
+
+    # Create app with path=None (view-only mode)
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run_id,
+        path=None,  # View-only mode
+    )
+    client = TestClient(app)
+
+    # Rerun should fail with 400
+    response = client.post("/api/runs/rerun")
+    assert response.status_code == 400
+    assert "Rerun unavailable: missing eval path" in response.json()["detail"]
+
+
+def test_serve_from_json_with_rerun_capability(tmp_path: Path, monkeypatch):
+    """When source eval path exists, rerun should work."""
+    monkeypatch.chdir(tmp_path)
+
+    # Create eval file
+    eval_dir = tmp_path / "evals"
+    eval_dir.mkdir()
+    eval_file = eval_dir / "test_evals.py"
+    eval_file.write_text("""
+from ezvals import eval, EvalResult
+
+@eval(dataset="loaded_ds")
+def test_case():
+    return EvalResult(input="rerun_input", output="rerun_output")
+""")
+
+    # Create a run JSON with the source path
+    results_dir = tmp_path / ".ezvals" / "runs"
+    store = ResultsStore(results_dir)
+    summary = make_summary()
+    summary["path"] = str(eval_file)
+    run_id = store.save_run(summary, run_id="rerun-test-123")
+
+    # Create app with the source path (rerun enabled)
+    app = create_app(
+        results_dir=str(results_dir),
+        active_run_id=run_id,
+        path=str(eval_file),
+    )
+    client = TestClient(app)
+
+    # Rerun should succeed
+    response = client.post("/api/runs/rerun")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+    # Wait for background execution
+    time.sleep(1)
+
+    # Results should reflect the new run
+    r = client.get("/results")
+    assert r.status_code == 200
+    assert "loaded_ds" in r.text
