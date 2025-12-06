@@ -170,15 +170,34 @@
                         <use href="#icon-gear"></use>
                     </svg>
                 </button>
-                <button id="play-btn" class="flex h-7 items-center gap-1.5 rounded bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-500">
-                    <svg class="play-icon h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-                        <use href="#icon-play"></use>
-                    </svg>
-                    <svg class="stop-icon hidden h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-                        <use href="#icon-stop"></use>
-                    </svg>
-                    <span id="play-btn-text">Run</span>
-                </button>
+                <div class="flex items-center">
+                    <button id="play-btn" class="flex h-7 items-center gap-1.5 rounded-l bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-500">
+                        <svg class="play-icon h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                            <use href="#icon-play"></use>
+                        </svg>
+                        <svg class="stop-icon hidden h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                            <use href="#icon-stop"></use>
+                        </svg>
+                        <span id="play-btn-text">Run</span>
+                    </button>
+                    <div class="dropdown relative">
+                        <button id="run-dropdown-toggle" class="hidden h-7 items-center justify-center rounded-r border-l border-emerald-700 bg-emerald-600 px-1.5 text-white hover:bg-emerald-500">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <use href="#icon-chevron-down"></use>
+                            </svg>
+                        </button>
+                        <div id="run-dropdown-menu" class="absolute right-0 z-50 mt-1 w-36 rounded border border-zinc-700 bg-zinc-900 py-1 text-xs shadow-xl hidden">
+                            <button id="run-rerun-option" class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-zinc-300 hover:bg-zinc-800">
+                                <svg class="h-3 w-3 text-emerald-400 invisible" id="rerun-check"><use href="#icon-check"></use></svg>
+                                Rerun
+                            </button>
+                            <button id="run-new-option" class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-zinc-300 hover:bg-zinc-800">
+                                <svg class="h-3 w-3 text-emerald-400 invisible" id="new-check"><use href="#icon-check"></use></svg>
+                                New Run
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>

@@ -79,10 +79,14 @@ class ResultsStore:
 
     def _find_run_file(self, run_id: str, session_name: Optional[str] = None) -> Path:
         """Find the file for a run_id, optionally scoped to a session."""
-        # Check cache first
+        # Check cache first, but verify file still exists (handles renames from other instances)
         if run_id in self._run_id_cache:
             cached_session, cached_filename = self._run_id_cache[run_id]
-            return self.base_dir / cached_session / cached_filename
+            cached_path = self.base_dir / cached_session / cached_filename
+            if cached_path.exists():
+                return cached_path
+            # Cache is stale, clear it and search
+            del self._run_id_cache[run_id]
 
         # If session specified, search only that directory
         if session_name:
@@ -121,18 +125,35 @@ class ResultsStore:
         """
         rid = run_id or self.generate_run_id()
         sess = _sanitize_name(session_name) if session_name else "default"
+
+        # If run_id exists and no run_name provided, preserve existing run_name
+        existing_path = None
+        if run_id and not run_name:
+            try:
+                existing_path = self._find_run_file(run_id, sess)
+                # Extract run_name from existing filename
+                existing_filename = existing_path.name
+                if "_" in existing_filename:
+                    run_name = existing_filename.rsplit("_", 1)[0]
+            except FileNotFoundError:
+                pass
+
         rname = _sanitize_name(run_name) if run_name else _generate_friendly_name()
 
         session_dir = self._session_dir(sess)
         session_dir.mkdir(parents=True, exist_ok=True)
 
-        # Overwrite: delete existing file(s) with same run_name in this session
+        # If updating existing file, delete it first
+        if existing_path and existing_path.exists():
+            existing_path.unlink()
+
+        # Overwrite: delete existing file(s) with same run_name in this session (different run_ids)
         if overwrite:
             for p in session_dir.glob(f"{rname}_*.json"):
-                p.unlink()
-                # Clean cache for deleted files
-                old_run_id = self._extract_run_id(p.name)
-                self._run_id_cache.pop(old_run_id, None)
+                if p.name != f"{rname}_{rid}.json":  # Don't delete the file we're about to write
+                    p.unlink()
+                    old_run_id = self._extract_run_id(p.name)
+                    self._run_id_cache.pop(old_run_id, None)
 
         path = session_dir / f"{rname}_{rid}.json"
 

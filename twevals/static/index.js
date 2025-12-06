@@ -363,6 +363,10 @@ function renderResultsTable(data, runId) {
 function renderResults(data) {
   _currentData = data;
   _currentRunId = data.run_id;
+
+  // Check if any results have been run (not "not_started")
+  _hasRunBefore = (data.results || []).some(r => r.result?.status && r.result.status !== 'not_started');
+
   const container = document.getElementById('results');
   container.innerHTML = renderStatsExpanded(data) + renderStatsCompact(data) + renderResultsTable(data, data.run_id);
   onResultsRendered();
@@ -538,27 +542,24 @@ function setFilters(f) { _filters = f || defaultFilters(); sessionStorage.setIte
 let _isRunning = false;
 function updateSelectionUI() {
   const count = selectedIndices.size;
-  const playBtnText = document.getElementById('play-btn-text');
-  if (playBtnText && !_isRunning) playBtnText.textContent = count ? `Run (${count})` : 'Run';
   updateSelectAllState();
+  if (typeof updateRunButtonState === 'function') updateRunButtonState();
 }
 function setRunningState(running) {
   _isRunning = running;
   const btn = document.getElementById('play-btn');
   const playIcon = btn?.querySelector('.play-icon');
   const stopIcon = btn?.querySelector('.stop-icon');
-  const btnText = document.getElementById('play-btn-text');
   if (running) {
     btn?.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
     btn?.classList.add('bg-rose-600', 'hover:bg-rose-500');
     playIcon?.classList.add('hidden'); stopIcon?.classList.remove('hidden');
-    if (btnText) btnText.textContent = 'Stop';
   } else {
     btn?.classList.remove('bg-rose-600', 'hover:bg-rose-500');
     btn?.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
     playIcon?.classList.remove('hidden'); stopIcon?.classList.add('hidden');
-    updateSelectionUI();
   }
+  if (typeof updateRunButtonState === 'function') updateRunButtonState();
 }
 function checkRunningState() { setRunningState(!!document.querySelector('[data-status="pending"], [data-status="running"]')); }
 function updateSelectAllState() {
@@ -847,26 +848,138 @@ function wireExportButtons() { const table = document.getElementById('results-ta
 
 document.addEventListener('click', async (e) => { const btn = e.target.closest('.copy-btn'); if (!btn) return; const id = btn.getAttribute('data-copy'); const pre = document.getElementById(id); if (!pre) return; try { await navigator.clipboard.writeText(pre.innerText); const copyIcon = btn.querySelector('.copy-icon'); const checkIcon = btn.querySelector('.check-icon'); if (copyIcon && checkIcon) { copyIcon.classList.add('hidden'); checkIcon.classList.remove('hidden'); setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900); } } catch { alert('Copy failed'); } });
 
-document.getElementById('play-btn')?.addEventListener('click', async () => {
+// Run button mode: 'run' (fresh), 'rerun', or 'new'
+const RUN_MODE_KEY = 'twevals:runMode';
+let _runMode = localStorage.getItem(RUN_MODE_KEY) || 'rerun';
+let _hasRunBefore = false;
+
+function updateRunButtonState() {
+  const playBtn = document.getElementById('play-btn');
+  const playBtnText = document.getElementById('play-btn-text');
+  const dropdownToggle = document.getElementById('run-dropdown-toggle');
+  const rerunCheck = document.getElementById('rerun-check');
+  const newCheck = document.getElementById('new-check');
+
+  if (!playBtn) return;
+
+  // Determine button state based on context
+  const hasSelections = selectedIndices.size > 0;
+
+  if (_isRunning) {
+    // Running state - show Stop
+    playBtnText.textContent = 'Stop';
+    playBtn.classList.remove('rounded-l');
+    playBtn.classList.add('rounded');
+    dropdownToggle?.classList.add('hidden');
+    dropdownToggle?.classList.remove('flex');
+  } else if (!_hasRunBefore) {
+    // Fresh session - just "Run", no dropdown
+    playBtnText.textContent = 'Run';
+    playBtn.classList.remove('rounded-l');
+    playBtn.classList.add('rounded');
+    dropdownToggle?.classList.add('hidden');
+    dropdownToggle?.classList.remove('flex');
+  } else if (hasSelections) {
+    // Checkboxes selected - just "Rerun", no dropdown
+    playBtnText.textContent = 'Rerun';
+    playBtn.classList.remove('rounded-l');
+    playBtn.classList.add('rounded');
+    dropdownToggle?.classList.add('hidden');
+    dropdownToggle?.classList.remove('flex');
+  } else {
+    // Previous runs exist, no selection - split button
+    playBtnText.textContent = _runMode === 'new' ? 'New Run' : 'Rerun';
+    playBtn.classList.remove('rounded');
+    playBtn.classList.add('rounded-l');
+    dropdownToggle?.classList.remove('hidden');
+    dropdownToggle?.classList.add('flex');
+
+    // Update check marks
+    if (rerunCheck) rerunCheck.classList.toggle('invisible', _runMode !== 'rerun');
+    if (newCheck) newCheck.classList.toggle('invisible', _runMode !== 'new');
+  }
+}
+
+async function executeRun(mode) {
   if (_isRunning) {
     try { await fetch('/api/runs/stop', { method: 'POST' }); } catch (e) { console.error('Stop failed:', e); }
     await loadResults();
     return;
   }
-  let started = false;
+
   try {
-    const body = selectedIndices.size > 0 ? { indices: Array.from(selectedIndices) } : {};
-    const resp = await fetch('/api/runs/rerun', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    let endpoint = '/api/runs/rerun';
+    let body = {};
+
+    if (selectedIndices.size > 0) {
+      // Selective rerun - always use rerun endpoint
+      body = { indices: Array.from(selectedIndices) };
+    } else if (mode === 'new') {
+      // New run - prompt for name
+      const name = prompt('Run name (leave blank for auto-generated):');
+      endpoint = '/api/runs/new';
+      body = name ? { run_name: name } : {};
+    }
+
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
     if (!resp.ok) {
       let msg = '';
       try { const data = await resp.json(); msg = data?.detail || data?.message || ''; }
       catch { msg = await resp.text(); }
       throw new Error(msg || `HTTP ${resp.status}`);
     }
-    started = true;
+
+    _hasRunBefore = true;
     setRunningState(true);
     await loadResults();
-  } catch (e) { alert('Rerun failed: ' + e); }
+  } catch (e) { alert('Run failed: ' + e); }
+}
+
+document.getElementById('play-btn')?.addEventListener('click', async () => {
+  const hasSelections = selectedIndices.size > 0;
+  if (!_hasRunBefore || hasSelections) {
+    // Fresh session or selective rerun
+    await executeRun('rerun');
+  } else {
+    // Use current mode
+    await executeRun(_runMode);
+  }
+});
+
+// Dropdown toggle
+document.getElementById('run-dropdown-toggle')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const menu = document.getElementById('run-dropdown-menu');
+  menu?.classList.toggle('hidden');
+});
+
+// Dropdown option handlers
+document.getElementById('run-rerun-option')?.addEventListener('click', async () => {
+  _runMode = 'rerun';
+  localStorage.setItem(RUN_MODE_KEY, 'rerun');
+  document.getElementById('run-dropdown-menu')?.classList.add('hidden');
+  updateRunButtonState();
+  await executeRun('rerun');
+});
+
+document.getElementById('run-new-option')?.addEventListener('click', async () => {
+  _runMode = 'new';
+  localStorage.setItem(RUN_MODE_KEY, 'new');
+  document.getElementById('run-dropdown-menu')?.classList.add('hidden');
+  updateRunButtonState();
+  await executeRun('new');
+});
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#run-dropdown-toggle') && !e.target.closest('#run-dropdown-menu')) {
+    document.getElementById('run-dropdown-menu')?.classList.add('hidden');
+  }
 });
 
 let lastCheckedIdx = null;

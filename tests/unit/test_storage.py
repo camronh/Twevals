@@ -35,14 +35,12 @@ def minimal_summary() -> dict:
 
 
 def test_save_and_load_run(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
 
     run_id = store.save_run(summary)
-    assert re.match(r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z", run_id)
-
-    # latest.json exists
-    assert store.latest_path().exists()
+    # Run IDs are Unix timestamps (numeric strings)
+    assert re.match(r"\d+", run_id)
 
     # Load works
     loaded = store.load_run(run_id)
@@ -54,30 +52,24 @@ def test_save_and_load_run(tmp_path: Path):
     assert loaded["session_name"] is not None
     assert loaded["run_name"] is not None
 
-    loaded_latest = store.load_run("latest")
-    assert loaded_latest == loaded
-
 
 def test_list_runs_sorted(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     # Save with explicit run ids for deterministic order
     s = minimal_summary()
-    store.save_run(s, run_id="2024-01-01T00-00-00Z")
-    store.save_run(s, run_id="2024-01-02T00-00-00Z")
-    store.save_run(s, run_id="2023-12-31T23-59-59Z")
+    store.save_run(s, run_id="1704067200")  # 2024-01-01
+    store.save_run(s, run_id="1704153600")  # 2024-01-02
+    store.save_run(s, run_id="1703980799")  # 2023-12-31
 
     runs = store.list_runs()
-    assert runs == [
-        "2024-01-02T00-00-00Z",
-        "2024-01-01T00-00-00Z",
-        "2023-12-31T23-59-59Z",
-    ]
+    # Sorted by timestamp descending (most recent first)
+    assert runs == ["1704153600", "1704067200", "1703980799"]
 
 
 def test_update_result_persists_and_limits_fields(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
-    run_id = store.save_run(summary, run_id="2024-01-01T00-00-00Z", run_name="test-run")
+    run_id = store.save_run(summary, run_id="1704067200", run_name="test-run")
 
     # Only scores and annotations are editable
     updated = store.update_result(
@@ -104,14 +96,11 @@ def test_update_result_persists_and_limits_fields(tmp_path: Path):
     # Persisted to disk - load via store
     on_disk = store.load_run(run_id)
     assert on_disk["results"][0] == updated
-    # latest.json synced
-    with open(store.latest_path()) as f:
-        latest = json.load(f)
-    assert latest["results"][0] == updated
+
 
 def test_replace_annotations_via_update_result(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
-    run_id = store.save_run(minimal_summary(), run_id="2024-01-01T00-00-00Z")
+    store = ResultsStore(tmp_path / "sessions")
+    run_id = store.save_run(minimal_summary(), run_id="1704067200")
 
     store.update_result(run_id, 0, {"result": {"annotations": [{"text": "a"}]}})
     data = store.load_run(run_id)
@@ -122,7 +111,7 @@ def test_replace_annotations_via_update_result(tmp_path: Path):
 # Session and run name tests
 
 def test_save_run_with_session_and_run_name(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
 
     run_id = store.save_run(
@@ -131,8 +120,8 @@ def test_save_run_with_session_and_run_name(tmp_path: Path):
         run_name="gpt5-baseline"
     )
 
-    # File should be named with run_name prefix
-    expected_file = tmp_path / "runs" / f"gpt5-baseline_{run_id}.json"
+    # File should be in session directory with run_name prefix
+    expected_file = tmp_path / "sessions" / "model-upgrade" / f"gpt5-baseline_{run_id}.json"
     assert expected_file.exists()
 
     # Loaded data should include session_name, run_name, run_id
@@ -143,7 +132,7 @@ def test_save_run_with_session_and_run_name(tmp_path: Path):
 
 
 def test_save_run_with_session_only(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
 
     run_id = store.save_run(summary, session_name="my-session")
@@ -156,39 +145,38 @@ def test_save_run_with_session_only(tmp_path: Path):
 
 
 def test_save_run_with_run_name_only(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
 
     run_id = store.save_run(summary, run_name="quick-test")
 
-    # File should be named with run_name prefix
-    expected_file = tmp_path / "runs" / f"quick-test_{run_id}.json"
+    # File should be in default session directory with run_name prefix
+    expected_file = tmp_path / "sessions" / "default" / f"quick-test_{run_id}.json"
     assert expected_file.exists()
 
     loaded = store.load_run(run_id)
-    # session_name should be auto-generated
-    assert loaded["session_name"] is not None
-    assert "-" in loaded["session_name"]
+    # session_name defaults to "default"
+    assert loaded["session_name"] == "default"
     assert loaded["run_name"] == "quick-test"
 
 
 def test_list_runs_for_session(tmp_path: Path):
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     s = minimal_summary()
 
     # Create runs in different sessions
-    store.save_run(s, run_id="2024-01-01T00-00-00Z", session_name="session-a", run_name="run1")
-    store.save_run(s, run_id="2024-01-02T00-00-00Z", session_name="session-a", run_name="run2")
-    store.save_run(s, run_id="2024-01-03T00-00-00Z", session_name="session-b", run_name="run3")
-    store.save_run(s, run_id="2024-01-04T00-00-00Z", session_name="session-c", run_name="run4")
+    store.save_run(s, run_id="1704067200", session_name="session-a", run_name="run1")
+    store.save_run(s, run_id="1704153600", session_name="session-a", run_name="run2")
+    store.save_run(s, run_id="1704240000", session_name="session-b", run_name="run3")
+    store.save_run(s, run_id="1704326400", session_name="session-c", run_name="run4")
 
-    # List runs for session-a
+    # List runs for session-a (sorted by timestamp descending)
     runs_a = store.list_runs_for_session("session-a")
-    assert runs_a == ["2024-01-02T00-00-00Z", "2024-01-01T00-00-00Z"]
+    assert runs_a == ["1704153600", "1704067200"]
 
     # List runs for session-b
     runs_b = store.list_runs_for_session("session-b")
-    assert runs_b == ["2024-01-03T00-00-00Z"]
+    assert runs_b == ["1704240000"]
 
     # List all runs still works
     all_runs = store.list_runs()
@@ -196,8 +184,8 @@ def test_list_runs_for_session(tmp_path: Path):
 
 
 def test_auto_generated_names(tmp_path: Path):
-    """When no session/run names provided, they're auto-generated."""
-    store = ResultsStore(tmp_path / "runs")
+    """When no session/run names provided, defaults are used."""
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
 
     run_id = store.save_run(summary)
@@ -205,30 +193,30 @@ def test_auto_generated_names(tmp_path: Path):
     loaded = store.load_run(run_id)
     assert loaded["total_evaluations"] == 1
 
-    # session_name and run_name are auto-generated (adjective-noun format)
-    assert loaded["session_name"] is not None
+    # session_name defaults to "default"
+    assert loaded["session_name"] == "default"
+    # run_name is auto-generated (adjective-noun format)
     assert loaded["run_name"] is not None
-    assert "-" in loaded["session_name"]
     assert "-" in loaded["run_name"]
 
-    # File should be named with run_name prefix
-    expected_file = tmp_path / "runs" / f"{loaded['run_name']}_{run_id}.json"
+    # File should be in default session directory with run_name prefix
+    expected_file = tmp_path / "sessions" / "default" / f"{loaded['run_name']}_{run_id}.json"
     assert expected_file.exists()
 
 
 def test_save_run_updates_same_file_when_run_id_exists(tmp_path: Path):
     """Saving with same run_id but no run_name should update existing file, not create new one."""
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
 
     # First save - creates the file with auto-generated names
-    run_id = "2024-01-01T00-00-00Z"
+    run_id = "1704067200"
     store.save_run(summary, run_id=run_id)
 
-    # Count files (excluding latest.json)
-    files_before = [f for f in (tmp_path / "runs").glob("*.json") if f.name != "latest.json"]
+    # Count files
+    session_dir = tmp_path / "sessions" / "default"
+    files_before = list(session_dir.glob("*.json"))
     assert len(files_before) == 1
-    first_file = files_before[0]
     first_loaded = store.load_run(run_id)
     first_run_name = first_loaded["run_name"]
 
@@ -238,7 +226,7 @@ def test_save_run_updates_same_file_when_run_id_exists(tmp_path: Path):
     store.save_run(summary2, run_id=run_id)
 
     # Should still be only 1 file (not 2!)
-    files_after = [f for f in (tmp_path / "runs").glob("*.json") if f.name != "latest.json"]
+    files_after = list(session_dir.glob("*.json"))
     assert len(files_after) == 1, f"Expected 1 file but got {len(files_after)}: {[f.name for f in files_after]}"
 
     # The file should have the updated data
@@ -250,25 +238,26 @@ def test_save_run_updates_same_file_when_run_id_exists(tmp_path: Path):
 
 def test_save_run_different_store_instances_update_same_file(tmp_path: Path):
     """Different ResultsStore instances should update the same file for same run_id."""
-    runs_dir = tmp_path / "runs"
+    sessions_dir = tmp_path / "sessions"
 
     # First store creates the file
-    store1 = ResultsStore(runs_dir)
+    store1 = ResultsStore(sessions_dir)
     summary1 = minimal_summary()
-    run_id = "2024-01-01T00-00-00Z"
+    run_id = "1704067200"
     store1.save_run(summary1, run_id=run_id)
 
     first_loaded = store1.load_run(run_id)
     first_run_name = first_loaded["run_name"]
 
     # Second store (simulating server's separate instance) updates
-    store2 = ResultsStore(runs_dir)
+    store2 = ResultsStore(sessions_dir)
     summary2 = minimal_summary()
     summary2["total_evaluations"] = 42
     store2.save_run(summary2, run_id=run_id)
 
-    # Should still be only 1 file
-    files = [f for f in runs_dir.glob("*.json") if f.name != "latest.json"]
+    # Should still be only 1 file in default session
+    session_dir = sessions_dir / "default"
+    files = list(session_dir.glob("*.json"))
     assert len(files) == 1, f"Expected 1 file but got {len(files)}: {[f.name for f in files]}"
 
     # The file should have the updated data
@@ -280,34 +269,144 @@ def test_save_run_different_store_instances_update_same_file(tmp_path: Path):
 
 def test_run_name_sanitized_for_path_traversal(tmp_path: Path):
     """Malicious run_name with path traversal should be sanitized."""
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
 
     # Attempt path traversal attack
     run_id = store.save_run(summary, run_name="../../.ssh/id_rsa")
 
-    # File should be created safely in runs directory, not elsewhere
-    files = [f for f in (tmp_path / "runs").glob("*.json") if f.name != "latest.json"]
+    # File should be created safely in session directory, not elsewhere
+    session_dir = tmp_path / "sessions" / "default"
+    files = list(session_dir.glob("*.json"))
     assert len(files) == 1
 
     # Filename should have dangerous chars stripped
     filename = files[0].name
     assert ".." not in filename
     assert "/" not in filename
-    # Should not have created file outside runs dir
+    # Should not have created file outside sessions dir
     assert not (tmp_path / ".ssh").exists()
 
 
 def test_run_name_with_special_chars_sanitized(tmp_path: Path):
     """run_name with special characters should be sanitized to safe chars only."""
-    store = ResultsStore(tmp_path / "runs")
+    store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
 
     run_id = store.save_run(summary, run_name="my<script>test/name")
 
     # Only alphanumerics, dash, underscore allowed
-    files = [f for f in (tmp_path / "runs").glob("*.json") if f.name != "latest.json"]
+    session_dir = tmp_path / "sessions" / "default"
+    files = list(session_dir.glob("*.json"))
     filename = files[0].name
     assert "<" not in filename
     assert ">" not in filename
     assert "/" not in filename
+
+
+def test_list_sessions(tmp_path: Path):
+    """list_sessions returns all session directory names."""
+    store = ResultsStore(tmp_path / "sessions")
+    s = minimal_summary()
+
+    store.save_run(s, session_name="alpha")
+    store.save_run(s, session_name="beta")
+    store.save_run(s, session_name="gamma")
+
+    sessions = store.list_sessions()
+    assert set(sessions) == {"alpha", "beta", "gamma"}
+
+
+def test_delete_run(tmp_path: Path):
+    """delete_run removes the run file."""
+    store = ResultsStore(tmp_path / "sessions")
+    run_id = store.save_run(minimal_summary())
+
+    assert store.delete_run(run_id)
+
+    # Should not be loadable anymore
+    with pytest.raises(FileNotFoundError):
+        store.load_run(run_id)
+
+
+def test_delete_session(tmp_path: Path):
+    """delete_session removes the entire session directory."""
+    store = ResultsStore(tmp_path / "sessions")
+    store.save_run(minimal_summary(), session_name="to-delete", run_name="run1")
+    store.save_run(minimal_summary(), session_name="to-delete", run_name="run2")
+    store.save_run(minimal_summary(), session_name="keep-me", run_name="run1")
+
+    assert store.delete_session("to-delete")
+
+    # Session should be gone
+    assert not (tmp_path / "sessions" / "to-delete").exists()
+    # Other session should still exist
+    assert (tmp_path / "sessions" / "keep-me").exists()
+
+
+def test_rename_run(tmp_path: Path):
+    """rename_run updates the filename and JSON metadata."""
+    store = ResultsStore(tmp_path / "sessions")
+    run_id = store.save_run(minimal_summary(), run_name="old-name")
+
+    new_name = store.rename_run(run_id, "new-name")
+    assert new_name == "new-name"
+
+    # Old file should be gone
+    old_files = list((tmp_path / "sessions" / "default").glob("old-name_*.json"))
+    assert len(old_files) == 0
+
+    # New file should exist
+    new_files = list((tmp_path / "sessions" / "default").glob("new-name_*.json"))
+    assert len(new_files) == 1
+
+    # Loaded data should have new run_name
+    loaded = store.load_run(run_id)
+    assert loaded["run_name"] == "new-name"
+
+
+def test_overwrite_behavior(tmp_path: Path):
+    """overwrite=True deletes existing files with same run_name in session."""
+    store = ResultsStore(tmp_path / "sessions")
+    s = minimal_summary()
+
+    # First save with explicit run_id
+    run_id1 = "1704067200"
+    store.save_run(s, run_id=run_id1, session_name="test", run_name="baseline")
+
+    # Second save with same session and run_name, but different run_id
+    run_id2 = "1704153600"
+    store.save_run(s, run_id=run_id2, session_name="test", run_name="baseline", overwrite=True)
+
+    # Should only have 1 file (the second one)
+    session_dir = tmp_path / "sessions" / "test"
+    files = list(session_dir.glob("*.json"))
+    assert len(files) == 1
+    assert run_id2 in files[0].name
+
+    # First run_id should no longer be loadable
+    with pytest.raises(FileNotFoundError):
+        store.load_run(run_id1)
+
+
+def test_no_overwrite_behavior(tmp_path: Path):
+    """overwrite=False keeps existing files with same run_name."""
+    store = ResultsStore(tmp_path / "sessions")
+    s = minimal_summary()
+
+    # First save with explicit run_id
+    run_id1 = "1704067200"
+    store.save_run(s, run_id=run_id1, session_name="test", run_name="baseline")
+
+    # Second save with overwrite=False and different run_id
+    run_id2 = "1704153600"
+    store.save_run(s, run_id=run_id2, session_name="test", run_name="baseline", overwrite=False)
+
+    # Should have 2 files
+    session_dir = tmp_path / "sessions" / "test"
+    files = list(session_dir.glob("*.json"))
+    assert len(files) == 2
+
+    # Both should be loadable
+    assert store.load_run(run_id1)
+    assert store.load_run(run_id2)

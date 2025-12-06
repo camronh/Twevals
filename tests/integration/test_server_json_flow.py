@@ -187,6 +187,10 @@ def case():
     payload = rr.json()
     assert payload.get("ok") is True and payload.get("run_id")
 
+    # Wait for background thread to save results
+    import time
+    time.sleep(1)
+
     # Results endpoint should now reflect the new run (dataset present)
     r = client.get("/results")
     assert r.status_code == 200

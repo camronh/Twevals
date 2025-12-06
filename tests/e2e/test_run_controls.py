@@ -149,7 +149,7 @@ class TestSelectionUI:
                 browser.close()
 
     def test_individual_selection(self, tmp_path):
-        """Test selecting individual rows updates UI."""
+        """Test selecting individual rows updates UI to show Rerun."""
         store = ResultsStore(tmp_path / "runs")
         run_id = store.save_run(make_completed_summary(), "2024-01-01T00-00-00Z")
         app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
@@ -161,22 +161,32 @@ class TestSelectionUI:
                 page.goto(url)
                 page.wait_for_selector("#results-table")
 
-                # Initially play button shows "Run"
+                # For completed runs, button shows "Rerun" with dropdown
                 play_btn_text = page.locator("#play-btn-text")
-                expect(play_btn_text).to_have_text("Run")
+                expect(play_btn_text).to_have_text("Rerun")
+
+                # Dropdown toggle should be visible for completed runs
+                dropdown_toggle = page.locator("#run-dropdown-toggle")
+                expect(dropdown_toggle).to_be_visible()
 
                 # Select first two rows
                 page.locator(".row-checkbox").nth(0).click()
                 page.locator(".row-checkbox").nth(1).click()
-
-                # Button should show "Run (2)"
                 page.wait_for_timeout(200)
-                expect(play_btn_text).to_have_text("Run (2)")
 
-                # Unselect one
+                # Button should still show "Rerun" (no count in new design)
+                expect(play_btn_text).to_have_text("Rerun")
+
+                # Dropdown should be hidden when selection is active
+                expect(dropdown_toggle).to_be_hidden()
+
+                # Unselect all
                 page.locator(".row-checkbox").nth(0).click()
+                page.locator(".row-checkbox").nth(1).click()
                 page.wait_for_timeout(200)
-                expect(play_btn_text).to_have_text("Run (1)")
+
+                # Back to split button with dropdown
+                expect(dropdown_toggle).to_be_visible()
 
                 browser.close()
 
@@ -201,8 +211,11 @@ class TestSelectionUI:
                 checked = page.locator(".row-checkbox:checked")
                 assert checked.count() == 3
 
-                # Button should show "Run (3)"
-                expect(page.locator("#play-btn-text")).to_have_text("Run (3)")
+                # Button should show "Rerun" (no count in new design)
+                expect(page.locator("#play-btn-text")).to_have_text("Rerun")
+
+                # Dropdown should be hidden when selection active
+                expect(page.locator("#run-dropdown-toggle")).to_be_hidden()
 
                 # Click select-all again to deselect
                 page.locator("#select-all-checkbox").click()
@@ -210,7 +223,10 @@ class TestSelectionUI:
 
                 checked = page.locator(".row-checkbox:checked")
                 assert checked.count() == 0
-                expect(page.locator("#play-btn-text")).to_have_text("Run")
+
+                # Back to split button with "Rerun" (completed run)
+                expect(page.locator("#play-btn-text")).to_have_text("Rerun")
+                expect(page.locator("#run-dropdown-toggle")).to_be_visible()
 
                 browser.close()
 
@@ -438,6 +454,12 @@ class TestPlayStopToggle:
                 # Initial state shows not_started
                 page.wait_for_selector('[data-status="not_started"]', timeout=5000)
 
+                # Fresh session (not_started) shows "Run" without dropdown
+                play_btn_text = page.locator("#play-btn-text")
+                expect(play_btn_text).to_have_text("Run")
+                dropdown_toggle = page.locator("#run-dropdown-toggle")
+                expect(dropdown_toggle).to_be_hidden()
+
                 # Click play to start
                 play_btn = page.locator("#play-btn")
                 play_btn.click()
@@ -456,8 +478,8 @@ class TestPlayStopToggle:
 
                 browser.close()
 
-    def test_button_shows_run_when_completed(self, tmp_path):
-        """Test that play button shows Run when no evals are running."""
+    def test_button_shows_rerun_when_completed(self, tmp_path):
+        """Test that play button shows Rerun when run has completed."""
         store = ResultsStore(tmp_path / "runs")
         run_id = store.save_run(make_completed_summary(), "2024-01-01T00-00-00Z")
         app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
@@ -469,12 +491,50 @@ class TestPlayStopToggle:
                 page.goto(url)
                 page.wait_for_selector("#results-table")
 
-                # Button should show "Run"
+                # Button should show "Rerun" with split button
                 play_btn_text = page.locator("#play-btn-text")
-                expect(play_btn_text).to_have_text("Run")
+                expect(play_btn_text).to_have_text("Rerun")
+
+                # Dropdown toggle should be visible
+                dropdown_toggle = page.locator("#run-dropdown-toggle")
+                expect(dropdown_toggle).to_be_visible()
 
                 # Play icon should be visible
                 play_icon = page.locator("#play-btn .play-icon")
                 expect(play_icon).to_be_visible()
+
+                browser.close()
+
+    def test_split_button_dropdown_options(self, tmp_path):
+        """Test that split button dropdown shows Rerun and New Run options."""
+        store = ResultsStore(tmp_path / "runs")
+        run_id = store.save_run(make_completed_summary(), "2024-01-01T00-00-00Z")
+        app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+        with run_server(app) as url:
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page()
+                page.goto(url)
+                page.wait_for_selector("#results-table")
+
+                # Click dropdown toggle
+                page.locator("#run-dropdown-toggle").click()
+                page.wait_for_timeout(100)
+
+                # Dropdown menu should be visible with options
+                menu = page.locator("#run-dropdown-menu")
+                expect(menu).to_be_visible()
+
+                # Both options should be present
+                rerun_option = page.locator("#run-rerun-option")
+                new_option = page.locator("#run-new-option")
+                expect(rerun_option).to_be_visible()
+                expect(new_option).to_be_visible()
+
+                # Click outside to close
+                page.click("body")
+                page.wait_for_timeout(100)
+                expect(menu).to_be_hidden()
 
                 browser.close()

@@ -288,7 +288,7 @@ def test_nosave():
             assert '"results"' in result.output
 
     def test_no_save_no_file(self):
-        """--no-save prevents file from being written to .twevals/runs/"""
+        """--no-save prevents file from being written to .twevals/sessions/"""
         with self.runner.isolated_filesystem():
             with open('test_nosave2.py', 'w') as f:
                 f.write("""
@@ -302,7 +302,7 @@ def test_nosave():
             result = self.runner.invoke(cli, ['run', 'test_nosave2.py', '--no-save'])
             assert result.exit_code == 0
             # No file should be saved
-            assert not Path('.twevals/runs').exists() or len(list(Path('.twevals/runs').glob('*.json'))) == 0
+            assert not Path('.twevals/sessions').exists() or len(list(Path('.twevals/sessions').rglob('*.json'))) == 0
 
     def test_session_flag(self):
         """--session sets session_name in stored JSON"""
@@ -319,9 +319,9 @@ def test_session():
             result = self.runner.invoke(cli, ['run', 'test_session.py', '--session', 'my-session'])
             assert result.exit_code == 0
 
-            # Load from default storage location
-            runs_dir = Path('.twevals/runs')
-            run_files = [f for f in runs_dir.glob('*.json') if f.name != 'latest.json']
+            # Load from new hierarchical storage location
+            session_dir = Path('.twevals/sessions/my-session')
+            run_files = list(session_dir.glob('*.json'))
             assert len(run_files) == 1
             with open(run_files[0]) as f:
                 data = json.load(f)
@@ -342,9 +342,9 @@ def test_runname():
             result = self.runner.invoke(cli, ['run', 'test_runname.py', '--run-name', 'baseline'])
             assert result.exit_code == 0
 
-            # Load from default storage location
-            runs_dir = Path('.twevals/runs')
-            run_files = [f for f in runs_dir.glob('*.json') if f.name != 'latest.json']
+            # Load from default session (CLI uses "default" session)
+            session_dir = Path('.twevals/sessions/default')
+            run_files = list(session_dir.glob('baseline_*.json'))
             assert len(run_files) == 1
             with open(run_files[0]) as f:
                 data = json.load(f)
