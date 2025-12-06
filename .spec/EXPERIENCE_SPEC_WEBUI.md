@@ -378,6 +378,7 @@ Results are stored in `.twevals/runs/`:
 | JSON export | Tested |
 | CSV export | Partially tested |
 | Inline editing | Annotation editing tested, others minimal |
-| Keyboard navigation | Not tested |
+| Keyboard shortcuts | Tested |
+| Stats bar | Tested |
 | Three-state filtering | Not tested |
 | Filter persistence | Not tested |

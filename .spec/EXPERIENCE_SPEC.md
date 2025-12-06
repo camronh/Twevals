@@ -148,13 +148,6 @@ Twevals is a **pytest-inspired, code-first evaluation framework** for LLM applic
 
 ## Discrepancies: Documentation vs Reality
 
-### Broken (Documented but Not Implemented)
-
-| Feature | Documented | Status |
-|---------|------------|--------|
-| `--dev` flag | README: "Enable hot reload" | **Not implemented** |
-| `--host` flag | README: "Host interface" | **Not implemented** |
-
 ### Untested (Implemented but No Test Coverage)
 
 | Feature | Risk Level |
@@ -200,12 +193,6 @@ These are mistakes new users commonly make.
 ### High Priority
 
 ```gherkin
-# Fix or remove from docs
-Scenario: --dev flag enables hot reload
-Scenario: --host flag changes bind address
-```
-
-```gherkin
 # Add CLI tests
 Scenario: --no-save outputs JSON to stdout
   When `twevals run evals/ --no-save`
@@ -223,6 +210,8 @@ Scenario: --limit restricts evaluation count
 Scenario: --session and --run-name in output JSON
 Scenario: Auto-generated friendly run names
 Scenario: Global --timeout overrides decorator timeout
+Scenario: Three-state filtering (include/exclude/any)
+Scenario: Filter persistence across navigation
 ```
 
 ---

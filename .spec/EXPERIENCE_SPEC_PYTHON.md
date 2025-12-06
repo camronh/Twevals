@@ -7,13 +7,14 @@ This document specifies the Python API experience for Twevals.
 ## Public API
 
 ```python
-from twevals import eval, EvalResult, parametrize, EvalContext, run_evals
+from twevals import eval, EvalResult, TraceData, parametrize, EvalContext, run_evals
 ```
 
 | Export | Type | Purpose |
 |--------|------|---------|
 | `eval` | decorator | Mark functions as evaluations |
 | `EvalResult` | dataclass | Immutable result container |
+| `TraceData` | class | Structured trace/debug data storage |
 | `parametrize` | decorator | Generate multiple test cases |
 | `EvalContext` | class | Mutable builder for results |
 | `run_evals` | function | Programmatic execution |
