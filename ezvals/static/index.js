@@ -106,8 +106,8 @@ function renderStatsExpanded(data) {
   let headerHtml = '';
   if (sessionName || runName) {
     headerHtml = '<div class="stats-left-header">';
-    if (sessionName) headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session">${escapeHtml(sessionName)}</span></div>`;
-    if (runName) headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
+    if (sessionName) headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session copyable cursor-pointer hover:text-zinc-300">${escapeHtml(sessionName)}</span></div>`;
+    if (runName) headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run copyable cursor-pointer hover:text-zinc-300">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
     headerHtml += '</div>';
   }
 
@@ -182,23 +182,13 @@ function renderStatsCompact(data) {
     sessionRunHtml = '<div class="flex items-center gap-2">';
     if (sessionName) {
       sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Session</span>
-        <div class="group flex items-center gap-1">
-          <span id="session-name-text" class="font-mono text-[11px] text-theme-text">${escapeHtml(sessionName)}</span>
-          <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" data-copy="session-name-text">
-            <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-copy"></use></svg>
-            <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-check"></use></svg>
-          </button>
-        </div>`;
+        <span id="session-name-text" class="copyable font-mono text-[11px] text-theme-text cursor-pointer hover:text-zinc-300">${escapeHtml(sessionName)}</span>`;
     }
     if (runName) {
       if (sessionName) sessionRunHtml += '<span class="text-zinc-600">·</span>';
       sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
         <div class="group flex items-center gap-1">
-          <span id="run-name-text" class="font-mono text-[11px] text-accent-link">${escapeHtml(runName)}</span>
-          <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" data-copy="run-name-text">
-            <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-copy"></use></svg>
-            <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-check"></use></svg>
-          </button>
+          <span id="run-name-text" class="copyable font-mono text-[11px] text-accent-link cursor-pointer hover:text-accent-link-hover">${escapeHtml(runName)}</span>
           <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" title="Rename run">
             <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg>
           </button>
@@ -845,7 +835,17 @@ function initScrollRestoration() { const savedY = sessionStorage.getItem('ezvals
 document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('ezvals:scrollY', window.scrollY.toString()); } });
 function wireExportButtons() { const table = document.getElementById('results-table'); const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest'; document.getElementById('export-json-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/json`; }); document.getElementById('export-csv-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/csv`; }); }
 
-document.addEventListener('click', async (e) => { const btn = e.target.closest('.copy-btn'); if (!btn) return; const id = btn.getAttribute('data-copy'); const pre = document.getElementById(id); if (!pre) return; try { await navigator.clipboard.writeText(pre.innerText); const copyIcon = btn.querySelector('.copy-icon'); const checkIcon = btn.querySelector('.check-icon'); if (copyIcon && checkIcon) { copyIcon.classList.add('hidden'); checkIcon.classList.remove('hidden'); setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900); } } catch { alert('Copy failed'); } });
+// Click on .copyable elements to copy their text
+document.addEventListener('click', async (e) => {
+  const el = e.target.closest('.copyable');
+  if (!el || el.querySelector('input')) return;
+  try {
+    await navigator.clipboard.writeText(el.innerText);
+    const original = el.style.opacity;
+    el.style.opacity = '0.5';
+    setTimeout(() => { el.style.opacity = original; }, 150);
+  } catch { /* ignore */ }
+});
 
 // Edit run name inline (works for both compact and expanded views)
 document.addEventListener('click', (e) => {
