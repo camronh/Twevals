@@ -54,6 +54,7 @@ Scenario: Pre-populated context fields
 | `timeout` | float | None | Max execution time (seconds) |
 | `target` | callable | None | Pre-hook that runs first |
 | `evaluators` | list[callable] | [] | Post-processing score functions |
+| `input_loader` | callable | None | Async/sync function that returns examples |
 
 ### Return Types
 
@@ -359,6 +360,71 @@ Scenario: Target runs before eval body
 ```
 
 **Requirement:** Eval function MUST have a context parameter when using target.
+
+---
+
+## Input Loader
+
+**Intent:** User wants to dynamically load test examples from external sources (databases, APIs like LangSmith) at eval time.
+
+### Basic Usage
+
+```python
+async def fetch_from_langsmith():
+    client = Client()
+    examples = client.list_examples(dataset_name="my-dataset")
+    return [{"input": ex.inputs, "reference": ex.outputs} for ex in examples]
+
+@eval(dataset="langsmith-evals", input_loader=fetch_from_langsmith)
+async def test_my_agent(ctx: EvalContext):
+    ctx.output = await my_agent(ctx.input)
+    assert ctx.output == ctx.reference
+```
+
+```gherkin
+Scenario: Loader generates multiple evals
+  Given @eval(input_loader=my_loader)
+  And my_loader returns [{"input": "a"}, {"input": "b"}]
+  When evaluations run
+  Then two separate evals run: test_func[0] and test_func[1]
+  And each gets its own EvalResult
+
+Scenario: Empty loader returns no results
+  Given input_loader returns []
+  When evaluations run
+  Then zero evals run (not an error)
+
+Scenario: Loader failure creates error result
+  Given input_loader raises an exception
+  When evaluations run
+  Then one EvalResult with error="input_loader failed: ..."
+```
+
+### Loader Return Format
+
+The loader can return a list of dicts or objects. Field mapping:
+
+| Dict Key / Object Attr | Maps To |
+|------------------------|---------|
+| `input` | ctx.input |
+| `reference` | ctx.reference |
+| `metadata` | ctx.metadata |
+
+### Constraints
+
+```gherkin
+Scenario: Requires context parameter
+  Given @eval(input_loader=fn) without context param
+  Then ValueError raised at decoration time
+
+Scenario: Mutually exclusive with input=/reference=
+  Given @eval(input="x", input_loader=fn)
+  Then ValueError raised at decoration time
+
+Scenario: Mutually exclusive with @parametrize
+  Given @eval(input_loader=fn) with @parametrize
+  Then ValueError raised at discovery time
+```
 
 ---
 

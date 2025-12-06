@@ -25,6 +25,7 @@ class EvalFunction:
         default_score_key: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         timeout: Optional[float] = None,
+        input_loader: Optional[Callable] = None,
     ):
         self.func = func
         self.dataset = dataset if dataset is not None else self._infer_dataset_from_name(func)
@@ -35,12 +36,17 @@ class EvalFunction:
         self.evaluators = evaluators if evaluators is not None else []
         self.target = target
         self.timeout = timeout
+        self.input_loader = input_loader
         self.is_async = asyncio.iscoroutinefunction(func)
 
         # Context injection support
         self.context_param = self._detect_context_param(func)
         if self.target and self.context_param is None:
             raise ValueError("Target functions require the evaluation function to accept a context parameter")
+        if self.input_loader and self.context_param is None:
+            raise ValueError("input_loader requires the evaluation function to accept a context parameter")
+        if self.input_loader and (input is not None or reference is not None):
+            raise ValueError("input_loader cannot be used with input= or reference= parameters")
         self.context_kwargs = {
             'input': input,
             'reference': reference,
@@ -418,9 +424,10 @@ def eval(
     default_score_key: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
     timeout: Optional[float] = None,
+    input_loader: Optional[Callable] = None,
 ):
     # Support both @eval and @eval()
-    if callable(dataset) and labels is None and evaluators is None and timeout is None:
+    if callable(dataset) and labels is None and evaluators is None and timeout is None and input_loader is None:
         # Called as @eval without parentheses
         func = dataset
         return EvalFunction(func, dataset=None, labels=None, evaluators=None, target=None)
@@ -438,5 +445,6 @@ def eval(
             default_score_key=default_score_key,
             metadata=metadata,
             timeout=timeout,
+            input_loader=input_loader,
         )
     return decorator

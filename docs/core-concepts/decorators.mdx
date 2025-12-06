@@ -133,6 +133,31 @@ async def test_response(ctx: EvalContext):
     # check_length runs after, adds "length" score
 ```
 
+### Input Loader
+
+Load test examples dynamically from external sources (databases, APIs):
+
+```python
+async def fetch_from_db():
+    examples = await db.get_test_cases()
+    return [{"input": e.prompt, "reference": e.expected} for e in examples]
+
+@eval(dataset="dynamic", input_loader=fetch_from_db)
+async def test_from_database(ctx: EvalContext):
+    ctx.output = await my_agent(ctx.input)
+    assert ctx.output == ctx.reference
+```
+
+Each example from the loader becomes a separate eval run. The loader is called lazily at eval time (not at import time), making it ideal for fetching from LangSmith, databases, or APIs.
+
+**Loader return format:**
+- Return a list of dicts with `input`, `reference`, and/or `metadata` keys
+- Or return objects with `.input`, `.reference`, `.metadata` attributes
+
+<Note>
+`input_loader` cannot be combined with `input=`, `reference=`, or `@parametrize`.
+</Note>
+
 ## Sync and Async
 
 Both sync and async functions work—just use `async def` if your code uses `await`.
@@ -170,3 +195,4 @@ def test_batch():
 | `timeout` | float | Max execution time in seconds |
 | `target` | callable | Pre-hook to run before evaluation |
 | `evaluators` | list[callable] | Post-processing score functions |
+| `input_loader` | callable | Async/sync function returning examples |

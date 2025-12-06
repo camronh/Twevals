@@ -91,6 +91,9 @@ class EvalDiscovery:
             functions_to_add = []
             for name, obj in inspect.getmembers(module):
                 if isinstance(obj, EvalFunction):
+                    # Check for mutual exclusion: input_loader and @parametrize cannot be used together
+                    if obj.input_loader and hasattr(obj, '__param_sets__'):
+                        raise ValueError(f"Cannot use both @parametrize and input_loader on {name}")
                     line_number = get_line_number(obj.func)
                     if hasattr(obj, '__param_sets__'):
                         for func in generate_eval_functions(obj):

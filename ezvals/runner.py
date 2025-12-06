@@ -6,7 +6,7 @@ import traceback
 from contextlib import redirect_stdout, nullcontext
 from pathlib import Path
 from threading import Thread
-from typing import Dict, List, Optional, Union, Callable
+from typing import Any, Dict, List, Optional, Union, Callable
 
 from ezvals.decorators import EvalFunction
 from ezvals.discovery import EvalDiscovery
@@ -51,6 +51,78 @@ class EvalRunner:
         self.verbose = verbose
         self.timeout = timeout
         self.results: List[Dict] = []
+
+    def _map_example_to_context(self, example) -> Dict[str, Any]:
+        """Map a loader example (dict or object) to EvalContext fields."""
+        result = {}
+
+        if isinstance(example, dict):
+            if 'input' in example:
+                result['input'] = example['input']
+
+            if 'reference' in example:
+                result['reference'] = example['reference']
+
+            if 'metadata' in example:
+                result['metadata'] = example['metadata']
+        else:
+            if hasattr(example, 'input'):
+                result['input'] = example.input
+
+            if hasattr(example, 'reference'):
+                result['reference'] = example.reference
+
+            if hasattr(example, 'metadata'):
+                result['metadata'] = example.metadata
+
+        return result
+
+    def _create_expanded_eval_func(self, template: EvalFunction, context_kwargs: Dict, idx: int) -> EvalFunction:
+        """Create a new EvalFunction with context from loader example."""
+        from ezvals.context import EvalContext
+        func_name = f"{template.func.__name__}[{idx}]"
+
+        if template.is_async:
+            async def wrapper(ctx: EvalContext):
+                return await template.func(ctx)
+        else:
+            def wrapper(ctx: EvalContext):
+                return template.func(ctx)
+
+        wrapper.__name__ = wrapper.__qualname__ = func_name
+
+        return EvalFunction(
+            func=wrapper,
+            dataset=template.dataset,
+            labels=template.labels,
+            evaluators=template.evaluators,
+            target=template.target,
+            input=context_kwargs.get('input'),
+            reference=context_kwargs.get('reference'),
+            default_score_key=template.context_kwargs.get('default_score_key'),
+            metadata=context_kwargs.get('metadata') or template.context_kwargs.get('metadata'),
+            timeout=template.timeout,
+        )
+
+    async def _expand_with_loader(self, func: EvalFunction) -> List[EvalFunction]:
+        """Call input_loader and create expanded EvalFunctions for each example."""
+        loader = func.input_loader
+
+        if asyncio.iscoroutinefunction(loader):
+            examples = await loader()
+        else:
+            examples = loader()
+
+        if not examples:
+            return []
+
+        expanded = []
+        for idx, example in enumerate(examples):
+            context_kwargs = self._map_example_to_context(example)
+            expanded_func = self._create_expanded_eval_func(func, context_kwargs, idx)
+            expanded.append(expanded_func)
+
+        return expanded
 
     def _ensure_default_score(self, result: EvalResult) -> EvalResult:
         """Add default passing score if result has no scores and no error"""
@@ -111,17 +183,63 @@ class EvalRunner:
             for func in functions:
                 if is_cancelled():
                     break
+
+                # Expand input_loader functions
+                if func.input_loader:
+                    try:
+                        expanded_funcs = await self._expand_with_loader(func)
+                    except Exception as e:
+                        all_results.append({
+                            "function": func.func.__name__,
+                            "dataset": func.dataset,
+                            "labels": func.labels,
+                            "result": EvalResult(
+                                input=None, output=None,
+                                error=f"input_loader failed: {e}\n{traceback.format_exc()}"
+                            ).model_dump()
+                        })
+                        continue
+
+                    for expanded_func in expanded_funcs:
+                        if is_cancelled():
+                            break
+                        if self.timeout is not None:
+                            expanded_func.timeout = self.timeout
+                        if on_start:
+                            on_start(expanded_func)
+                        if is_cancelled():
+                            break
+                        if expanded_func.is_async:
+                            results = await self.run_async_eval(expanded_func)
+                        else:
+                            results = self.run_sync_eval(expanded_func)
+                        if is_cancelled():
+                            break
+                        for result in results:
+                            if is_cancelled():
+                                break
+                            result_dict = {
+                                "function": expanded_func.func.__name__,
+                                "dataset": expanded_func.dataset,
+                                "labels": expanded_func.labels,
+                                "result": result.model_dump()
+                            }
+                            all_results.append(result_dict)
+                            if on_complete and not is_cancelled():
+                                on_complete(expanded_func, result_dict)
+                    continue
+
                 # Apply global timeout if set
                 if self.timeout is not None:
                     func.timeout = self.timeout
-                
+
                 # Call on_start callback if provided
                 if on_start:
                     on_start(func)
-                
+
                 if is_cancelled():
                     break
-                
+
                 if func.is_async:
                     results = await self.run_async_eval(func)
                 else:
@@ -129,7 +247,7 @@ class EvalRunner:
 
                 if is_cancelled():
                     break
-                
+
                 for result in results:
                     if is_cancelled():
                         break
@@ -140,7 +258,7 @@ class EvalRunner:
                         "result": result.model_dump()
                     }
                     all_results.append(result_dict)
-                    
+
                     # Call on_complete callback if provided
                     if on_complete and not is_cancelled():
                         on_complete(func, result_dict)
@@ -151,6 +269,54 @@ class EvalRunner:
             async def run_single(func: EvalFunction):
                 if is_cancelled():
                     return []
+
+                # Handle input_loader expansion
+                if func.input_loader:
+                    try:
+                        expanded_funcs = await self._expand_with_loader(func)
+                    except Exception as e:
+                        return [{
+                            "function": func.func.__name__,
+                            "dataset": func.dataset,
+                            "labels": func.labels,
+                            "result": EvalResult(
+                                input=None, output=None,
+                                error=f"input_loader failed: {e}\n{traceback.format_exc()}"
+                            ).model_dump()
+                        }]
+
+                    all_completed = []
+                    for expanded_func in expanded_funcs:
+                        if is_cancelled():
+                            break
+                        if self.timeout is not None:
+                            expanded_func.timeout = self.timeout
+
+                        async with semaphore:
+                            if is_cancelled():
+                                break
+                            if on_start:
+                                on_start(expanded_func)
+                            if is_cancelled():
+                                break
+                            if expanded_func.is_async:
+                                results = await self.run_async_eval(expanded_func)
+                            else:
+                                results = await asyncio.to_thread(self.run_sync_eval, expanded_func)
+                            if is_cancelled():
+                                break
+                            for result in results:
+                                result_dict = {
+                                    "function": expanded_func.func.__name__,
+                                    "dataset": expanded_func.dataset,
+                                    "labels": expanded_func.labels,
+                                    "result": result.model_dump()
+                                }
+                                all_completed.append(result_dict)
+                                if on_complete and not is_cancelled():
+                                    on_complete(expanded_func, result_dict)
+                    return all_completed
+
                 # Apply global timeout if set
                 if self.timeout is not None:
                     func.timeout = self.timeout
