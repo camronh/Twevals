@@ -155,10 +155,15 @@ def serve_cmd(
     """Start the web UI to browse and run evaluations."""
     from pathlib import Path as PathLib
 
+    from twevals.storage import _generate_friendly_name
+
     # Load config and merge with CLI args
     config = load_config()
-    results_dir = results_dir if results_dir is not None else config.get("results_dir", ".twevals/runs")
+    results_dir = results_dir if results_dir is not None else config.get("results_dir", ".twevals/sessions")
     port = port if port is not None else config.get("port", 8000)
+
+    # Auto-generate session name for serve command (each serve = new session)
+    session = session if session else _generate_friendly_name()
 
     # Parse path to extract file path and optional function name
     function_name = None
@@ -278,10 +283,13 @@ def run_cmd(
             runner._save_results(summary, output)
             saved_path = output
         else:
-            # Save to config results_dir (default .twevals/runs)
-            results_dir = config.get("results_dir", ".twevals/runs")
+            # Save to config results_dir (default .twevals/sessions)
+            results_dir = config.get("results_dir", ".twevals/sessions")
+            overwrite = config.get("overwrite", True)
             store = ResultsStore(results_dir)
-            run_id = store.save_run(summary, session_name=session, run_name=run_name)
+            # CLI run defaults to "default" session when not specified
+            sess = session if session else "default"
+            run_id = store.save_run(summary, session_name=sess, run_name=run_name, overwrite=overwrite)
             saved_path = str(store._find_run_file(run_id))
 
     if visual:

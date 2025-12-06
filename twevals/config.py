@@ -7,7 +7,8 @@ CONFIG_FILENAME = "twevals.json"
 
 DEFAULT_CONFIG = {
     "concurrency": 1,
-    "results_dir": ".twevals/runs",
+    "results_dir": ".twevals/sessions",
+    "overwrite": True,
 }
 
 

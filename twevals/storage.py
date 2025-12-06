@@ -6,8 +6,8 @@ import random
 import re
 import shutil
 import tempfile
+import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, Optional
@@ -51,7 +51,6 @@ def _sanitize_name(name: str) -> str:
 
 def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Write to a temp file in the same directory then atomically replace
     with tempfile.NamedTemporaryFile("w", delete=False, dir=str(path.parent)) as tmp:
         json.dump(data, tmp, indent=2, default=str)
         tmp_path = Path(tmp.name)
@@ -62,44 +61,46 @@ def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
 class ResultsStore:
     base_dir: Path
 
-    def __init__(self, base_dir: str | Path = ".twevals/runs") -> None:
+    def __init__(self, base_dir: str | Path = ".twevals/sessions") -> None:
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self._locks: dict[str, Lock] = {}
-        # Cache mapping run_id -> filename for fast lookups
-        self._run_id_to_file: dict[str, str] = {}
+        # Cache mapping run_id -> (session_name, filename) for fast lookups
+        self._run_id_cache: dict[str, tuple[str, str]] = {}
 
     def generate_run_id(self) -> str:
-        # ISO-like timestamp, UTC, with seconds precision: YYYY-MM-DDTHH-MM-SSZ
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+        """Generate a run ID using Unix timestamp."""
+        return str(int(time.time()))
 
-    def _filename(self, run_id: str, run_name: Optional[str] = None) -> str:
-        """Generate filename: {run_name}_{run_id}.json or {run_id}.json"""
-        if run_name:
-            safe_name = _sanitize_name(run_name)
-            return f"{safe_name}_{run_id}.json" if safe_name else f"{run_id}.json"
-        return f"{run_id}.json"
+    def _session_dir(self, session_name: str) -> Path:
+        """Get path to session directory."""
+        safe_name = _sanitize_name(session_name) or "default"
+        return self.base_dir / safe_name
 
-    def run_path(self, run_id: str, run_name: Optional[str] = None) -> Path:
-        return self.base_dir / self._filename(run_id, run_name)
-
-    def _find_run_file(self, run_id: str) -> Path:
-        """Find the file for a run_id, handling both prefixed and non-prefixed names."""
+    def _find_run_file(self, run_id: str, session_name: Optional[str] = None) -> Path:
+        """Find the file for a run_id, optionally scoped to a session."""
         # Check cache first
-        if run_id in self._run_id_to_file:
-            return self.base_dir / self._run_id_to_file[run_id]
-        # Search for file ending with _{run_id}.json or exactly {run_id}.json
-        for p in self.base_dir.glob("*.json"):
-            if p.name == "latest.json":
-                continue
-            if p.name == f"{run_id}.json" or p.name.endswith(f"_{run_id}.json"):
-                self._run_id_to_file[run_id] = p.name
-                return p
-        # Fallback to simple path
-        return self.base_dir / f"{run_id}.json"
+        if run_id in self._run_id_cache:
+            cached_session, cached_filename = self._run_id_cache[run_id]
+            return self.base_dir / cached_session / cached_filename
 
-    def latest_path(self) -> Path:
-        return self.base_dir / "latest.json"
+        # If session specified, search only that directory
+        if session_name:
+            session_dir = self._session_dir(session_name)
+            if session_dir.exists():
+                for p in session_dir.glob(f"*_{run_id}.json"):
+                    self._run_id_cache[run_id] = (session_dir.name, p.name)
+                    return p
+
+        # Search all sessions
+        for session_dir in self.base_dir.iterdir():
+            if not session_dir.is_dir():
+                continue
+            for p in session_dir.glob(f"*_{run_id}.json"):
+                self._run_id_cache[run_id] = (session_dir.name, p.name)
+                return p
+
+        raise FileNotFoundError(f"Run {run_id} not found")
 
     def save_run(
         self,
@@ -107,21 +108,34 @@ class ResultsStore:
         run_id: Optional[str] = None,
         session_name: Optional[str] = None,
         run_name: Optional[str] = None,
+        overwrite: bool = True,
     ) -> str:
+        """Save a run to the session directory.
+
+        Args:
+            summary: The run data to save
+            run_id: Optional run ID (defaults to generated timestamp)
+            session_name: Session name (defaults to "default")
+            run_name: Run name (defaults to auto-generated friendly name)
+            overwrite: If True, replaces existing file with same run_name in session
+        """
         rid = run_id or self.generate_run_id()
-        # If run_id exists on disk and no names provided, reuse existing names/file
-        existing_file = self._find_run_file(rid)
-        if existing_file.exists() and (session_name is None or run_name is None):
-            with open(existing_file, "r") as f:
-                existing = json.load(f)
-            sess = session_name or existing.get("session_name") or _generate_friendly_name()
-            rname = run_name or existing.get("run_name") or _generate_friendly_name()
-            path = existing_file  # Reuse existing file path
-        else:
-            # Generate friendly names if not provided (new run)
-            sess = session_name or _generate_friendly_name()
-            rname = run_name or _generate_friendly_name()
-            path = self.run_path(rid, rname)
+        sess = _sanitize_name(session_name) if session_name else "default"
+        rname = _sanitize_name(run_name) if run_name else _generate_friendly_name()
+
+        session_dir = self._session_dir(sess)
+        session_dir.mkdir(parents=True, exist_ok=True)
+
+        # Overwrite: delete existing file(s) with same run_name in this session
+        if overwrite:
+            for p in session_dir.glob(f"{rname}_*.json"):
+                p.unlink()
+                # Clean cache for deleted files
+                old_run_id = self._extract_run_id(p.name)
+                self._run_id_cache.pop(old_run_id, None)
+
+        path = session_dir / f"{rname}_{rid}.json"
+
         # Add session/run metadata to summary
         summary = {
             "session_name": sess,
@@ -130,55 +144,107 @@ class ResultsStore:
             **summary,
         }
         _atomic_write_json(path, summary)
+
         # Cache the mapping
-        self._run_id_to_file[rid] = path.name
-        # Maintain a portable copy as latest.json
-        shutil.copyfile(path, self.latest_path())
+        self._run_id_cache[rid] = (sess, path.name)
+
         return rid
 
-    def load_run(self, run_id: Optional[str] = None) -> Dict[str, Any]:
-        if run_id in (None, "latest"):
-            path = self.latest_path()
-        else:
-            path = self._find_run_file(run_id)
+    def load_run(self, run_id: str, session_name: Optional[str] = None) -> Dict[str, Any]:
+        """Load a run by ID."""
+        path = self._find_run_file(run_id, session_name)
         with open(path, "r") as f:
             return json.load(f)
 
     def _extract_run_id(self, filename: str) -> str:
-        """Extract run_id from filename like 'name_2024-01-01T00-00-00Z.json' or '2024-01-01T00-00-00Z.json'"""
+        """Extract run_id from filename like 'name_1705312200.json'"""
         stem = filename.removesuffix(".json")
-        # Check if it has a prefix (contains underscore before the timestamp pattern)
         if "_" in stem:
-            # The run_id is after the last underscore that precedes the timestamp
             parts = stem.rsplit("_", 1)
             if len(parts) == 2:
                 return parts[1]
         return stem
 
+    def _extract_run_name(self, filename: str) -> str:
+        """Extract run_name from filename like 'name_1705312200.json'"""
+        stem = filename.removesuffix(".json")
+        if "_" in stem:
+            parts = stem.rsplit("_", 1)
+            if len(parts) == 2:
+                return parts[0]
+        return stem
+
+    def list_sessions(self) -> list[str]:
+        """Return all session names (directories with JSON files)."""
+        sessions = []
+        for d in self.base_dir.iterdir():
+            if d.is_dir() and any(d.glob("*.json")):
+                sessions.append(d.name)
+        return sorted(sessions)
+
     def list_runs(self) -> list[str]:
-        """Return run_ids sorted descending (newest first)."""
+        """Return all run_ids across all sessions, sorted descending (newest first)."""
         items = []
-        for p in self.base_dir.glob("*.json"):
-            if p.name == "latest.json":
+        for session_dir in self.base_dir.iterdir():
+            if not session_dir.is_dir():
                 continue
-            run_id = self._extract_run_id(p.name)
-            items.append(run_id)
-            # Update cache
-            self._run_id_to_file[run_id] = p.name
-        return sorted(items, reverse=True)
+            for p in session_dir.glob("*.json"):
+                run_id = self._extract_run_id(p.name)
+                items.append(run_id)
+                self._run_id_cache[run_id] = (session_dir.name, p.name)
+        return sorted(items, key=lambda x: int(x) if x.isdigit() else 0, reverse=True)
 
     def list_runs_for_session(self, session_name: str) -> list[str]:
         """Return run_ids for a specific session, sorted descending (newest first)."""
+        session_dir = self._session_dir(session_name)
+        if not session_dir.exists():
+            return []
+
         items = []
-        for p in self.base_dir.glob("*.json"):
-            if p.name == "latest.json":
-                continue
-            with open(p, "r") as f:
-                data = json.load(f)
-            if data.get("session_name") == session_name:
-                run_id = data.get("run_id") or self._extract_run_id(p.name)
-                items.append(run_id)
-        return sorted(items, reverse=True)
+        for p in session_dir.glob("*.json"):
+            run_id = self._extract_run_id(p.name)
+            items.append(run_id)
+            self._run_id_cache[run_id] = (session_dir.name, p.name)
+        return sorted(items, key=lambda x: int(x) if x.isdigit() else 0, reverse=True)
+
+    def rename_run(self, run_id: str, new_name: str, session_name: Optional[str] = None) -> str:
+        """Rename a run - updates filename and JSON metadata."""
+        old_path = self._find_run_file(run_id, session_name)
+        data = json.loads(old_path.read_text())
+
+        new_name_safe = _sanitize_name(new_name)
+        data["run_name"] = new_name_safe
+
+        new_path = old_path.parent / f"{new_name_safe}_{run_id}.json"
+        _atomic_write_json(new_path, data)
+        old_path.unlink()
+
+        # Update cache
+        self._run_id_cache[run_id] = (old_path.parent.name, new_path.name)
+
+        return new_name_safe
+
+    def delete_run(self, run_id: str, session_name: Optional[str] = None) -> bool:
+        """Delete a run file."""
+        try:
+            path = self._find_run_file(run_id, session_name)
+            path.unlink()
+            self._run_id_cache.pop(run_id, None)
+            return True
+        except FileNotFoundError:
+            return False
+
+    def delete_session(self, session_name: str) -> bool:
+        """Delete an entire session and all its runs."""
+        session_dir = self._session_dir(session_name)
+        if session_dir.exists():
+            # Clean cache for all runs in this session
+            for p in session_dir.glob("*.json"):
+                run_id = self._extract_run_id(p.name)
+                self._run_id_cache.pop(run_id, None)
+            shutil.rmtree(session_dir)
+            return True
+        return False
 
     def _get_lock(self, run_id: str) -> Lock:
         if run_id not in self._locks:
@@ -211,7 +277,4 @@ class ResultsStore:
             # Persist atomically
             run_file = self._find_run_file(run_id)
             _atomic_write_json(run_file, summary)
-            # Keep latest.json copy in sync
-            shutil.copyfile(run_file, self.latest_path())
             return entry
-
