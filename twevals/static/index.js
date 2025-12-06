@@ -534,7 +534,8 @@ function updateRowInPlace(index, newResult) {
 }
 
 function hasRunningResults(data) {
-  return (data.results || []).some(r => ['pending', 'running'].includes(r.result?.status));
+  // Poll when there are running/pending results OR not_started (might be auto-started via --run)
+  return (data.results || []).some(r => ['pending', 'running', 'not_started'].includes(r.result?.status));
 }
 function getFilters() { return _filters; }
 function setFilters(f) { _filters = f || defaultFilters(); sessionStorage.setItem('twevals:filters', JSON.stringify(_filters)); renderActiveFilters(); applyAllFilters(); }
@@ -915,10 +916,9 @@ async function executeRun(mode) {
       // Selective rerun - always use rerun endpoint
       body = { indices: Array.from(selectedIndices) };
     } else if (mode === 'new') {
-      // New run - prompt for name
-      const name = prompt('Run name (leave blank for auto-generated):');
+      // New run - auto-generated name, no prompt
       endpoint = '/api/runs/new';
-      body = name ? { run_name: name } : {};
+      body = {};
     }
 
     const resp = await fetch(endpoint, {
@@ -958,21 +958,19 @@ document.getElementById('run-dropdown-toggle')?.addEventListener('click', (e) =>
   menu?.classList.toggle('hidden');
 });
 
-// Dropdown option handlers
-document.getElementById('run-rerun-option')?.addEventListener('click', async () => {
+// Dropdown option handlers - just toggle setting, don't trigger run
+document.getElementById('run-rerun-option')?.addEventListener('click', () => {
   _runMode = 'rerun';
   localStorage.setItem(RUN_MODE_KEY, 'rerun');
   document.getElementById('run-dropdown-menu')?.classList.add('hidden');
   updateRunButtonState();
-  await executeRun('rerun');
 });
 
-document.getElementById('run-new-option')?.addEventListener('click', async () => {
+document.getElementById('run-new-option')?.addEventListener('click', () => {
   _runMode = 'new';
   localStorage.setItem(RUN_MODE_KEY, 'new');
   document.getElementById('run-dropdown-menu')?.classList.add('hidden');
   updateRunButtonState();
-  await executeRun('new');
 });
 
 // Close dropdown when clicking outside
