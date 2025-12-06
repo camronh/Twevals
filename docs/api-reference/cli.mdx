@@ -22,8 +22,19 @@ Where `PATH` can be:
 - A directory: `ezvals serve evals/`
 - A file: `ezvals serve evals/customer_service.py`
 - A specific function: `ezvals serve evals.py::test_refund`
+- A run JSON file: `ezvals serve .ezvals/sessions/default/run_123.json`
 
 The UI opens automatically in your browser. Evaluations are discovered and displayed but not run until you click the Run button.
+
+### Loading Previous Runs
+
+You can load a previous run by passing the JSON file path directly:
+
+```bash
+ezvals serve .ezvals/sessions/default/sleek-wolf_1705312200.json
+```
+
+This opens the UI with that run's results loaded. If the original eval source file still exists, you can rerun evaluations. If the source file was moved or deleted, the UI works in view-only mode.
 
 ### Options
 
@@ -205,6 +216,9 @@ ezvals serve evals/ --port 8080
 
 # Filter what's shown in the UI
 ezvals serve evals/ --dataset qa --label production
+
+# Load a previous run to view or continue
+ezvals serve .ezvals/sessions/default/sleek-wolf_1705312200.json
 ```
 
 ### Run All Evaluations

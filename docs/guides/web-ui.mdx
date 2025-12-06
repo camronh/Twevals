@@ -85,3 +85,18 @@ Changes are saved to the results file.
 ```bash
 ezvals serve evals.py --port 3000
 ```
+
+## Loading Previous Runs
+
+To view or continue a previous run, pass the run JSON file directly:
+
+```bash
+ezvals serve .ezvals/sessions/default/sleek-wolf_1705312200.json
+```
+
+The UI loads with that run's results. If the original eval file still exists, you can rerun evaluations normally. If the source file was moved or deleted, the UI shows a warning and works in view-only mode.
+
+This is useful for:
+- Reviewing historical results
+- Continuing an interrupted session
+- Sharing runs between machines (copy the JSON file)

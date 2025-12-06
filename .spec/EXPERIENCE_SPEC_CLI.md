@@ -206,6 +206,20 @@ Scenario: Auto-run with filters
   When the user runs `ezvals serve evals/ --dataset testing --run`
   Then only evaluations with dataset="testing" appear in UI
   And only those filtered evaluations auto-run
+
+Scenario: Load existing run JSON
+  When the user runs `ezvals serve .ezvals/sessions/default/run_123.json`
+  Then server starts and browser opens
+  And the UI displays results from that run
+  And if source eval path exists, rerun is enabled
+  And if source eval path is missing, UI shows "view-only mode" warning
+
+Scenario: Continue previous session
+  Given a run was saved with source path "evals/test.py"
+  When the user runs `ezvals serve .ezvals/sessions/my-session/run_123.json`
+  And "evals/test.py" still exists
+  Then the Run button works normally
+  And new runs save to the same session
 ```
 
 ---
