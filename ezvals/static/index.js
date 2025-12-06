@@ -871,6 +871,7 @@ document.addEventListener('click', (e) => {
   btn.classList.add('text-emerald-500', 'opacity-100');
   btn.classList.remove('text-zinc-600', 'opacity-0');
   let done = false;
+  let savingViaButton = false;
   const save = async () => {
     if (done) return;
     done = true;
@@ -888,14 +889,14 @@ document.addEventListener('click', (e) => {
     }
     loadResults();
   };
-  const cancel = () => { if (!done) { done = true; loadResults(); } };
-  input.addEventListener('blur', cancel);
+  const cancel = () => { if (!done && !savingViaButton) { done = true; loadResults(); } };
+  input.addEventListener('blur', () => setTimeout(cancel, 100));
   input.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter') { ev.preventDefault(); save(); }
-    if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
+    if (ev.key === 'Escape') { ev.preventDefault(); done = true; loadResults(); }
   });
-  // Clicking checkmark saves
-  btn.addEventListener('click', (ev) => { ev.stopPropagation(); save(); }, { once: true });
+  // Clicking checkmark saves (use mousedown to fire before blur)
+  btn.addEventListener('mousedown', (ev) => { ev.preventDefault(); savingViaButton = true; save(); }, { once: true });
 });
 
 // Run button mode: 'run' (fresh), 'rerun', or 'new'
