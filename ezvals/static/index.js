@@ -107,7 +107,7 @@ function renderStatsExpanded(data) {
   if (sessionName || runName) {
     headerHtml = '<div class="stats-left-header">';
     if (sessionName) headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session copyable cursor-pointer hover:text-zinc-300">${escapeHtml(sessionName)}</span></div>`;
-    if (runName) headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run copyable cursor-pointer hover:text-zinc-300">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
+    if (runName) headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run copyable cursor-pointer hover:text-zinc-300">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 transition hover:text-zinc-400" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
     headerHtml += '</div>';
   }
 
@@ -189,7 +189,7 @@ function renderStatsCompact(data) {
       sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
         <div class="group flex items-center gap-1">
           <span id="run-name-text" class="copyable font-mono text-[11px] text-accent-link cursor-pointer hover:text-accent-link-hover">${escapeHtml(runName)}</span>
-          <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" title="Rename run">
+          <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 transition hover:text-zinc-400" title="Rename run">
             <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg>
           </button>
         </div>`;
@@ -336,7 +336,7 @@ function renderResultsTable(data, runId) {
       <thead>
         <tr class="border-b border-theme-border">
           <th style="width:32px;" class="sticky top-[41px] z-20 bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
-          <th data-col="function" style="width:15%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Function</th>
+          <th data-col="function" style="width:15%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
           <th data-col="input" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
           <th data-col="reference" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
           <th data-col="output" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
