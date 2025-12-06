@@ -2,6 +2,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Changed: Stats panel now dynamically updates when filters/search are active. Shows "filtered/total" format for test count, with latency and score chips calculated from visible rows only.
+- Changed: Removed separate filtered summary bar—main stats panel now serves as single source of truth for all statistics.
+- Tests: Updated E2E filter test to verify new dynamic stats behavior.
+
 ## 0.0.2a9 - 2025-12-06
 
 - Changed: Project renamed from Twevals to EZVals. Package is now `ezvals`, CLI command is `ezvals`, config file is `ezvals.json`, results directory is `.ezvals/`.

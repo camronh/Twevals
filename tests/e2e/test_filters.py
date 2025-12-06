@@ -127,9 +127,9 @@ def test_advanced_filters_ui(tmp_path):
             # Has Annotation = yes should further filter to f1 and f3
             # Click the "Has Note" button to enable annotation filter (cycles: any -> yes)
             page.click("#filter-has-annotation")
-            # Two visible rows now: f1, f3 (those with annotations)
-            # Just assert filtered summary is shown
-            expect(page.locator("#filtered-summary")).to_be_visible()
+            # Filters are active - stats panel should show filtered/total format
+            # Check that the metric divisor appears (indicates filtered state)
+            expect(page.locator(".stats-metric-divisor")).to_be_visible()
 
             # Dynamic key type detection: fluency has numeric only -> value section visible, passed hidden
             # Ensure menu is visible before interacting with selects
