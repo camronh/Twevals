@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Result Detail - twevals</title>
+    <link rel="icon" type="image/png" href="/static/logo.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+              mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+            },
+            colors: {
+              theme: {
+                bg: 'var(--bg)',
+                'bg-secondary': 'var(--bg-secondary)',
+                'bg-elevated': 'var(--bg-elevated)',
+                text: 'var(--text)',
+                'text-secondary': 'var(--text-secondary)',
+                'text-muted': 'var(--text-muted)',
+                border: 'var(--border)',
+              },
+              accent: {
+                link: 'var(--accent-link)',
+                success: 'var(--accent-success)',
+                'success-bg': 'var(--accent-success-bg)',
+                error: 'var(--accent-error)',
+                'error-bg': 'var(--accent-error-bg)',
+              }
+            }
+          }
+        }
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #09090b;
+        --bg-secondary: #18181b;
+        --bg-elevated: #27272a;
+        --text: #fafafa;
+        --text-secondary: #a1a1aa;
+        --text-muted: #71717a;
+        --border: #3f3f46;
+        --accent-link: #60a5fa;
+        --accent-success: #34d399;
+        --accent-success-bg: rgba(52, 211, 153, 0.1);
+        --accent-error: #f87171;
+        --accent-error-bg: rgba(248, 113, 113, 0.1);
+      }
+      .light {
+        --bg: #ffffff;
+        --bg-secondary: #f4f4f5;
+        --bg-elevated: #e4e4e7;
+        --text: #18181b;
+        --text-secondary: #52525b;
+        --text-muted: #71717a;
+        --border: #d4d4d8;
+        --accent-link: #2563eb;
+        --accent-success: #059669;
+        --accent-success-bg: rgba(5, 150, 105, 0.1);
+        --accent-error: #dc2626;
+        --accent-error-bg: rgba(220, 38, 38, 0.1);
+      }
+      body { background: var(--bg); color: var(--text); }
+      pre { white-space: pre-wrap; word-break: break-word; }
+    </style>
+  </head>
+  <body class="min-h-screen font-sans">
+    <header class="sticky top-0 z-30 border-b border-theme-border bg-theme-bg/95 backdrop-blur px-4 py-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <a href="/" class="flex items-center gap-2 text-theme-text hover:text-accent-link">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+          </a>
+          <span id="nav-info" class="text-sm text-theme-text-muted"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="prev-btn" class="rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-xs text-theme-text-secondary hover:bg-theme-bg-elevated disabled:opacity-50" disabled>← Prev</button>
+          <button id="next-btn" class="rounded border border-theme-border bg-theme-bg-secondary px-2 py-1 text-xs text-theme-text-secondary hover:bg-theme-bg-elevated disabled:opacity-50" disabled>Next →</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="content" class="p-4 max-w-6xl mx-auto">
+      <div class="text-theme-text-muted">Loading...</div>
+    </main>
+
+    <script>
+      const path = window.location.pathname;
+      const match = path.match(/\/runs\/([^/]+)\/results\/(\d+)/);
+      const runId = match ? match[1] : null;
+      const index = match ? parseInt(match[2]) : 0;
+
+      function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function formatJson(val) {
+        if (val == null) return '<span class="text-theme-text-muted">null</span>';
+        if (typeof val === 'string') return escapeHtml(val);
+        return '<pre class="text-xs bg-theme-bg-secondary p-2 rounded overflow-auto max-h-96">' + escapeHtml(JSON.stringify(val, null, 2)) + '</pre>';
+      }
+
+      async function loadDetail() {
+        try {
+          const resp = await fetch(`/api${path}`);
+          if (!resp.ok) throw new Error('Not found');
+          const data = await resp.json();
+          render(data);
+        } catch (e) {
+          document.getElementById('content').innerHTML = '<div class="text-accent-error">Failed to load result</div>';
+        }
+      }
+
+      function render(data) {
+        const r = data.result;
+        const result = r.result || {};
+        const scores = result.scores || [];
+
+        document.getElementById('nav-info').textContent = `${r.function} (${data.index + 1} of ${data.total})`;
+
+        // Navigation
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        if (data.index > 0) {
+          prevBtn.disabled = false;
+          prevBtn.onclick = () => window.location.href = `/runs/${data.run_id}/results/${data.index - 1}`;
+        }
+        if (data.index < data.total - 1) {
+          nextBtn.disabled = false;
+          nextBtn.onclick = () => window.location.href = `/runs/${data.run_id}/results/${data.index + 1}`;
+        }
+
+        // Scores section
+        let scoresHtml = '<span class="text-theme-text-muted">No scores</span>';
+        if (scores.length) {
+          scoresHtml = scores.map(s => {
+            let cls = 'bg-theme-bg-elevated text-theme-text-muted';
+            if (s.passed === true) cls = 'bg-accent-success-bg text-accent-success';
+            else if (s.passed === false) cls = 'bg-accent-error-bg text-accent-error';
+            const val = s.value != null ? `: ${s.value}` : '';
+            return `<span class="inline-flex items-center gap-1 rounded px-2 py-1 text-sm ${cls}">${escapeHtml(s.key)}${val}</span>`;
+          }).join(' ');
+        }
+
+        // Status
+        const status = result.status || 'completed';
+        const statusColors = {
+          'completed': 'text-accent-success',
+          'error': 'text-accent-error',
+          'running': 'text-blue-400',
+          'pending': 'text-blue-400',
+          'cancelled': 'text-amber-400',
+          'not_started': 'text-theme-text-muted'
+        };
+
+        document.getElementById('content').innerHTML = `
+          <div class="space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h1 class="text-xl font-semibold text-theme-text">${escapeHtml(r.function)}</h1>
+                <div class="text-sm text-theme-text-muted mt-1">
+                  ${r.dataset ? `Dataset: ${escapeHtml(r.dataset)}` : ''}
+                  ${r.labels?.length ? ` · Labels: ${r.labels.map(l => escapeHtml(l)).join(', ')}` : ''}
+                </div>
+              </div>
+              <div class="text-sm ${statusColors[status] || ''}">${status}</div>
+            </div>
+
+            <div class="flex gap-2 flex-wrap">${scoresHtml}</div>
+
+            ${result.latency ? `<div class="text-sm text-theme-text-muted">Latency: ${result.latency.toFixed(3)}s</div>` : ''}
+
+            <div class="grid gap-4">
+              <div class="border border-theme-border rounded p-4">
+                <div class="text-xs uppercase tracking-wider text-theme-text-muted mb-2">Input</div>
+                ${formatJson(result.input)}
+              </div>
+
+              ${result.reference != null ? `
+              <div class="border border-theme-border rounded p-4">
+                <div class="text-xs uppercase tracking-wider text-theme-text-muted mb-2">Reference</div>
+                ${formatJson(result.reference)}
+              </div>` : ''}
+
+              <div class="border border-theme-border rounded p-4">
+                <div class="text-xs uppercase tracking-wider text-theme-text-muted mb-2">Output</div>
+                ${formatJson(result.output)}
+              </div>
+
+              ${result.error ? `
+              <div class="border border-accent-error/30 rounded p-4 bg-accent-error-bg">
+                <div class="text-xs uppercase tracking-wider text-accent-error mb-2">Error</div>
+                <pre class="text-sm text-accent-error">${escapeHtml(result.error)}</pre>
+              </div>` : ''}
+
+              ${result.trace_data?.messages?.length ? `
+              <div class="border border-theme-border rounded p-4">
+                <div class="text-xs uppercase tracking-wider text-theme-text-muted mb-2">Messages (${result.trace_data.messages.length})</div>
+                <div class="space-y-2">
+                  ${result.trace_data.messages.map(m => `
+                    <div class="border-l-2 ${m.role === 'user' ? 'border-blue-500' : 'border-emerald-500'} pl-3 py-1">
+                      <div class="text-xs text-theme-text-muted mb-1">${escapeHtml(m.role)}</div>
+                      <div class="text-sm">${formatJson(m.content)}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>` : ''}
+
+              ${result.trace_data?.trace_url ? `
+              <div class="border border-theme-border rounded p-4">
+                <div class="text-xs uppercase tracking-wider text-theme-text-muted mb-2">Trace URL</div>
+                <a href="${escapeHtml(result.trace_data.trace_url)}" target="_blank" class="text-accent-link hover:underline">${escapeHtml(result.trace_data.trace_url)}</a>
+              </div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      // Keyboard navigation
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') document.getElementById('prev-btn')?.click();
+        if (e.key === 'ArrowRight') document.getElementById('next-btn')?.click();
+        if (e.key === 'Escape') window.location.href = '/';
+      });
+
+      loadDetail();
+    </script>
+  </body>
+</html>

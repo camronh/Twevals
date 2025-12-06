@@ -188,8 +188,13 @@ def create_app(
         return templates.TemplateResponse("index.html", {"request": request})
 
     @app.get("/runs/{run_id}/results/{index}")
-    def result_detail(run_id: str, index: int):
-        """Get a single result by index."""
+    def result_detail_page(request: Request, run_id: str, index: int):
+        """Page view for a single result."""
+        return templates.TemplateResponse("detail.html", {"request": request})
+
+    @app.get("/api/runs/{run_id}/results/{index}")
+    def result_detail_api(run_id: str, index: int):
+        """Get a single result by index (JSON API)."""
         rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else run_id
         try:
             summary = store.load_run(rid)
