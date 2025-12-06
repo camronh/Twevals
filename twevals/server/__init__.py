@@ -188,8 +188,8 @@ def create_app(
         return templates.TemplateResponse("index.html", {"request": request})
 
     @app.get("/runs/{run_id}/results/{index}")
-    def result_detail(request: Request, run_id: str, index: int):
-        """Full-page detail view for a single result."""
+    def result_detail(run_id: str, index: int):
+        """Get a single result by index."""
         rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else run_id
         try:
             summary = store.load_run(rid)
@@ -201,22 +201,18 @@ def create_app(
             raise HTTPException(status_code=404, detail="Result not found")
 
         result = results[index]
-        return templates.TemplateResponse(
-            "result_detail.html",
-            {
-                "request": request,
-                "result": result,
-                "index": index,
-                "total": len(results),
-                "run_id": rid,
-                "session_name": summary.get("session_name"),
-                "run_name": summary.get("run_name"),
-                "eval_path": summary.get("path") or app.state.path,
-            },
-        )
+        return {
+            "result": result,
+            "index": index,
+            "total": len(results),
+            "run_id": rid,
+            "session_name": summary.get("session_name"),
+            "run_name": summary.get("run_name"),
+            "eval_path": summary.get("path") or app.state.path,
+        }
 
     @app.get("/results")
-    def results(request: Request):
+    def results():
         # Try to load from disk first (covers historical runs and active runs)
         try:
             summary = store.load_run(app.state.active_run_id)
@@ -238,34 +234,26 @@ def create_app(
                         "status": "not_started",
                     },
                 } for f in app.state.discovered_functions]
-                summary = {
+                return {
+                    "session_name": app.state.session_name,
+                    "run_name": app.state.run_name,
+                    "run_id": app.state.active_run_id,
                     "total_evaluations": len(results_list),
-                    "total_functions": len(results_list),
                     "total_errors": 0,
                     "total_passed": 0,
-                    "total_with_scores": 0,
                     "average_latency": 0,
                     "results": results_list,
+                    "score_chips": [],
+                    "eval_path": app.state.path,
                 }
-                return templates.TemplateResponse(
-                    "results.html",
-                    {
-                        "request": request,
-                        "summary": summary,
-                        "run_id": app.state.active_run_id,
-                        "score_chips": [],
-                        "eval_path": app.state.path,
-                        "active_indices": None,
-                    },
-                )
             raise HTTPException(status_code=404, detail="Active run not found")
+
         # Build per-score-key chips: ratio for boolean passed, average for numeric value
         score_map: dict[str, dict] = {}
         for r in summary.get("results", []):
             res = (r or {}).get("result") or {}
             scores = res.get("scores") or []
             for s in scores:
-                # s may be dict-like
                 key = s.get("key") if isinstance(s, dict) else getattr(s, "key", None)
                 if not key:
                     continue
@@ -284,6 +272,7 @@ def create_app(
                         d["count"] += 1
                     except Exception:
                         pass
+
         score_chips = []
         for k, d in score_map.items():
             if d["bool"] > 0:
@@ -292,17 +281,19 @@ def create_app(
             elif d["count"] > 0:
                 avg = d["sum"] / d["count"]
                 score_chips.append({"key": k, "type": "avg", "avg": avg, "count": d["count"]})
-        return templates.TemplateResponse(
-            "results.html",
-            {
-                "request": request,
-                "summary": summary,
-                "run_id": app.state.active_run_id,
-                "score_chips": score_chips,
-                "eval_path": summary.get("path") or app.state.path,
-                "active_indices": app.state.active_indices,
-            },
-        )
+
+        return {
+            "session_name": summary.get("session_name") or app.state.session_name,
+            "run_name": summary.get("run_name") or app.state.run_name,
+            "run_id": app.state.active_run_id,
+            "total_evaluations": summary.get("total_evaluations", 0),
+            "total_errors": summary.get("total_errors", 0),
+            "total_passed": summary.get("total_passed", 0),
+            "average_latency": summary.get("average_latency", 0),
+            "results": summary.get("results", []),
+            "score_chips": score_chips,
+            "eval_path": summary.get("path") or app.state.path,
+        }
 
     @app.patch("/api/runs/{run_id}/results/{index}")
     def patch_result(run_id: str, index: int, body: ResultUpdateBody):
