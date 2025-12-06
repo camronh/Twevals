@@ -5,10 +5,12 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 - Added: `input_loader` parameter on `@eval` decorator for dynamic data loading from external sources (databases, APIs like LangSmith). Loader is called lazily at eval time, each example becomes a separate eval run.
+- Added: Load previous runs with `ezvals serve path/to/run.json`. Opens UI with that run loaded; rerun enabled if source eval file exists, view-only mode if not.
 - Changed: Stats panel now dynamically updates when filters/search are active. Shows "filtered/total" format for test count, with latency and score chips calculated from visible rows only.
 - Changed: Removed separate filtered summary bar—main stats panel now serves as single source of truth for all statistics.
 - Tests: Added unit tests for input_loader functionality.
 - Tests: Updated E2E filter test to verify new dynamic stats behavior.
+- Tests: Added integration tests for loading previous run JSON files.
 
 ## 0.0.2a9 - 2025-12-06
 
