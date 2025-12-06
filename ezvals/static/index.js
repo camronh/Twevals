@@ -199,6 +199,9 @@ function renderStatsCompact(data) {
             <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-copy"></use></svg>
             <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-check"></use></svg>
           </button>
+          <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" title="Rename run">
+            <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg>
+          </button>
         </div>`;
     }
     sessionRunHtml += '</div><div class="h-3 w-px bg-zinc-700"></div>';
@@ -849,6 +852,46 @@ document.addEventListener('click', (e) => { const link = e.target.closest('a[hre
 function wireExportButtons() { const table = document.getElementById('results-table'); const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest'; document.getElementById('export-json-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/json`; }); document.getElementById('export-csv-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/csv`; }); }
 
 document.addEventListener('click', async (e) => { const btn = e.target.closest('.copy-btn'); if (!btn) return; const id = btn.getAttribute('data-copy'); const pre = document.getElementById(id); if (!pre) return; try { await navigator.clipboard.writeText(pre.innerText); const copyIcon = btn.querySelector('.copy-icon'); const checkIcon = btn.querySelector('.check-icon'); if (copyIcon && checkIcon) { copyIcon.classList.add('hidden'); checkIcon.classList.remove('hidden'); setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900); } } catch { alert('Copy failed'); } });
+
+// Edit run name inline
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.edit-run-btn');
+  if (!btn) return;
+  const span = document.getElementById('run-name-text');
+  if (!span || span.querySelector('input')) return;
+  const originalText = span.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = originalText;
+  input.className = 'font-mono text-[11px] bg-zinc-800 border border-zinc-600 rounded px-1 w-24 text-accent-link outline-none focus:border-zinc-500';
+  span.textContent = '';
+  span.appendChild(input);
+  input.focus();
+  input.select();
+  let saved = false;
+  const save = async () => {
+    if (saved) return;
+    saved = true;
+    const newName = input.value.trim();
+    if (newName && newName !== originalText && _currentRunId) {
+      try {
+        await fetch(`/api/runs/${_currentRunId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ run_name: newName })
+        });
+      } catch (err) {
+        console.error('Rename failed:', err);
+      }
+    }
+    loadResults();
+  };
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); save(); }
+    if (ev.key === 'Escape') { ev.preventDefault(); saved = true; loadResults(); }
+  });
+});
 
 // Run button mode: 'run' (fresh), 'rerun', or 'new'
 const RUN_MODE_KEY = 'ezvals:runMode';
