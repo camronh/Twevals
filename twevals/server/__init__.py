@@ -72,6 +72,7 @@ def create_app(
         run_id: str,
         existing_results: Optional[List[Dict]] = None,
         indices_map: Optional[Dict[int, int]] = None,
+        overwrite: bool = True,
     ):
         """
         Start evaluations in a background thread.
@@ -81,6 +82,7 @@ def create_app(
             run_id: The run ID to save results under
             existing_results: For selective rerun - the full results list to update in place
             indices_map: For selective rerun - maps function id -> index in existing_results
+            overwrite: Whether to overwrite existing run with same name (default True)
         """
         config = load_config()
         # Use CLI-resolved results_dir (CLI override → config → default, resolved at startup)
@@ -96,7 +98,7 @@ def create_app(
                 "average_latency": 0,
                 "results": [],
             }
-            run_store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
+            run_store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name, overwrite=overwrite)
             return
 
         runner = EvalRunner(
@@ -132,7 +134,7 @@ def create_app(
         summary = EvalRunner._calculate_summary(current_results)
         summary["results"] = current_results
         summary["path"] = app.state.path
-        run_store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
+        run_store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name, overwrite=overwrite)
 
         def _persist():
             if cancel_event.is_set():
@@ -470,17 +472,8 @@ def create_app(
 
     @app.get("/api/sessions")
     def list_sessions():
-        """List all unique session names from stored runs."""
-        sessions = set()
-        for run_id in store.list_runs():
-            try:
-                data = store.load_run(run_id)
-                session = data.get("session_name")
-                if session:
-                    sessions.add(session)
-            except Exception:
-                continue
-        return {"sessions": sorted(sessions)}
+        """List all session names from directory structure."""
+        return {"sessions": store.list_sessions()}
 
     @app.get("/api/sessions/{session_name}/runs")
     def list_session_runs(session_name: str):
@@ -489,37 +482,83 @@ def create_app(
         run_details = []
         for run_id in runs:
             try:
-                data = store.load_run(run_id)
+                data = store.load_run(run_id, session_name)
                 run_details.append({
                     "run_id": run_id,
                     "run_name": data.get("run_name"),
                     "total_evaluations": data.get("total_evaluations", 0),
                     "total_passed": data.get("total_passed", 0),
                     "total_errors": data.get("total_errors", 0),
+                    "timestamp": int(run_id) if run_id.isdigit() else 0,
                 })
             except Exception:
                 continue
         return {"session_name": session_name, "runs": run_details}
+
+    @app.delete("/api/sessions/{session_name}")
+    def delete_session(session_name: str):
+        """Delete an entire session and all its runs."""
+        if store.delete_session(session_name):
+            return {"ok": True}
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    @app.delete("/api/runs/{run_id}")
+    def delete_run_endpoint(run_id: str):
+        """Delete a specific run."""
+        if store.delete_run(run_id):
+            return {"ok": True}
+        raise HTTPException(status_code=404, detail="Run not found")
 
     class RunUpdateBody(BaseModel):
         run_name: Optional[str] = None
 
     @app.patch("/api/runs/{run_id}")
     def update_run(run_id: str, body: RunUpdateBody):
-        """Update run metadata (e.g., rename a run)."""
+        """Update run metadata (rename updates filename too)."""
         try:
-            data = store.load_run(run_id)
+            if body.run_name is not None:
+                new_name = store.rename_run(run_id, body.run_name)
+                return {"ok": True, "run": {"run_id": run_id, "run_name": new_name}}
+            return {"ok": True, "run": {"run_id": run_id}}
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Run not found")
 
-        if body.run_name is not None:
-            data["run_name"] = body.run_name
-            # Re-save with updated name (note: doesn't rename file, just updates JSON)
-            from twevals.storage import _atomic_write_json
-            run_file = store._find_run_file(run_id)
-            _atomic_write_json(run_file, data)
+    class NewRunRequest(BaseModel):
+        run_name: Optional[str] = None
 
-        return {"ok": True, "run": {"run_id": run_id, "run_name": data.get("run_name")}}
+    @app.post("/api/runs/new")
+    def new_run(request: NewRunRequest = NewRunRequest()):
+        """Create a new run (never overwrites existing)."""
+        app.state.cancel_event.clear()
+
+        if not app.state.path:
+            raise HTTPException(status_code=400, detail="New run unavailable: missing eval path")
+
+        path_obj = Path(app.state.path)
+        if not path_obj.exists():
+            raise HTTPException(status_code=400, detail=f"Eval path not found: {path_obj}")
+
+        # Update run_name if provided
+        if request.run_name:
+            app.state.run_name = request.run_name
+        else:
+            from twevals.storage import _generate_friendly_name
+            app.state.run_name = _generate_friendly_name()
+
+        # Discover functions
+        discovery = EvalDiscovery()
+        all_functions = discovery.discover(
+            path=str(path_obj),
+            dataset=app.state.dataset,
+            labels=app.state.labels,
+            function_name=app.state.function_name,
+        )
+
+        # Create new run with overwrite=False
+        run_id = store.generate_run_id()
+        app.state.active_run_id = run_id
+        start_run(all_functions, run_id, overwrite=False)
+        return {"ok": True, "run_id": run_id, "run_name": app.state.run_name}
 
     @app.get("/api/config")
     def get_config():
