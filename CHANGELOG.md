@@ -2,6 +2,20 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Changed: `add_output()` and `add_score()` replaced with unified `store()` method. Use `ctx.store(output=..., scores=..., messages=..., trace_url=...)` for all context updates. Same score key overwrites, different key appends.
+- Changed: `run_data` renamed to `trace_data` with structured `TraceData` schema. First-class `messages` and `trace_url` properties, plus arbitrary extra fields via dict-style access.
+- Added: `--run` flag for `twevals serve` to auto-run all evaluations on startup.
+- Added: Light mode support with theme toggle in UI header.
+- Changed: UI completely refactored to client-side rendering with new dashboard design featuring bar charts and score breakdown.
+- Added: Three-state filtering for datasets and labels (include/exclude/any) in the web UI.
+- Added: Filter persistence across navigation using sessionStorage.
+- Added: Keyboard shortcuts for table view (r=refresh, e=export, f=filter).
+- Added: Experience specifications (`.spec/`) as canonical source of truth for product behavior.
+- Tests: Added E2E tests for keyboard shortcuts and stats bar.
+- Tests: Added unit tests for CLI filtering and store() method.
+
 ## 0.0.2a14 - 2025-12-01
 
 - Changed: Documentation rewritten for clarity—simplified examples, removed redundant code patterns, consistent use of direct `ctx.output` assignment.

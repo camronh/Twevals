@@ -67,6 +67,14 @@ twevals serve evals/ --port 3000
 twevals serve evals/ --session model-comparison
 ```
 
+<ParamField path="--run" type="flag">
+  Automatically run all evaluations on startup. Same as clicking the Run button immediately.
+</ParamField>
+
+```bash
+twevals serve evals/ --run
+```
+
 ## twevals run
 
 Run evaluations headlessly. Outputs minimal text by default (optimized for LLM agents). Use `--visual` for rich table output.

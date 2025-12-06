@@ -1,7 +1,7 @@
 # Experience Specification: Twevals
 
-**Version:** 0.0.2a14
-**Generated:** 2025-12-02
+**Version:** 0.0.2a15 (Unreleased)
+**Generated:** 2025-12-05
 
 This is the canonical source of truth for what Twevals enables users to do and how they do it. If someone deleted all the code but kept these documents, another developer should be able to rebuild the library with identical user-facing behavior.
 
