@@ -107,7 +107,7 @@ function renderStatsExpanded(data) {
   if (sessionName || runName) {
     headerHtml = '<div class="stats-left-header">';
     if (sessionName) headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session">${escapeHtml(sessionName)}</span></div>`;
-    if (runName) headerHtml += `<div class="stats-info-row"><span class="stats-info-label">run</span><span class="stats-run">${escapeHtml(runName)}</span></div>`;
+    if (runName) headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
     headerHtml += '</div>';
   }
 
@@ -274,25 +274,22 @@ function renderRow(r, index, runId) {
   let outputCell;
   if (isNotStarted) outputCell = '<span class="text-zinc-600">—</span>';
   else if (isRunning) outputCell = '<div class="space-y-1"><div class="h-2.5 w-3/4 animate-pulse rounded bg-zinc-800"></div><div class="h-2.5 w-1/2 animate-pulse rounded bg-zinc-800"></div></div>';
-  else if (result.output != null) outputCell = `<div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.output))}</div>`;
+  else if (result.output != null) outputCell = `<div class="line-clamp-4 text-[12px] text-theme-text">${escapeHtml(formatValue(result.output))}</div>`;
   else outputCell = '<span class="text-zinc-600">—</span>';
 
   let scoresCell;
   if (isNotStarted) scoresCell = '<span class="text-zinc-600">—</span>';
   else if (isRunning) scoresCell = '<div class="flex gap-1"><div class="h-4 w-14 animate-pulse rounded bg-zinc-800"></div><div class="h-4 w-10 animate-pulse rounded bg-zinc-800"></div></div>';
   else if (scores.length) {
-    const maxScores = 2;
-    let badgesHtml = scores.map((s, i) => {
+    const badgesHtml = scores.map((s) => {
       let badgeClass = 'bg-theme-bg-elevated text-theme-text-muted';
       if (s.passed === true) badgeClass = 'bg-accent-success-bg text-accent-success';
       else if (s.passed === false) badgeClass = 'bg-accent-error-bg text-accent-error';
-      const extraClass = i >= maxScores ? ' score-extra hidden' : '';
       const val = s.value != null ? `:${typeof s.value === 'number' ? s.value.toFixed(1) : s.value}` : '';
       const title = `${s.key}${s.value != null ? ': ' + (typeof s.value === 'number' ? s.value.toFixed(3) : s.value) : ''}${s.notes ? ' — ' + s.notes : ''}`;
-      return `<span class="score-badge shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}${extraClass}" title="${escapeHtml(title)}">${escapeHtml(s.key)}${val}</span>`;
+      return `<span class="score-badge shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}" title="${escapeHtml(title)}">${escapeHtml(s.key)}${val}</span>`;
     }).join('');
-    if (scores.length > maxScores) badgesHtml += `<span class="score-overflow shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">+${scores.length - maxScores}</span>`;
-    scoresCell = `<div class="flex gap-1 overflow-hidden">${badgesHtml}</div>`;
+    scoresCell = `<div class="flex flex-wrap gap-1">${badgesHtml}</div>`;
   } else scoresCell = '<span class="text-zinc-600">—</span>';
 
   let latencyCell;
@@ -305,28 +302,28 @@ function renderRow(r, index, runId) {
 
   return `
     <tr data-row="main" data-row-id="${index}" data-status="${status}" data-scores='${JSON.stringify(scores)}' data-annotation="${escapeHtml(result.annotation || '')}" data-dataset="${escapeHtml(r.dataset || '')}" data-labels='${JSON.stringify(r.labels || [])}' data-has-url="${hasUrl}" data-has-messages="${hasMessages}" data-has-error="${hasError}" class="group cursor-pointer hover:bg-theme-bg-elevated/50 transition-colors${isNotStarted ? ' opacity-60' : ''}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
-      <td class="px-2 py-2 text-center align-middle" onclick="event.stopPropagation()">
+      <td class="px-2 py-3 text-center align-middle" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-checkbox" data-row-id="${index}" />
       </td>
-      <td data-col="function" class="px-3 py-2 align-middle">
+      <td data-col="function" class="px-3 py-3 align-middle">
         <div class="flex flex-col gap-0.5">
           <div class="flex items-center gap-2">${functionCell}${statusPill}</div>
           <div class="flex items-center gap-1.5 text-[10px] text-zinc-500"><span>${escapeHtml(r.dataset || '')}</span>${labelsHtml}</div>
         </div>
       </td>
-      <td data-col="input" title="${escapeHtml(formatValue(result.input))}" class="px-3 py-2 align-middle">
-        <div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.input))}</div>
+      <td data-col="input" title="${escapeHtml(formatValue(result.input))}" class="px-3 py-3 align-middle">
+        <div class="line-clamp-4 text-[12px] text-theme-text">${escapeHtml(formatValue(result.input))}</div>
       </td>
-      <td data-col="reference" title="${escapeHtml(formatValue(result.reference))}" class="px-3 py-2 align-middle">
-        ${result.reference != null ? `<div class="line-clamp-2 text-[12px] text-theme-text">${escapeHtml(formatValue(result.reference))}</div>` : '<span class="text-zinc-600">—</span>'}
+      <td data-col="reference" title="${escapeHtml(formatValue(result.reference))}" class="px-3 py-3 align-middle">
+        ${result.reference != null ? `<div class="line-clamp-4 text-[12px] text-theme-text">${escapeHtml(formatValue(result.reference))}</div>` : '<span class="text-zinc-600">—</span>'}
       </td>
-      <td data-col="output" title="${escapeHtml(formatValue(result.output))}" class="px-3 py-2 align-middle">${outputCell}</td>
-      <td data-col="error" title="${escapeHtml(result.error || '')}" class="px-3 py-2 align-middle">
-        ${result.error ? `<div class="line-clamp-2 text-[12px] text-accent-error">${escapeHtml(result.error)}</div>` : '<span class="text-zinc-600">—</span>'}
+      <td data-col="output" title="${escapeHtml(formatValue(result.output))}" class="px-3 py-3 align-middle">${outputCell}</td>
+      <td data-col="error" title="${escapeHtml(result.error || '')}" class="px-3 py-3 align-middle">
+        ${result.error ? `<div class="line-clamp-4 text-[12px] text-accent-error">${escapeHtml(result.error)}</div>` : '<span class="text-zinc-600">—</span>'}
       </td>
-      <td data-col="scores" class="px-3 py-2 align-middle max-w-[180px]">${scoresCell}</td>
-      <td data-col="latency" data-value="${result.latency ?? ''}" class="px-3 py-2 align-middle text-right">${latencyCell}</td>
-      <td class="px-1 py-2 align-middle">
+      <td data-col="scores" class="px-3 py-3 align-middle">${scoresCell}</td>
+      <td data-col="latency" data-value="${result.latency ?? ''}" class="px-3 py-3 align-middle text-right">${latencyCell}</td>
+      <td class="px-1 py-3 align-middle">
         <span class="expand-chevron text-zinc-700 group-hover:text-zinc-400">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-chevron-right"></use></svg>
         </span>
@@ -495,18 +492,15 @@ function updateRowInPlace(index, newResult) {
   const scoresCell = row.querySelector('td[data-col="scores"]');
   if (scoresCell && newStatus !== 'running' && newResult.scores?.length) {
     const scores = newResult.scores;
-    const maxScores = 2;
-    let badgesHtml = scores.map((s, i) => {
+    const badgesHtml = scores.map((s, i) => {
       let badgeClass = 'bg-theme-bg-elevated text-theme-text-muted';
       if (s.passed === true) badgeClass = 'bg-accent-success-bg text-accent-success';
       else if (s.passed === false) badgeClass = 'bg-accent-error-bg text-accent-error';
-      const extraClass = i >= maxScores ? ' score-extra hidden' : '';
       const val = s.value != null ? `:${typeof s.value === 'number' ? s.value.toFixed(1) : s.value}` : '';
       const title = `${s.key}${s.value != null ? ': ' + (typeof s.value === 'number' ? s.value.toFixed(3) : s.value) : ''}${s.notes ? ' — ' + s.notes : ''}`;
-      return `<span class="score-badge entering shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}${extraClass}" title="${escapeHtml(title)}" style="transition-delay: ${i * 60}ms">${escapeHtml(s.key)}${val}</span>`;
+      return `<span class="score-badge entering shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}" title="${escapeHtml(title)}" style="transition-delay: ${i * 60}ms">${escapeHtml(s.key)}${val}</span>`;
     }).join('');
-    if (scores.length > maxScores) badgesHtml += `<span class="score-overflow shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">+${scores.length - maxScores}</span>`;
-    scoresCell.innerHTML = `<div class="flex gap-1 overflow-hidden">${badgesHtml}</div>`;
+    scoresCell.innerHTML = `<div class="flex flex-wrap gap-1">${badgesHtml}</div>`;
     requestAnimationFrame(() => {
       scoresCell.querySelectorAll('.score-badge').forEach(badge => badge.classList.remove('entering'));
     });
@@ -778,7 +772,7 @@ function toggleSort(table, col, type, multi) {
   setSortState(state);
   applySortState(table);
 }
-document.addEventListener("click", function (e) { const th = e.target.closest("#results thead th[data-col]"); if (!th) return; const table = document.getElementById("results-table"); if (!table) return; const col = th.getAttribute("data-col"); const type = th.getAttribute("data-type") || "string"; toggleSort(table, col, type, e.shiftKey); });
+document.addEventListener("click", function (e) { const th = e.target.closest("#results thead th[data-col]"); if (!th) return; const col = th.getAttribute("data-col"); if (col === "scores") return; const table = document.getElementById("results-table"); if (!table) return; const type = th.getAttribute("data-type") || "string"; toggleSort(table, col, type, e.shiftKey); });
 
 function applyColumnWidths(table) { if (!table) return; const widths = getColWidths(); Object.keys(widths).forEach((col) => { const w = widths[col]; if (!w) return; const th = table.querySelector(`thead th[data-col="${col}"]`); if (th) th.style.width = `${w}px`; }); }
 function initResizableColumns(table) {
@@ -853,17 +847,20 @@ function wireExportButtons() { const table = document.getElementById('results-ta
 
 document.addEventListener('click', async (e) => { const btn = e.target.closest('.copy-btn'); if (!btn) return; const id = btn.getAttribute('data-copy'); const pre = document.getElementById(id); if (!pre) return; try { await navigator.clipboard.writeText(pre.innerText); const copyIcon = btn.querySelector('.copy-icon'); const checkIcon = btn.querySelector('.check-icon'); if (copyIcon && checkIcon) { copyIcon.classList.add('hidden'); checkIcon.classList.remove('hidden'); setTimeout(() => { copyIcon.classList.remove('hidden'); checkIcon.classList.add('hidden'); }, 900); } } catch { alert('Copy failed'); } });
 
-// Edit run name inline
+// Edit run name inline (works for both compact and expanded views)
 document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.edit-run-btn');
+  const btn = e.target.closest('.edit-run-btn') || e.target.closest('.edit-run-btn-expanded');
   if (!btn) return;
-  const span = document.getElementById('run-name-text');
+  const isExpanded = btn.classList.contains('edit-run-btn-expanded');
+  const span = document.getElementById(isExpanded ? 'run-name-expanded' : 'run-name-text');
   if (!span || span.querySelector('input')) return;
   const originalText = span.textContent;
   const input = document.createElement('input');
   input.type = 'text';
   input.value = originalText;
-  input.className = 'font-mono text-[11px] bg-zinc-800 border border-zinc-600 rounded px-1 w-24 text-accent-link outline-none focus:border-zinc-500';
+  input.className = isExpanded
+    ? 'font-mono text-sm bg-zinc-800 border border-zinc-600 rounded px-1 w-28 text-white outline-none focus:border-zinc-500'
+    : 'font-mono text-[11px] bg-zinc-800 border border-zinc-600 rounded px-1 w-24 text-accent-link outline-none focus:border-zinc-500';
   span.textContent = '';
   span.appendChild(input);
   input.focus();
