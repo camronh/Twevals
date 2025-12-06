@@ -138,7 +138,7 @@ tr[data-row="main"] {
   transform: scale(0.8);
 }
 
-#results { min-height: 200px; }
+#results { min-height: 200px; border-bottom: 1px solid var(--border); }
 
 /* ═══════════════════════════════════════════════════════════════
    EXPANDED STATS PANEL - Two-column layout

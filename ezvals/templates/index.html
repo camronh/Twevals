@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="/static/index.css">
 {% endblock %}
 
-{% block body_class %}min-h-screen bg-theme-bg font-sans text-theme-text{% endblock %}
+{% block body_class %}h-screen flex flex-col bg-theme-bg font-sans text-theme-text{% endblock %}
 
 {% block icon_defs %}
     <svg xmlns="http://www.w3.org/2000/svg" class="hidden">
@@ -210,13 +210,13 @@
 {% endblock %}
 
 {% block content %}
-    <main class="px-4 py-4">
+    <main class="flex-1 overflow-auto px-4 py-4">
         <div id="results"></div>
     </main>
 {% endblock %}
 
 {% block footer %}
-    <footer class="border-t border-theme-border py-3">
+    <footer class="shrink-0 border-t border-theme-border bg-theme-bg py-3">
         <div class="flex items-center justify-center gap-6 text-xs text-theme-text-muted">
             <a href="https://github.com/camronh/EZVals" target="_blank" class="flex items-center gap-1.5 hover:text-theme-text-secondary">
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
