@@ -2,6 +2,20 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Changed: Results storage restructured to hierarchical sessions with overwrite-by-name semantics. New directory structure: `.twevals/sessions/{session_name}/{run_name}_{timestamp}.json`.
+- Changed: `serve` command auto-generates session names (each serve = new session). `run` command defaults to "default" session.
+- Changed: Config `results_dir` default updated from `.twevals/runs` to `.twevals/sessions`.
+- Added: GitHub-style split button for Run controls with Rerun/New Run dropdown options.
+- Added: Run mode persistence via localStorage - dropdown selection is sticky across sessions.
+- Added: Descriptive subtext in dropdown menu ("Overwrite current run results" / "Create a fresh run in this session").
+- Added: API endpoints for new run: `POST /api/runs/new` (creates without overwrite), `DELETE /api/runs/{run_id}`, `DELETE /api/sessions/{session_name}`.
+- Fixed: Run button state no longer sporadically resets after clicking Run due to race condition in `_hasRunBefore` tracking.
+- Fixed: Run name now displays immediately on server start (previously only appeared after first run file was saved).
+- Tests: Added E2E tests for split button behavior and run controls.
+- Tests: Updated unit tests for new storage structure and session management.
+
 ## 0.0.2a15 - 2025-12-05
 
 - Changed: `add_output()` and `add_score()` replaced with unified `store()` method. Use `ctx.store(output=..., scores=..., messages=..., trace_url=...)` for all context updates. Same score key overwrites, different key appends.
