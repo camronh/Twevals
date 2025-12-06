@@ -95,13 +95,11 @@ body.ezvals-col-resize { cursor: col-resize !important; user-select: none; }
 /* Expanded rows */
 tr[data-row="main"].expanded { background: rgba(59, 130, 246, 0.03); }
 tr[data-row="main"].expanded td { vertical-align: top; }
-tr[data-row="main"].expanded .line-clamp-2 { -webkit-line-clamp: unset; white-space: pre-wrap; }
+tr[data-row="main"].expanded .line-clamp-4 { -webkit-line-clamp: unset; white-space: pre-wrap; }
 tr[data-row="main"].expanded .expand-chevron { transform: rotate(90deg); }
 .expand-chevron { transition: transform 0.1s; }
 tr[data-row="main"].expanded td[data-col="scores"] > div { flex-wrap: wrap; overflow: visible; }
 tr[data-row="main"].expanded .score-badge { max-width: unset; }
-tr[data-row="main"].expanded .score-extra { display: inline-flex; }
-tr[data-row="main"].expanded .score-overflow { display: none; }
 #results-table td { overflow: hidden; text-overflow: ellipsis; max-width: 0; }
 
 /* Row transition animations */
