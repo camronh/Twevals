@@ -1,0 +1,247 @@
+---
+title: HTTP API
+description: REST API for building custom UIs
+---
+
+The EZVals server exposes a REST API that powers the web UI. You can use these endpoints to build custom interfaces or integrations.
+
+## Data Endpoints
+
+### GET /results
+
+Get current run results with aggregated statistics.
+
+**Response:**
+
+```json
+{
+  "session_name": "my-session",
+  "run_name": "baseline",
+  "run_id": "1704067200",
+  "total_evaluations": 10,
+  "total_errors": 1,
+  "total_passed": 8,
+  "average_latency": 0.45,
+  "eval_path": "evals/",
+  "results": [...],
+  "score_chips": [
+    {"key": "accuracy", "type": "ratio", "passed": 8, "total": 10},
+    {"key": "latency", "type": "avg", "avg": 0.95, "count": 10}
+  ]
+}
+```
+
+### `GET /api/runs/{run_id}/results/{index}`
+
+Get a single result by index.
+
+- `run_id`: Run ID or `"latest"`
+- `index`: 0-based result index
+
+**Response:**
+
+```json
+{
+  "result": {...},
+  "index": 0,
+  "total": 10,
+  "run_id": "1704067200",
+  "session_name": "my-session",
+  "run_name": "baseline",
+  "eval_path": "evals/"
+}
+```
+
+## Run Management
+
+### POST /api/runs/rerun
+
+Rerun evaluations. Omit `indices` to rerun all.
+
+**Request:**
+
+```json
+{
+  "indices": [0, 2, 5]
+}
+```
+
+**Response:**
+
+```json
+{"ok": true, "run_id": "1704067200"}
+```
+
+### POST /api/runs/new
+
+Create a new run.
+
+**Request:**
+
+```json
+{
+  "run_name": "my-run"
+}
+```
+
+**Response:**
+
+```json
+{"ok": true, "run_id": "1704067200", "run_name": "my-run"}
+```
+
+### POST /api/runs/stop
+
+Stop all running/pending evaluations.
+
+**Response:**
+
+```json
+{"ok": true}
+```
+
+### `PATCH /api/runs/{run_id}`
+
+Rename a run.
+
+**Request:**
+
+```json
+{
+  "run_name": "new-name"
+}
+```
+
+**Response:**
+
+```json
+{"ok": true, "run": {"run_id": "1704067200", "run_name": "new-name"}}
+```
+
+### `DELETE /api/runs/{run_id}`
+
+Delete a run.
+
+**Response:**
+
+```json
+{"ok": true}
+```
+
+## Result Updates
+
+### `PATCH /api/runs/{run_id}/results/{index}`
+
+Update annotations or scores on a result.
+
+**Request:**
+
+```json
+{
+  "result": {
+    "annotation": "Reviewed - looks good",
+    "scores": [{"key": "manual", "passed": true}]
+  }
+}
+```
+
+**Response:**
+
+```json
+{"ok": true, "result": {...}}
+```
+
+<Note>
+Only `annotation`, `annotations`, and `scores` fields can be updated.
+</Note>
+
+## Export
+
+### `GET /api/runs/{run_id}/export/json`
+
+Download run results as JSON file.
+
+### `GET /api/runs/{run_id}/export/csv`
+
+Download run results as CSV file.
+
+## Sessions
+
+### GET /api/sessions
+
+List all session names.
+
+**Response:**
+
+```json
+{
+  "sessions": ["model-comparison", "regression-tests"]
+}
+```
+
+### `GET /api/sessions/{session_name}/runs`
+
+List all runs in a session.
+
+**Response:**
+
+```json
+{
+  "session_name": "model-comparison",
+  "runs": [
+    {
+      "run_id": "1704067200",
+      "run_name": "baseline",
+      "total_evaluations": 10,
+      "total_passed": 8,
+      "total_errors": 1,
+      "timestamp": 1704067200
+    }
+  ]
+}
+```
+
+### `DELETE /api/sessions/{session_name}`
+
+Delete a session and all its runs.
+
+**Response:**
+
+```json
+{"ok": true}
+```
+
+## Configuration
+
+### GET /api/config
+
+Get current configuration.
+
+**Response:**
+
+```json
+{
+  "concurrency": 4,
+  "verbose": false,
+  "timeout": 30.0
+}
+```
+
+### PUT /api/config
+
+Update configuration.
+
+**Request:**
+
+```json
+{
+  "concurrency": 8,
+  "timeout": 60.0
+}
+```
+
+**Response:**
+
+```json
+{"ok": true, "config": {...}}
+```
