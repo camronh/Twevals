@@ -995,10 +995,10 @@
           localStorage.setItem('twevals:statsExpanded', 'false');
         });
 
-        // Restore state
-        if (localStorage.getItem('twevals:statsExpanded') === 'true') {
-          expandedPanel.classList.remove('hidden');
-          compactBar.classList.add('hidden');
+        // Restore state (expanded by default, collapse only if explicitly set to false)
+        if (localStorage.getItem('twevals:statsExpanded') === 'false') {
+          expandedPanel.classList.add('hidden');
+          compactBar.classList.remove('hidden');
         }
       }
     </script>

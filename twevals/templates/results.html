@@ -35,8 +35,8 @@
   'cancelled': 'text-amber-300 bg-amber-500/10 border border-amber-500/40'
 } %}
 
-<!-- Expanded Stats Panel (hidden by default) -->
-<div id="stats-expanded" class="stats-expanded hidden">
+<!-- Expanded Stats Panel (expanded by default) -->
+<div id="stats-expanded" class="stats-expanded">
   <div class="stats-layout">
     <!-- Collapse button positioned in top-right -->
     <button id="stats-collapse-btn" class="stats-collapse-btn" title="Collapse">
@@ -131,8 +131,8 @@
   </div>
 </div>
 
-<!-- Compact Stats Bar -->
-<div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-theme-border bg-theme-bg-secondary/50 px-4 py-2">
+<!-- Compact Stats Bar (hidden by default) -->
+<div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-theme-border bg-theme-bg-secondary/50 px-4 py-2 hidden">
   <!-- Session & Run Info -->
   {% if summary.session_name or summary.run_name %}
   <div class="flex items-center gap-2">
@@ -243,7 +243,7 @@
 <table id="results-table" data-run-id="{{ run_id }}" class="w-full table-fixed border-collapse text-sm text-theme-text">
   <thead>
     <tr class="border-b border-theme-border">
-      <th style="width:32px;" class="sticky top-[41px] z-20 bg-theme-bg px-2 py-2 align-middle">
+      <th style="width:32px;" class="sticky top-[41px] z-20 bg-theme-bg px-2 py-2 text-center align-middle">
         <input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" />
       </th>
       <th data-col="function" style="width:15%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Function</th>
@@ -263,7 +263,7 @@
     {% set is_running = status == 'running' %}
     {% set is_not_started = status == 'not_started' %}
     <tr data-row="main" data-row-id="{{ row_id }}" data-status="{{ status }}" data-scores='{{ r.result.scores | tojson if r.result.scores else "null" }}' data-annotation="{{ r.result.annotation or '' }}" data-dataset="{{ r.dataset or '' }}" data-labels='{{ r.labels | tojson if r.labels else "[]" }}' data-has-url="{{ 'true' if r.result.trace_data and r.result.trace_data.trace_url else 'false' }}" data-has-messages="{{ 'true' if r.result.trace_data and r.result.trace_data.messages else 'false' }}" data-has-error="{{ 'true' if r.result.error else 'false' }}" class="group cursor-pointer hover:bg-theme-bg-elevated/50 transition-colors{% if is_not_started %} opacity-60{% endif %}" onclick="if(!event.target.closest('input,button,a')) this.classList.toggle('expanded')">
-      <td class="px-2 py-2 align-middle" onclick="event.stopPropagation()">
+      <td class="px-2 py-2 text-center align-middle" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-checkbox" data-row-id="{{ row_id }}" />
       </td>
       <td data-col="function" class="px-3 py-2 align-middle">
