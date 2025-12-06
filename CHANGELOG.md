@@ -2,7 +2,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.2a9 - 2025-12-06
 
 - Changed: Project renamed from Twevals to EZVals. Package is now `ezvals`, CLI command is `ezvals`, config file is `ezvals.json`, results directory is `.ezvals/`.
 
