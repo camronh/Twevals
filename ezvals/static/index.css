@@ -463,3 +463,26 @@ tr[data-row="main"] {
 .vbar-green { background: #10b981; }
 .vbar-amber { background: #f59e0b; }
 .vbar-red { background: #ef4444; }
+
+/* Dynamic stats transitions */
+.stats-metric-value {
+  transition: opacity 0.15s ease-out;
+}
+.stats-metric-value.updating {
+  opacity: 0.3;
+}
+.stats-metric-divisor {
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+.stats-metric-sm .stats-metric-value.updating {
+  opacity: 0.3;
+}
+.stats-chart-label.exiting,
+.stats-chart-value.exiting {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}

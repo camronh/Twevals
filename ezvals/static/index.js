@@ -77,6 +77,52 @@ function chipStats(chip, precision = 2) {
   return { pct, value: avg.toFixed(precision) };
 }
 
+function computeFilteredStats() {
+  const tbody = document.querySelector('#results-table tbody');
+  if (!tbody) return null;
+
+  const allRows = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
+  const visibleRows = allRows.filter(tr => !tr.classList.contains('hidden'));
+  const total = allRows.length;
+  const filtered = visibleRows.length;
+
+  // Calculate latency from visible rows
+  let latencySum = 0, latencyCount = 0;
+  visibleRows.forEach(tr => {
+    const latVal = parseFloat(tr.querySelector("td[data-col='latency']")?.getAttribute('data-value') || '');
+    if (!isNaN(latVal)) { latencySum += latVal; latencyCount++; }
+  });
+  const avgLatency = latencyCount > 0 ? latencySum / latencyCount : 0;
+
+  // Aggregate scores from visible rows
+  const scoreMap = {};
+  visibleRows.forEach(tr => {
+    let scores = [];
+    try { scores = JSON.parse(tr.getAttribute('data-scores') || '[]') || []; } catch {}
+    scores.forEach(s => {
+      const key = s?.key;
+      if (!key) return;
+      const d = scoreMap[key] || (scoreMap[key] = { passed: 0, failed: 0, bool: 0, sum: 0, count: 0 });
+      if (s.passed === true) { d.passed++; d.bool++; }
+      else if (s.passed === false) { d.failed++; d.bool++; }
+      const val = parseFloat(s.value);
+      if (!isNaN(val)) { d.sum += val; d.count++; }
+    });
+  });
+
+  // Convert scoreMap to chips array (same format as server)
+  const chips = Object.entries(scoreMap).map(([key, d]) => {
+    if (d.bool > 0) {
+      return { key, type: 'ratio', passed: d.passed, total: d.passed + d.failed };
+    } else if (d.count > 0) {
+      return { key, type: 'avg', avg: d.sum / d.count, count: d.count };
+    }
+    return null;
+  }).filter(Boolean);
+
+  return { total, filtered, avgLatency, chips };
+}
+
 function escapeHtml(str) {
   if (str == null) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -325,13 +371,6 @@ function renderResultsTable(data, runId) {
   const results = data.results || [];
   const rowsHtml = results.map((r, i) => renderRow(r, i, runId)).join('');
   return `
-    <div id="filtered-summary" class="hidden mb-3 border-b border-zinc-800 bg-zinc-900/30 px-4 py-2 text-sm">
-      <div class="flex flex-wrap items-center gap-2">
-        <span id="filtered-count-chip" class="inline-flex items-center gap-2 rounded bg-theme-bg-elevated px-2 py-0.5 text-[11px] font-medium text-theme-text"></span>
-        <span id="filtered-avg-latency" class="inline-flex items-center gap-2 rounded bg-theme-bg-elevated px-2 py-0.5 text-[11px] font-medium text-theme-text"></span>
-        <span id="filtered-score-chips" class="flex flex-wrap gap-2"></span>
-      </div>
-    </div>
     <table id="results-table" data-run-id="${runId}" class="w-full table-fixed border-collapse text-sm text-theme-text">
       <thead>
         <tr class="border-b border-theme-border">
@@ -527,6 +566,15 @@ function hasRunningResults(data) {
 }
 function getFilters() { return _filters; }
 function setFilters(f) { _filters = f || defaultFilters(); sessionStorage.setItem('ezvals:filters', JSON.stringify(_filters)); renderActiveFilters(); applyAllFilters(); }
+function isFilterActive() {
+  const f = getFilters();
+  const dsCount = (f.selectedDatasets?.include?.length || 0) + (f.selectedDatasets?.exclude?.length || 0);
+  const lblCount = (f.selectedLabels?.include?.length || 0) + (f.selectedLabels?.exclude?.length || 0);
+  const traceCount = (f.hasError !== null ? 1 : 0) + (f.hasUrl !== null ? 1 : 0) + (f.hasMessages !== null ? 1 : 0);
+  const hasFilterRules = (f.valueRules.length + f.passedRules.length + dsCount + lblCount + traceCount + (f.annotation !== 'any' ? 1 : 0)) > 0;
+  const hasSearch = (document.getElementById('search-input')?.value || '').trim().length > 0;
+  return hasFilterRules || hasSearch;
+}
 
 let _isRunning = false;
 function updateSelectionUI() {
@@ -807,30 +855,8 @@ function applyAllFilters() {
   const tbody = document.querySelector('#results-table tbody');
   if (!tbody) return;
   tbody.querySelectorAll("tr[data-row='main']").forEach((tr) => { let show = true; if (q) { if (!tr.textContent.toLowerCase().includes(q)) show = false; } if (show) show = rowMatchesFilters(tr); tr.classList.toggle('hidden', !show); });
-  updateFilteredSummary();
+  updateStatsForFilters();
 }
-function updateFilteredSummary() {
-  const container = document.getElementById('filtered-summary');
-  const table = document.getElementById('results-table');
-  if (!container || !table) return;
-  const tbody = table.querySelector('tbody');
-  const mains = Array.from(tbody.querySelectorAll("tr[data-row='main']"));
-  const visible = mains.filter(tr => !tr.classList.contains('hidden'));
-  const hasActive = (() => { const f = getFilters(); const dsCount = (f.selectedDatasets?.include?.length || 0) + (f.selectedDatasets?.exclude?.length || 0); const lblCount = (f.selectedLabels?.include?.length || 0) + (f.selectedLabels?.exclude?.length || 0); const traceCount = (f.hasError !== null ? 1 : 0) + (f.hasUrl !== null ? 1 : 0) + (f.hasMessages !== null ? 1 : 0); return (f.valueRules.length + f.passedRules.length + dsCount + lblCount + traceCount + (f.annotation !== 'any' ? 1 : 0)) > 0 || (document.getElementById('search-input')?.value || '').trim().length > 0; })();
-  container.classList.toggle('hidden', !hasActive);
-  if (!hasActive) return;
-  document.getElementById('filtered-count-chip').textContent = `${visible.length}/${mains.length}`;
-  let sum = 0, cnt = 0;
-  visible.forEach(tr => { const td = tr.querySelector("td[data-col='latency']"); const v = parseFloat(td?.getAttribute('data-value') || ''); if (!Number.isNaN(v)) { sum += v; cnt += 1; } });
-  const avgEl = document.getElementById('filtered-avg-latency');
-  if (avgEl) avgEl.textContent = cnt > 0 ? `${(sum / cnt).toFixed(2)}s avg` : '—';
-  const chipsEl = document.getElementById('filtered-score-chips');
-  if (chipsEl) chipsEl.innerHTML = '';
-  const map = {};
-  visible.forEach(tr => { let scores = []; try { scores = JSON.parse(tr.getAttribute('data-scores') || '[]') || []; } catch {} scores.forEach(s => { const key = s?.key; if (!key) return; const d = map[key] || (map[key] = { passed: 0, failed: 0, bool: 0, sum: 0, count: 0 }); if (s.passed === true) { d.passed++; d.bool++; } else if (s.passed === false) { d.failed++; d.bool++; } const val = parseFloat(s.value); if (!Number.isNaN(val)) { d.sum += val; d.count += 1; } }); });
-  Object.entries(map).forEach(([k, d]) => { const el = document.createElement('span'); el.className = 'rounded px-2 py-0.5 text-[10px] font-medium '; if (d.bool > 0) { const total = d.passed + d.failed; if (d.passed === total) el.className += 'bg-emerald-500/20 text-emerald-300'; else if (d.passed === 0) el.className += 'bg-rose-500/20 text-rose-300'; else el.className += 'bg-blue-500/20 text-blue-300'; el.textContent = `${k}: ${d.passed}/${total}`; } else if (d.count > 0) { el.className += 'bg-zinc-800 text-zinc-300'; el.textContent = `${k}: ${(d.sum / d.count).toFixed(2)}`; } else return; chipsEl?.appendChild(el); });
-}
-
 function initScrollRestoration() { const savedY = sessionStorage.getItem('ezvals:scrollY'); if (savedY !== null) { window.scrollTo(0, parseInt(savedY, 10)); sessionStorage.removeItem('ezvals:scrollY'); } const params = new URLSearchParams(window.location.search); if (params.has('scroll')) { history.replaceState(null, '', window.location.pathname); } }
 document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('ezvals:scrollY', window.scrollY.toString()); } });
 function wireExportButtons() { const table = document.getElementById('results-table'); const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest'; document.getElementById('export-json-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/json`; }); document.getElementById('export-csv-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/csv`; }); }
@@ -1189,6 +1215,222 @@ function updateStatsInPlace(data) {
   }
   compactBar.replaceWith(newCompact);
   initStatsToggle();
+}
+
+function updateStatsForFilters() {
+  const expandedPanel = document.getElementById('stats-expanded');
+  const compactBar = document.getElementById('stats-compact');
+  if (!expandedPanel || !compactBar || !_currentData) return;
+
+  const hasFilters = isFilterActive();
+  const filteredStats = hasFilters ? computeFilteredStats() : null;
+
+  // Get original stats from _currentData
+  const originalStats = summarizeStats(_currentData);
+  const total = originalStats.total;
+
+  // Use filtered stats if available, otherwise original
+  const displayChips = filteredStats ? filteredStats.chips : originalStats.chips;
+  const displayLatency = filteredStats ? filteredStats.avgLatency : originalStats.avgLatency;
+  const filtered = filteredStats ? filteredStats.filtered : total;
+
+  // Update test count with filtered/total format
+  const testMetricContainer = expandedPanel.querySelector('.stats-metric');
+  if (testMetricContainer) {
+    const metricValue = testMetricContainer.querySelector('.stats-metric-value');
+    if (metricValue) {
+      const newContent = hasFilters
+        ? `${filtered}<span class="stats-metric-divisor">/${total}</span>`
+        : String(total);
+      if (metricValue.innerHTML !== newContent) {
+        metricValue.classList.add('updating');
+        setTimeout(() => {
+          metricValue.innerHTML = newContent;
+          metricValue.classList.remove('updating');
+        }, 100);
+      }
+    }
+  }
+
+  // Update latency
+  const latencyMetric = expandedPanel.querySelector('.stats-metric-sm');
+  if (latencyMetric) {
+    const latencyEl = latencyMetric.querySelector('.stats-metric-value');
+    if (displayLatency > 0 && latencyEl) {
+      const newLatency = displayLatency.toFixed(2);
+      const newHtml = `${newLatency}<span class="stats-metric-unit">s</span>`;
+      if (latencyEl.innerHTML !== newHtml) {
+        latencyEl.classList.add('updating');
+        setTimeout(() => {
+          latencyEl.innerHTML = newHtml;
+          latencyEl.classList.remove('updating');
+        }, 100);
+      }
+    }
+    // Show/hide latency based on whether there are any
+    latencyMetric.style.display = displayLatency > 0 ? '' : 'none';
+  }
+
+  // Update bars
+  const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
+  const labelsContainer = expandedPanel.querySelector('.stats-chart-labels');
+  const valuesContainer = expandedPanel.querySelector('.stats-chart-values');
+
+  if (barsContainer && labelsContainer && valuesContainer) {
+    const existingBars = barsContainer.querySelectorAll('.stats-bar-col');
+    const existingLabels = labelsContainer.querySelectorAll('.stats-chart-label');
+    const existingValues = valuesContainer.querySelectorAll('.stats-chart-value');
+
+    displayChips.forEach((chip, i) => {
+      const { pct, value } = chipStats(chip, 2);
+      const colorClass = getBarColor(pct);
+
+      if (existingBars[i]) {
+        const fill = existingBars[i].querySelector('.stats-chart-fill');
+        if (fill) {
+          fill.style.height = pct + '%';
+          fill.className = 'stats-chart-fill ' + colorClass;
+        }
+      } else {
+        const barCol = document.createElement('div');
+        barCol.className = 'stats-bar-col entering';
+        barCol.innerHTML = `<div class="stats-chart-fill ${colorClass}" style="height: 0%"></div>`;
+        barsContainer.appendChild(barCol);
+        requestAnimationFrame(() => {
+          barCol.classList.remove('entering');
+          barCol.querySelector('.stats-chart-fill').style.height = pct + '%';
+        });
+      }
+
+      if (existingLabels[i]) {
+        existingLabels[i].textContent = chip.key;
+      } else {
+        const label = document.createElement('span');
+        label.className = 'stats-chart-label entering';
+        label.textContent = chip.key;
+        labelsContainer.appendChild(label);
+        requestAnimationFrame(() => label.classList.remove('entering'));
+      }
+
+      if (existingValues[i]) {
+        if (existingValues[i].textContent !== value) {
+          existingValues[i].classList.add('updating');
+          setTimeout(() => {
+            existingValues[i].textContent = value;
+            existingValues[i].classList.remove('updating');
+          }, 100);
+        }
+      } else {
+        const valSpan = document.createElement('span');
+        valSpan.className = 'stats-chart-value entering';
+        valSpan.textContent = value;
+        valuesContainer.appendChild(valSpan);
+        requestAnimationFrame(() => valSpan.classList.remove('entering'));
+      }
+    });
+
+    // Remove excess bars with exit animation
+    for (let i = displayChips.length; i < existingBars.length; i++) {
+      existingBars[i].classList.add('exiting');
+      setTimeout(() => existingBars[i].remove(), 400);
+    }
+    for (let i = displayChips.length; i < existingLabels.length; i++) {
+      existingLabels[i].classList.add('exiting');
+      setTimeout(() => existingLabels[i].remove(), 300);
+    }
+    for (let i = displayChips.length; i < existingValues.length; i++) {
+      existingValues[i].classList.add('exiting');
+      setTimeout(() => existingValues[i].remove(), 300);
+    }
+  }
+
+  // Update compact bar - re-render with filtered stats
+  const wasExpanded = !expandedPanel.classList.contains('hidden');
+  const compactData = {
+    ..._currentData,
+    total_evaluations: total,
+    average_latency: displayLatency,
+    score_chips: displayChips,
+    _filtered: filtered,
+    _hasFilters: hasFilters
+  };
+  const temp = document.createElement('div');
+  temp.innerHTML = renderStatsCompactFiltered(compactData, hasFilters, filtered, total);
+  const newCompact = temp.querySelector('#stats-compact');
+  if (wasExpanded) {
+    newCompact.classList.add('hidden');
+  } else {
+    newCompact.classList.remove('hidden');
+  }
+  compactBar.replaceWith(newCompact);
+  initStatsToggle();
+}
+
+function renderStatsCompactFiltered(data, hasFilters, filtered, total) {
+  const stats = summarizeStats(data);
+  const { avgLatency, chips, pctDone, progressPending, completed, notStarted, sessionName, runName } = stats;
+
+  let sessionRunHtml = '';
+  if (sessionName || runName) {
+    sessionRunHtml = '<div class="flex items-center gap-2">';
+    if (sessionName) {
+      sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Session</span>
+        <span id="session-name-text" class="copyable font-mono text-[11px] text-theme-text cursor-pointer hover:text-zinc-300">${escapeHtml(sessionName)}</span>`;
+    }
+    if (runName) {
+      if (sessionName) sessionRunHtml += '<span class="text-zinc-600">·</span>';
+      sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
+        <div class="group flex items-center gap-1">
+          <span id="run-name-text" class="copyable font-mono text-[11px] text-accent-link cursor-pointer hover:text-accent-link-hover">${escapeHtml(runName)}</span>
+          <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 transition hover:text-zinc-400" title="Rename run">
+            <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg>
+          </button>
+        </div>`;
+    }
+    sessionRunHtml += '</div><div class="h-3 w-px bg-zinc-700"></div>';
+  }
+
+  let progressHtml;
+  if (notStarted === total) {
+    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Discovered</span><span class="font-mono text-[11px] text-zinc-400">${total} eval${total !== 1 ? 's' : ''}</span></div>`;
+  } else if (progressPending > 0) {
+    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${completed}/${total}</span></div>`;
+  } else {
+    // Show filtered/total when filters active
+    const testsDisplay = hasFilters ? `${filtered}/${total}` : String(total);
+    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span><span class="font-mono text-[11px] text-accent-link">${testsDisplay}</span></div>`;
+  }
+
+  let chipsHtml = '';
+  chips.forEach((chip, i) => {
+    const { pct, value } = chipStats(chip, 1);
+    chipsHtml += `<div class="flex items-center gap-2">
+      <span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">${escapeHtml(chip.key)}</span>
+      <div class="h-1 w-5 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full ${getBgBarColor(pct)}" style="width: ${pct}%"></div></div>
+      <span class="font-mono text-[11px] ${getTextColor(pct)}">${value}</span>
+    </div>`;
+    if (i < chips.length - 1) chipsHtml += '<div class="h-3 w-px bg-zinc-700"></div>';
+  });
+
+  let latencyHtml = '';
+  if (avgLatency > 0) {
+    latencyHtml = `<div class="h-3 w-px bg-zinc-700"></div><div class="flex items-center gap-2"><span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">Latency</span><span class="font-mono text-[11px] text-zinc-400">${avgLatency.toFixed(2)}s</span></div>`;
+  }
+
+  const isCollapsed = localStorage.getItem(STATS_PREF_KEY) === 'false';
+  return `
+    <div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-theme-border bg-theme-bg-secondary/50 px-4 py-2${isCollapsed ? '' : ' hidden'}">
+      ${sessionRunHtml}
+      ${progressHtml}
+      <div class="h-3 w-px bg-zinc-700"></div>
+      ${chipsHtml}
+      ${latencyHtml}
+      <div class="ml-auto">
+        <button id="stats-expand-btn" class="stats-toggle-btn" title="Expand stats">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-chevron-down"></use></svg>
+        </button>
+      </div>
+    </div>`;
 }
 
 (function wireSettingsModal() {
