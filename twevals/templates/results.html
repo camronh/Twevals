@@ -150,7 +150,7 @@
     <span class="text-zinc-600">·</span>
     <span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
     <div class="group flex items-center gap-1">
-      <span id="run-name-text" class="font-mono text-[11px] text-blue-400">{{ summary.run_name }}</span>
+      <span id="run-name-text" class="font-mono text-[11px] text-accent-link">{{ summary.run_name }}</span>
       <button class="copy-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 opacity-0 transition hover:text-zinc-400 group-hover:opacity-100" data-copy="run-name-text" aria-label="Copy run name">
         <svg class="copy-icon h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         <svg class="check-icon hidden h-2.5 w-2.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
@@ -173,12 +173,12 @@
       <div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800">
         <div class="h-full rounded-full bg-blue-500" style="width: {{ pct_done }}%"></div>
       </div>
-      <span class="font-mono text-[11px] text-blue-400">{{ progress_completed }}/{{ progress_total }}</span>
+      <span class="font-mono text-[11px] text-accent-link">{{ progress_completed }}/{{ progress_total }}</span>
     </div>
   {% else %}
     <div class="flex items-center gap-2">
       <span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span>
-      <span class="font-mono text-[11px] text-blue-400">{{ total }}</span>
+      <span class="font-mono text-[11px] text-accent-link">{{ total }}</span>
     </div>
   {% endif %}
 
@@ -189,7 +189,7 @@
     {% if chip.type == 'ratio' %}
       {% set pct = ((chip.passed / chip.total) * 100) | round(0) | int if chip.total > 0 else 0 %}
       {% set bar_color = 'bg-emerald-500' if pct >= 80 else ('bg-amber-500' if pct >= 50 else 'bg-rose-500') %}
-      {% set text_color = 'text-emerald-400' if pct >= 80 else ('text-amber-400' if pct >= 50 else 'text-rose-400') %}
+      {% set text_color = 'text-accent-success' if pct >= 80 else ('text-amber-500' if pct >= 50 else 'text-accent-error') %}
       <div class="flex items-center gap-2">
         <span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">{{ chip.key }}</span>
         <div class="h-1 w-5 overflow-hidden rounded-full bg-zinc-800">
@@ -202,7 +202,7 @@
       {% set avg = chip.avg %}
       {% set pct = (avg * 100) | round(0) | int if avg <= 1 else ((avg * 10) | round(0) | int if avg <= 10 else ([avg, 100] | min | round(0) | int)) %}
       {% set bar_color = 'bg-emerald-500' if pct >= 80 else ('bg-amber-500' if pct >= 50 else 'bg-rose-500') %}
-      {% set text_color = 'text-emerald-400' if pct >= 80 else ('text-amber-400' if pct >= 50 else 'text-rose-400') %}
+      {% set text_color = 'text-accent-success' if pct >= 80 else ('text-amber-500' if pct >= 50 else 'text-accent-error') %}
       <div class="flex items-center gap-2">
         <span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">{{ chip.key }}</span>
         <div class="h-1 w-5 overflow-hidden rounded-full bg-zinc-800">
@@ -272,7 +272,7 @@
             {% if is_not_started %}
               <span class="font-mono text-[12px] font-medium text-zinc-500">{{ r.function }}</span>
             {% else %}
-              <a href="/runs/{{ run_id }}/results/{{ row_id }}" class="font-mono text-[12px] font-medium text-blue-400 hover:text-blue-300">{{ r.function }}</a>
+              <a href="/runs/{{ run_id }}/results/{{ row_id }}" class="font-mono text-[12px] font-medium text-accent-link hover:text-accent-link-hover">{{ r.function }}</a>
             {% endif %}
             {% if status == 'running' %}
               <span class="status-pill rounded px-1.5 py-0.5 text-[10px] font-medium {{ pill_tones.get(status) }}">running</span>
@@ -317,7 +317,7 @@
       </td>
       <td data-col="error" title="{{ r.result.error }}" class="px-3 py-2 align-middle">
         {% if r.result.error %}
-          <div class="line-clamp-2 text-[12px] text-rose-400">{{ r.result.error }}</div>
+          <div class="line-clamp-2 text-[12px] text-accent-error">{{ r.result.error }}</div>
         {% else %}
           <span class="text-zinc-600">—</span>
         {% endif %}
@@ -335,8 +335,8 @@
             {% set max_scores = 2 %}
             {% for s in r.result.scores %}
               {% set badge_class = 'bg-theme-bg-elevated text-theme-text-muted' %}
-              {% if s.passed is true %}{% set badge_class = 'bg-emerald-500/15 text-emerald-400' %}
-              {% elif s.passed is false %}{% set badge_class = 'bg-rose-500/15 text-rose-400' %}{% endif %}
+              {% if s.passed is true %}{% set badge_class = 'bg-accent-success-bg text-accent-success' %}
+              {% elif s.passed is false %}{% set badge_class = 'bg-accent-error-bg text-accent-error' %}{% endif %}
               <span class="score-badge shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium {{ badge_class }}{% if loop.index0 >= max_scores %} score-extra hidden{% endif %}" title="{{ s.key }}{% if s.value is not none %}: {{ (s.value is number) and (s.value | round(3)) or s.value }}{% endif %}{% if s.notes %} — {{ s.notes }}{% endif %}">
                 {% if s.value is not none %}{{ s.key }}:{{ (s.value is number) and (s.value | round(1)) or s.value }}{% else %}{{ s.key }}{% endif %}
               </span>
@@ -352,7 +352,7 @@
       <td data-col="latency" data-value="{% if r.result.latency is not none %}{{ r.result.latency }}{% endif %}" class="px-3 py-2 align-middle text-right">
         {% if r.result.latency is not none %}
           {% set latency = r.result.latency %}
-          <span class="font-mono text-[11px] {% if latency <= 1 %}text-emerald-400{% elif latency <= 5 %}text-zinc-400{% else %}text-rose-400{% endif %}">{{ latency | round(2) }}s</span>
+          <span class="font-mono text-[11px] {% if latency <= 1 %}text-accent-success{% elif latency <= 5 %}text-theme-text-muted{% else %}text-accent-error{% endif %}">{{ latency | round(2) }}s</span>
         {% elif is_running %}
           <div class="ml-auto h-3 w-8 animate-pulse rounded bg-zinc-800"></div>
         {% else %}
