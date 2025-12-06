@@ -190,6 +190,17 @@ def create_app(
     @app.get("/runs/{run_id}/results/{index}")
     def result_detail_page(request: Request, run_id: str, index: int):
         """Page view for a single result."""
+        # Validate run_id and index exist before returning template
+        rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else run_id
+        try:
+            summary = store.load_run(rid)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+        results = summary.get("results", [])
+        if index < 0 or index >= len(results):
+            raise HTTPException(status_code=404, detail="Result not found")
+
         return templates.TemplateResponse("detail.html", {"request": request})
 
     @app.get("/api/runs/{run_id}/results/{index}")

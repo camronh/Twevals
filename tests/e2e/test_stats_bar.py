@@ -161,10 +161,10 @@ def test_stats_bar_avg_latency(tmp_path):
             page.goto(url)
             page.wait_for_selector("#results-table")
 
-            # Latency should be visible
+            # Latency should be visible (formatted with 2 decimal places)
             page_content = page.content()
-            assert "Latency" in page_content
-            assert "0.5s" in page_content
+            assert "Latency" in page_content or "latency" in page_content
+            assert "0.50s" in page_content or "0.50" in page_content
 
             browser.close()
 

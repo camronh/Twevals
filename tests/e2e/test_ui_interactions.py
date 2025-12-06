@@ -113,7 +113,8 @@ def test_row_expand_sort_and_toggle_columns(tmp_path):
             # Click function name to navigate to detail page
             page.locator("tbody tr[data-row='main'] td[data-col='function'] a").first.click()
             page.wait_for_url(f"**/runs/{run_id}/results/0")
-            expect(page.locator("text=Result 1 of 3")).to_be_visible()
+            # Detail page shows result counter in format "1/3"
+            expect(page.locator("text=1/3")).to_be_visible()
 
             # Navigate back and test sorting
             page.goto(url)
@@ -149,19 +150,20 @@ def test_detail_page_navigation(tmp_path):
 
             # Go directly to detail page
             page.goto(f"{url}/runs/{run_id}/results/0")
-            expect(page.locator("text=Result 1 of 3")).to_be_visible()
+            # Detail page shows result counter in format "1/3"
+            expect(page.locator("text=1/3")).to_be_visible()
             # Function name should be visible in the header
-            expect(page.locator("h1.font-mono")).to_contain_text("a")
+            expect(page.locator("span.font-mono.font-semibold")).to_contain_text("a")
 
             # Use arrow key to navigate to next
             page.keyboard.press("ArrowDown")
             page.wait_for_url(f"**/runs/{run_id}/results/1")
-            expect(page.locator("text=Result 2 of 3")).to_be_visible()
+            expect(page.locator("text=2/3")).to_be_visible()
 
             # Use arrow key to navigate back
             page.keyboard.press("ArrowUp")
             page.wait_for_url(f"**/runs/{run_id}/results/0")
-            expect(page.locator("text=Result 1 of 3")).to_be_visible()
+            expect(page.locator("text=1/3")).to_be_visible()
 
             # Press Escape to go back to table
             page.keyboard.press("Escape")

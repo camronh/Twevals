@@ -125,13 +125,10 @@ def test_advanced_filters_ui(tmp_path):
             assert 'hidden' in hidden_row.first.get_attribute('class')
 
             # Has Annotation = yes should further filter to f1 and f3
-            page.select_option("#fa-val", value="yes")
-            # Two visible rows now: f1, f3
-            visible_funcs = [
-                page.locator("tbody tr[data-row='main'] td[data-col='function']").nth(i).inner_text()
-                for i in range(page.locator("tbody tr[data-row='main']:not(.hidden)").count())
-            ]
-            # We can't reliably enumerate inner_text in sync without evaluating, so just assert filtered summary is shown
+            # Click the "Has Note" button to enable annotation filter (cycles: any -> yes)
+            page.click("#filter-has-annotation")
+            # Two visible rows now: f1, f3 (those with annotations)
+            # Just assert filtered summary is shown
             expect(page.locator("#filtered-summary")).to_be_visible()
 
             # Dynamic key type detection: fluency has numeric only -> value section visible, passed hidden

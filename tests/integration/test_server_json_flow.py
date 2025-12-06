@@ -59,14 +59,17 @@ def test_results_template_reads_from_json(tmp_path: Path):
     app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
     client = TestClient(app)
 
+    # /results endpoint returns JSON data for client-side rendering
     r = client.get("/results")
     assert r.status_code == 200
-    html = r.text
-    # Function names and datasets should appear in the rendered table
-    assert "f1" in html and "ds1" in html
-    assert "f2" in html and "ds2" in html
-    # Rows should link to detail pages
-    assert "/runs/" in html and "/results/" in html
+    data = r.json()
+    # Function names and datasets should appear in results
+    functions = [res["function"] for res in data["results"]]
+    datasets = [res["dataset"] for res in data["results"]]
+    assert "f1" in functions and "ds1" in datasets
+    assert "f2" in functions and "ds2" in datasets
+    # Check run_id is present for building detail page links
+    assert "run_id" in data
 
 
 def test_patch_endpoint_updates_json(tmp_path: Path):
@@ -103,15 +106,15 @@ def test_annotation_via_patch(tmp_path: Path):
     # Add annotation
     pr = client.patch(f"/api/runs/{run_id}/results/0", json={"result": {"annotation": "hello"}})
     assert pr.status_code == 200
-    # Check annotation on detail page
-    r = client.get(f"/runs/{run_id}/results/0")
-    assert "hello" in r.text
+    # Check annotation via API (detail page is client-side rendered)
+    r = client.get(f"/api/runs/{run_id}/results/0")
+    assert r.json()["result"]["result"]["annotation"] == "hello"
 
     # Update annotation
     pu = client.patch(f"/api/runs/{run_id}/results/0", json={"result": {"annotation": "hi"}})
     assert pu.status_code == 200
-    r = client.get(f"/runs/{run_id}/results/0")
-    assert "hi" in r.text and "hello" not in r.text
+    r = client.get(f"/api/runs/{run_id}/results/0")
+    assert r.json()["result"]["result"]["annotation"] == "hi"
 
     # Delete annotation
     pd = client.patch(f"/api/runs/{run_id}/results/0", json={"result": {"annotation": None}})

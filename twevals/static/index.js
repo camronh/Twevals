@@ -101,7 +101,7 @@ function getTextColor(pct) {
 }
 
 function renderStatsExpanded(data) {
-  const { total, avgLatency, chips, pctDone, isRunning, sessionName, runName } = summarizeStats(data);
+  const { total, avgLatency, chips, pctDone, isRunning, sessionName, runName, completed } = summarizeStats(data);
 
   let headerHtml = '';
   if (sessionName || runName) {
