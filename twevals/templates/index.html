@@ -186,14 +186,20 @@
                                 <use href="#icon-chevron-down"></use>
                             </svg>
                         </button>
-                        <div id="run-dropdown-menu" class="absolute right-0 z-50 mt-1 w-36 rounded border border-zinc-700 bg-zinc-900 py-1 text-xs shadow-xl hidden">
-                            <button id="run-rerun-option" class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-zinc-300 hover:bg-zinc-800">
-                                <svg class="h-3 w-3 text-emerald-400 invisible" id="rerun-check"><use href="#icon-check"></use></svg>
-                                Rerun
+                        <div id="run-dropdown-menu" class="absolute right-0 z-50 mt-1 w-52 rounded border border-zinc-700 bg-zinc-900 py-1 text-xs shadow-xl hidden">
+                            <button id="run-rerun-option" class="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-zinc-800">
+                                <svg class="h-3 w-3 mt-0.5 text-emerald-400 invisible flex-shrink-0" id="rerun-check"><use href="#icon-check"></use></svg>
+                                <div>
+                                    <div class="text-zinc-200">Rerun</div>
+                                    <div class="text-zinc-500 text-[10px]">Overwrite current run results</div>
+                                </div>
                             </button>
-                            <button id="run-new-option" class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-zinc-300 hover:bg-zinc-800">
-                                <svg class="h-3 w-3 text-emerald-400 invisible" id="new-check"><use href="#icon-check"></use></svg>
-                                New Run
+                            <button id="run-new-option" class="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-zinc-800">
+                                <svg class="h-3 w-3 mt-0.5 text-emerald-400 invisible flex-shrink-0" id="new-check"><use href="#icon-check"></use></svg>
+                                <div>
+                                    <div class="text-zinc-200">New Run</div>
+                                    <div class="text-zinc-500 text-[10px]">Create a fresh run in this session</div>
+                                </div>
                             </button>
                         </div>
                     </div>
