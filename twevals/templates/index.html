@@ -152,6 +152,40 @@
       tr[data-row="main"].expanded .score-overflow { display: none; }
       #results-table td { overflow: hidden; text-overflow: ellipsis; max-width: 0; }
 
+      /* Row transition animations */
+      tr[data-row="main"] {
+        transition: opacity 0.3s ease-out, background-color 0.2s ease-out;
+      }
+      .status-pill {
+        transition: all 0.3s ease-out;
+      }
+      .status-pill.fade-out {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      .score-badge {
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+      }
+      .score-badge.entering {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      /* Cell content transitions */
+      .cell-content {
+        transition: opacity 0.25s ease-out;
+      }
+      .cell-content.updating {
+        opacity: 0;
+      }
+      /* Latency value pop-in */
+      .latency-value {
+        transition: opacity 0.3s ease-out, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .latency-value.entering {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+
       #results { min-height: 200px; }
 
       /* ═══════════════════════════════════════════════════════════════
@@ -969,8 +1003,8 @@
         if (result.latency != null) {
           const lat = result.latency;
           const latColor = lat <= 1 ? 'text-accent-success' : (lat <= 5 ? 'text-theme-text-muted' : 'text-accent-error');
-          latencyCell = `<span class="font-mono text-[11px] ${latColor}">${lat.toFixed(2)}s</span>`;
-        } else if (isRunning) latencyCell = '<div class="ml-auto h-3 w-8 animate-pulse rounded bg-zinc-800"></div>';
+          latencyCell = `<span class="latency-value font-mono text-[11px] ${latColor}">${lat.toFixed(2)}s</span>`;
+        } else if (isRunning) latencyCell = '<div class="latency-skeleton ml-auto h-3 w-8 animate-pulse rounded bg-zinc-800"></div>';
         else latencyCell = '<span class="text-zinc-600">—</span>';
 
         return `
@@ -1085,18 +1119,120 @@
       function updateRowInPlace(index, newResult) {
         const row = document.querySelector(`tr[data-row="main"][data-row-id="${index}"]`);
         if (!row || !_currentData) return;
+
+        const oldResult = _currentData.results[index].result || {};
+        const oldStatus = oldResult.status || 'completed';
+        const newStatus = newResult.status || 'completed';
+        const statusChanged = oldStatus !== newStatus;
+
         // Update the data
         _currentData.results[index].result = newResult;
-        // Re-render just this row
-        const newRowHtml = renderRow(_currentData.results[index], index, _currentRunId);
-        const temp = document.createElement('tbody');
-        temp.innerHTML = newRowHtml;
-        const newRow = temp.firstElementChild;
-        // Preserve expanded state
-        if (row.classList.contains('expanded')) newRow.classList.add('expanded');
-        row.replaceWith(newRow);
+
+        // Update data attributes
+        row.dataset.status = newStatus;
+        row.dataset.scores = JSON.stringify(newResult.scores || []);
+        row.dataset.annotation = newResult.annotation || '';
+        row.dataset.hasUrl = !!(newResult.trace_data?.trace_url);
+        row.dataset.hasMessages = !!(newResult.trace_data?.messages?.length);
+        row.dataset.hasError = !!newResult.error;
+
+        // Update opacity for not_started transition
+        if (oldStatus === 'not_started' && newStatus !== 'not_started') {
+          row.classList.remove('opacity-60');
+        }
+
+        // Update status pill with animation
+        const functionCell = row.querySelector('td[data-col="function"]');
+        if (functionCell && statusChanged) {
+          const oldPill = functionCell.querySelector('.status-pill');
+          if (oldPill) {
+            oldPill.classList.add('fade-out');
+            setTimeout(() => oldPill.remove(), 300);
+          }
+
+          if (newStatus === 'running') {
+            const pill = document.createElement('span');
+            pill.className = `status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.running} fade-out`;
+            pill.textContent = 'running';
+            const fnLink = functionCell.querySelector('a, span');
+            if (fnLink) fnLink.parentElement.appendChild(pill);
+            requestAnimationFrame(() => pill.classList.remove('fade-out'));
+          } else if (newStatus === 'error') {
+            const pill = document.createElement('span');
+            pill.className = `status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.error} fade-out`;
+            pill.textContent = 'err';
+            const fnLink = functionCell.querySelector('a, span');
+            if (fnLink) fnLink.parentElement.appendChild(pill);
+            requestAnimationFrame(() => pill.classList.remove('fade-out'));
+          }
+
+          // Update function link (make clickable when completed)
+          const fnSpan = functionCell.querySelector('span.font-mono');
+          if (fnSpan && newStatus !== 'not_started') {
+            const link = document.createElement('a');
+            link.href = `/runs/${_currentRunId}/results/${index}`;
+            link.className = 'font-mono text-[12px] font-medium text-accent-link hover:text-accent-link-hover';
+            link.textContent = fnSpan.textContent;
+            fnSpan.replaceWith(link);
+          }
+        }
+
+        // Update output cell
+        const outputCell = row.querySelector('td[data-col="output"]');
+        if (outputCell) {
+          if (newStatus === 'running') {
+            outputCell.innerHTML = '<div class="space-y-1"><div class="h-2.5 w-3/4 animate-pulse rounded bg-zinc-800"></div><div class="h-2.5 w-1/2 animate-pulse rounded bg-zinc-800"></div></div>';
+          } else if (newResult.output != null) {
+            const content = `<div class="cell-content line-clamp-2 text-[12px] text-theme-text updating">${escapeHtml(formatValue(newResult.output))}</div>`;
+            outputCell.innerHTML = content;
+            requestAnimationFrame(() => outputCell.querySelector('.cell-content')?.classList.remove('updating'));
+          }
+          outputCell.title = formatValue(newResult.output) || '';
+        }
+
+        // Update scores cell with staggered animation
+        const scoresCell = row.querySelector('td[data-col="scores"]');
+        if (scoresCell && newStatus !== 'running' && newResult.scores?.length) {
+          const scores = newResult.scores;
+          const maxScores = 2;
+          let badgesHtml = scores.map((s, i) => {
+            let badgeClass = 'bg-theme-bg-elevated text-theme-text-muted';
+            if (s.passed === true) badgeClass = 'bg-accent-success-bg text-accent-success';
+            else if (s.passed === false) badgeClass = 'bg-accent-error-bg text-accent-error';
+            const extraClass = i >= maxScores ? ' score-extra hidden' : '';
+            const val = s.value != null ? `:${typeof s.value === 'number' ? s.value.toFixed(1) : s.value}` : '';
+            const title = `${s.key}${s.value != null ? ': ' + (typeof s.value === 'number' ? s.value.toFixed(3) : s.value) : ''}${s.notes ? ' — ' + s.notes : ''}`;
+            return `<span class="score-badge entering shrink-0 truncate max-w-[80px] rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}${extraClass}" title="${escapeHtml(title)}" style="transition-delay: ${i * 60}ms">${escapeHtml(s.key)}${val}</span>`;
+          }).join('');
+          if (scores.length > maxScores) badgesHtml += `<span class="score-overflow shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">+${scores.length - maxScores}</span>`;
+          scoresCell.innerHTML = `<div class="flex gap-1 overflow-hidden">${badgesHtml}</div>`;
+          requestAnimationFrame(() => {
+            scoresCell.querySelectorAll('.score-badge').forEach(badge => badge.classList.remove('entering'));
+          });
+        }
+
+        // Update latency cell with pop-in animation
+        const latencyCell = row.querySelector('td[data-col="latency"]');
+        if (latencyCell && newResult.latency != null) {
+          const lat = newResult.latency;
+          const latColor = lat <= 1 ? 'text-accent-success' : (lat <= 5 ? 'text-theme-text-muted' : 'text-accent-error');
+          latencyCell.innerHTML = `<span class="latency-value entering font-mono text-[11px] ${latColor}">${lat.toFixed(2)}s</span>`;
+          latencyCell.dataset.value = lat;
+          requestAnimationFrame(() => latencyCell.querySelector('.latency-value')?.classList.remove('entering'));
+        }
+
+        // Update error cell
+        const errorCell = row.querySelector('td[data-col="error"]');
+        if (errorCell) {
+          if (newResult.error) {
+            errorCell.innerHTML = `<div class="cell-content line-clamp-2 text-[12px] text-accent-error updating">${escapeHtml(newResult.error)}</div>`;
+            requestAnimationFrame(() => errorCell.querySelector('.cell-content')?.classList.remove('updating'));
+          }
+          errorCell.title = newResult.error || '';
+        }
+
         // Re-sync checkbox
-        const cb = newRow.querySelector('.row-checkbox');
+        const cb = row.querySelector('.row-checkbox');
         if (cb) cb.checked = selectedIndices.has(index);
       }
 
