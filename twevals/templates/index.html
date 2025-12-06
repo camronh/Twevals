@@ -1333,6 +1333,8 @@
                 updateRowInPlace(i, newResult);
               }
             });
+            // Re-apply column visibility to newly replaced rows
+            applyColumnVisibility();
             // Update stats
             _currentData = data;
             updateStatsInPlace(data);
@@ -1343,33 +1345,37 @@
       }
 
       function updateStatsInPlace(data) {
-        // Update expanded stats values
-        const testsValue = document.querySelector('.stats-metric-value');
-        if (testsValue) testsValue.textContent = data.total_evaluations || 0;
-        const latencyEl = document.querySelector('.stats-metric-sm .stats-metric-value');
-        if (latencyEl && data.average_latency > 0) {
-          latencyEl.innerHTML = `${data.average_latency.toFixed(2)}<span class="stats-metric-unit">s</span>`;
+        // Re-render stats panels entirely to handle new elements appearing
+        const expandedPanel = document.getElementById('stats-expanded');
+        const compactBar = document.getElementById('stats-compact');
+        if (!expandedPanel || !compactBar) return;
+
+        // Preserve expanded/collapsed state
+        const wasExpanded = !expandedPanel.classList.contains('hidden');
+
+        // Create temp container and render new stats
+        const temp = document.createElement('div');
+        temp.innerHTML = renderStatsExpanded(data) + renderStatsCompact(data);
+
+        // Extract new panels
+        const newExpanded = temp.querySelector('#stats-expanded');
+        const newCompact = temp.querySelector('#stats-compact');
+
+        // Preserve visibility state
+        if (wasExpanded) {
+          newExpanded.classList.remove('hidden');
+          newCompact.classList.add('hidden');
+        } else {
+          newExpanded.classList.add('hidden');
+          newCompact.classList.remove('hidden');
         }
-        // Update bars
-        const chips = data.score_chips || [];
-        const bars = document.querySelectorAll('.stats-chart-fill');
-        const values = document.querySelectorAll('.stats-chart-value');
-        chips.forEach((chip, i) => {
-          let pct, value;
-          if (chip.type === 'ratio') {
-            pct = chip.total > 0 ? Math.round((chip.passed / chip.total) * 100) : 0;
-            value = `${chip.passed}/${chip.total}`;
-          } else {
-            const avg = chip.avg;
-            pct = avg <= 1 ? Math.round(avg * 100) : (avg <= 10 ? Math.round(avg * 10) : Math.min(Math.round(avg), 100));
-            value = avg.toFixed(2);
-          }
-          if (bars[i]) {
-            bars[i].style.height = `${pct}%`;
-            bars[i].className = `stats-chart-fill ${getBarColor(pct)}`;
-          }
-          if (values[i]) values[i].textContent = value;
-        });
+
+        // Replace old with new
+        expandedPanel.replaceWith(newExpanded);
+        compactBar.replaceWith(newCompact);
+
+        // Re-init toggle buttons
+        initStatsToggle();
       }
 
       (function wireSettingsModal() {
