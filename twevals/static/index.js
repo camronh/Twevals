@@ -365,7 +365,8 @@ function renderResults(data) {
   _currentRunId = data.run_id;
 
   // Check if any results have been run (not "not_started")
-  _hasRunBefore = (data.results || []).some(r => r.result?.status && r.result.status !== 'not_started');
+  // Don't reset _hasRunBefore to false once it's true (avoids race conditions)
+  _hasRunBefore = _hasRunBefore || (data.results || []).some(r => r.result?.status && r.result.status !== 'not_started');
 
   const container = document.getElementById('results');
   container.innerHTML = renderStatsExpanded(data) + renderStatsCompact(data) + renderResultsTable(data, data.run_id);

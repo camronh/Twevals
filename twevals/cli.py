@@ -341,7 +341,7 @@ def _serve(
         console.print("[red]Missing server dependencies. Install with:[/red] \n  uv add fastapi uvicorn jinja2")
         raise
 
-    from twevals.storage import ResultsStore
+    from twevals.storage import ResultsStore, _generate_friendly_name
 
     # Discover functions (for display, not running)
     discovery = EvalDiscovery()
@@ -350,6 +350,9 @@ def _serve(
     # Create store and generate run_id for when user triggers run
     store = ResultsStore(results_dir)
     run_id = store.generate_run_id()
+
+    # Generate initial run_name for first run
+    run_name = _generate_friendly_name()
 
     # Create app - does NOT auto-run, just displays discovered evals
     app = create_app(
@@ -361,6 +364,7 @@ def _serve(
         function_name=function_name,
         discovered_functions=functions,
         session_name=session_name,
+        run_name=run_name,
     )
 
     if not functions:

@@ -407,6 +407,10 @@ def create_app(
         # Full rerun: create new run
         run_id = store.generate_run_id()
         app.state.active_run_id = run_id
+        # Ensure run_name is set (belt and suspenders - should already be set in _serve)
+        if not app.state.run_name:
+            from twevals.storage import _generate_friendly_name
+            app.state.run_name = _generate_friendly_name()
         start_run(all_functions, run_id)
         return {"ok": True, "run_id": run_id}
 
