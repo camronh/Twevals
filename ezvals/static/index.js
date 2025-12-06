@@ -841,9 +841,13 @@ document.addEventListener('click', async (e) => {
   if (!el || el.querySelector('input')) return;
   try {
     await navigator.clipboard.writeText(el.innerText);
-    const original = el.style.opacity;
-    el.style.opacity = '0.5';
-    setTimeout(() => { el.style.opacity = original; }, 150);
+    // Show "Copied!" tooltip
+    const tooltip = document.createElement('span');
+    tooltip.textContent = 'Copied!';
+    tooltip.className = 'absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-zinc-700 px-2 py-0.5 text-[10px] text-white whitespace-nowrap';
+    el.style.position = 'relative';
+    el.appendChild(tooltip);
+    setTimeout(() => tooltip.remove(), 1000);
   } catch { /* ignore */ }
 });
 
