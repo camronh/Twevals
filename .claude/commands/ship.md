@@ -57,7 +57,7 @@ Follow these steps in order:
 ## 6. Push to Dev
 
 ### If on a feature branch (not dev):
-- Push current feature branch: `git push origin <feature-branch>`
+- Dont push the current feature branch: `git push origin <feature-branch>`
 - Checkout dev: `git checkout dev`
 - Pull latest dev: `git pull origin dev`
 - Merge feature branch into dev: `git merge <feature-branch>`
