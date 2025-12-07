@@ -337,6 +337,15 @@ function renderRow(r, index, runId) {
     scoresCell = `<div class="flex flex-wrap gap-1">${badgesHtml}</div>`;
   } else scoresCell = '<span class="text-zinc-600">—</span>';
 
+  // Compute sort value for scores (first score's value or pass/fail status)
+  let scoresSortValue = '';
+  if (scores.length) {
+    const firstScore = scores[0];
+    if (firstScore.value != null) scoresSortValue = firstScore.value;
+    else if (firstScore.passed === true) scoresSortValue = 1;
+    else if (firstScore.passed === false) scoresSortValue = 0;
+  }
+
   let latencyCell;
   if (result.latency != null) {
     const lat = result.latency;
@@ -366,7 +375,7 @@ function renderRow(r, index, runId) {
       <td data-col="error" title="${escapeHtml(result.error || '')}" class="px-3 py-3 align-middle">
         ${result.error ? `<div class="line-clamp-4 text-[12px] text-accent-error">${escapeHtml(result.error)}</div>` : '<span class="text-zinc-600">—</span>'}
       </td>
-      <td data-col="scores" class="px-3 py-3 align-middle">${scoresCell}</td>
+      <td data-col="scores" data-value="${scoresSortValue}" class="px-3 py-3 align-middle">${scoresCell}</td>
       <td data-col="latency" data-value="${result.latency ?? ''}" class="px-3 py-3 align-middle text-right">${latencyCell}</td>
       <td class="px-1 py-3 align-middle">
         <span class="expand-chevron text-zinc-700 group-hover:text-zinc-400">
@@ -389,7 +398,7 @@ function renderResultsTable(data, runId) {
           <th data-col="reference" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
           <th data-col="output" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
           <th data-col="error" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
-          <th data-col="scores" style="width:140px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
+          <th data-col="scores" data-type="number" style="width:140px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
           <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
           <th style="width:28px;" class="sticky top-[41px] z-20 bg-theme-bg px-1 py-2"></th>
         </tr>
@@ -551,6 +560,13 @@ function updateRowInPlace(index, newResult) {
       return `<span class="score-badge entering shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}" title="${escapeHtml(title)}" style="transition-delay: ${i * 60}ms">${escapeHtml(s.key)}${val}</span>`;
     }).join('');
     scoresCell.innerHTML = `<div class="flex flex-wrap gap-1">${badgesHtml}</div>`;
+    // Update sort value for scores column
+    const firstScore = scores[0];
+    let sortVal = '';
+    if (firstScore.value != null) sortVal = firstScore.value;
+    else if (firstScore.passed === true) sortVal = 1;
+    else if (firstScore.passed === false) sortVal = 0;
+    scoresCell.dataset.value = sortVal;
     requestAnimationFrame(() => {
       scoresCell.querySelectorAll('.score-badge').forEach(badge => badge.classList.remove('entering'));
     });
@@ -831,7 +847,7 @@ function toggleSort(table, col, type, multi) {
   setSortState(state);
   applySortState(table);
 }
-document.addEventListener("click", function (e) { const th = e.target.closest("#results thead th[data-col]"); if (!th) return; const col = th.getAttribute("data-col"); if (col === "scores") return; const table = document.getElementById("results-table"); if (!table) return; const type = th.getAttribute("data-type") || "string"; toggleSort(table, col, type, e.shiftKey); });
+document.addEventListener("click", function (e) { const th = e.target.closest("#results thead th[data-col]"); if (!th) return; const col = th.getAttribute("data-col"); const table = document.getElementById("results-table"); if (!table) return; const type = th.getAttribute("data-type") || "string"; toggleSort(table, col, type, e.shiftKey); });
 
 function applyColumnWidths(table) { if (!table) return; const widths = getColWidths(); Object.keys(widths).forEach((col) => { const w = widths[col]; if (!w) return; const th = table.querySelector(`thead th[data-col="${col}"]`); if (th) th.style.width = `${w}px`; }); }
 function initResizableColumns(table) {
