@@ -99,20 +99,50 @@ function renderMessages(messages) {
     if (msg.tool_calls && Array.isArray(msg.tool_calls)) {
       const toolCallsContent = msg.tool_calls.map(tc => {
         const fn = tc.function || tc;
-        return `${fn.name || tc.name || 'tool'}(${fn.arguments || JSON.stringify(tc.input || {})})`;
-      }).join('\n');
+        const name = fn.name || tc.name || 'tool';
+        // Handle various tool call formats: fn.arguments, tc.args, tc.input
+        let args = fn.arguments || tc.args || tc.input || {};
+        let argsStr;
+        if (typeof args === 'string') {
+          // Try to parse and re-format stringified JSON
+          try { argsStr = JSON.stringify(JSON.parse(args), null, 2); }
+          catch { argsStr = args; }
+        } else {
+          argsStr = JSON.stringify(args, null, 2);
+        }
+        return `${name}(${argsStr})`;
+      }).join('\n\n');
       return `<div class="msg-box msg-tool_calls">
         <div class="msg-box-header">Tool Calls</div>
-        <div class="msg-box-content">${escapeHtml(toolCallsContent)}</div>
+        <div class="msg-box-content"><pre style="white-space: pre-wrap; margin: 0;">${escapeHtml(toolCallsContent)}</pre></div>
       </div>`;
     }
 
     if (role === 'tool' || role === 'tool_result' || role === 'function') {
-      const toolName = msg.name || msg.tool_call_id || 'tool';
-      if (typeof content === 'object') content = JSON.stringify(content, null, 2);
+      // Look up tool name from corresponding tool call by tool_call_id
+      let toolName = msg.name;
+      if (!toolName && msg.tool_call_id) {
+        for (const m of messages) {
+          if (m.tool_calls) {
+            const tc = m.tool_calls.find(t => t.id === msg.tool_call_id);
+            if (tc) {
+              toolName = tc.function?.name || tc.name;
+              break;
+            }
+          }
+        }
+      }
+      toolName = toolName || 'tool';
+      // Format content as JSON if possible
+      if (typeof content === 'object') {
+        content = JSON.stringify(content, null, 2);
+      } else if (typeof content === 'string') {
+        try { content = JSON.stringify(JSON.parse(content), null, 2); }
+        catch { /* keep as-is */ }
+      }
       return `<div class="msg-box msg-tool_result">
         <div class="msg-box-header">${escapeHtml(toolName)} Result</div>
-        <div class="msg-box-content">${escapeHtml(String(content))}</div>
+        <div class="msg-box-content"><pre style="white-space: pre-wrap; margin: 0;">${escapeHtml(String(content))}</pre></div>
       </div>`;
     }
 

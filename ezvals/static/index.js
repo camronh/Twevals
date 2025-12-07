@@ -513,8 +513,20 @@ function updateRowInPlace(index, newResult) {
       const content = `<div class="cell-content line-clamp-2 text-[12px] text-theme-text updating">${escapeHtml(formatValue(newResult.output))}</div>`;
       outputCell.innerHTML = content;
       requestAnimationFrame(() => outputCell.querySelector('.cell-content')?.classList.remove('updating'));
+    } else {
+      // Clear skeleton when output is null (error case)
+      outputCell.innerHTML = '<span class="text-zinc-600">—</span>';
     }
     outputCell.title = formatValue(newResult.output) || '';
+  }
+
+  // Update reference cell
+  const refCell = row.querySelector('td[data-col="reference"]');
+  if (refCell && newResult.reference != null) {
+    const content = `<div class="cell-content line-clamp-4 text-[12px] text-theme-text updating">${escapeHtml(formatValue(newResult.reference))}</div>`;
+    refCell.innerHTML = content;
+    refCell.title = formatValue(newResult.reference) || '';
+    requestAnimationFrame(() => refCell.querySelector('.cell-content')?.classList.remove('updating'));
   }
 
   // Update scores cell with staggered animation
