@@ -39,7 +39,8 @@ const STATS_PREF_KEY = 'ezvals:statsExpanded';
 function summarizeStats(data) {
   const results = data.results || [];
   const chips = data.score_chips || [];
-  const total = data.total_evaluations || 0;
+  const totalEvaluations = data.total_evaluations || 0;
+  const selectedTotal = data.selected_total;  // For selective reruns
   const avgLatency = data.average_latency || 0;
   let completed = 0, pending = 0, running = 0, notStarted = 0;
   results.forEach((r) => {
@@ -49,21 +50,29 @@ function summarizeStats(data) {
     else if (status === 'running') running++;
     else completed++;
   });
-  const pctDone = total > 0 ? Math.round((completed / total) * 100) : 0;
+  // For selective reruns, show progress relative to selected count
+  // Only selected evals will have pending/running status
+  const inProgress = pending + running;
+  const isSelectiveRun = selectedTotal != null && selectedTotal > 0;
+  const progressTotal = isSelectiveRun ? selectedTotal : totalEvaluations;
+  const progressCompleted = isSelectiveRun ? (selectedTotal - inProgress) : completed;
+  const pctDone = progressTotal > 0 ? Math.round((progressCompleted / progressTotal) * 100) : 0;
   return {
     results,
     chips,
-    total,
+    total: totalEvaluations,
+    progressTotal,
+    progressCompleted,
     avgLatency,
     completed,
     pending,
     running,
     notStarted,
     pctDone,
-    progressPending: pending + running,
+    progressPending: inProgress,
     sessionName: data.session_name,
     runName: data.run_name,
-    isRunning: completed < total && total > 0,
+    isRunning: inProgress > 0,
   };
 }
 
@@ -147,7 +156,7 @@ function getTextColor(pct) {
 }
 
 function renderStatsExpanded(data) {
-  const { total, avgLatency, chips, pctDone, isRunning, sessionName, runName, completed } = summarizeStats(data);
+  const { total, avgLatency, chips, pctDone, isRunning, sessionName, runName, progressCompleted, progressTotal } = summarizeStats(data);
 
   let headerHtml = '';
   if (sessionName || runName) {
@@ -164,7 +173,7 @@ function renderStatsExpanded(data) {
 
   let progressHtml = '';
   if (isRunning) {
-    progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text">${completed}/${total}</span></div>`;
+    progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text">${progressCompleted}/${progressTotal}</span></div>`;
   }
 
   let barsHtml = '';
@@ -221,7 +230,7 @@ function renderStatsExpanded(data) {
 
 function renderStatsCompact(data) {
   const stats = summarizeStats(data);
-  const { total, avgLatency, chips, pctDone, progressPending, completed, notStarted, sessionName, runName } = stats;
+  const { total, avgLatency, chips, pctDone, progressPending, notStarted, sessionName, runName, progressCompleted, progressTotal } = stats;
 
   let sessionRunHtml = '';
   if (sessionName || runName) {
@@ -247,7 +256,7 @@ function renderStatsCompact(data) {
   if (notStarted === total) {
     progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Discovered</span><span class="font-mono text-[11px] text-zinc-400">${total} eval${total !== 1 ? 's' : ''}</span></div>`;
   } else if (progressPending > 0) {
-    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${completed}/${total}</span></div>`;
+    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${progressCompleted}/${progressTotal}</span></div>`;
   } else {
     progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span><span class="font-mono text-[11px] text-accent-link">${total}</span></div>`;
   }
@@ -1120,7 +1129,7 @@ function updateStatsInPlace(data) {
   const compactBar = document.getElementById('stats-compact');
   if (!expandedPanel || !compactBar) return;
 
-  const { chips, total, avgLatency, pctDone, completed } = summarizeStats(data);
+  const { chips, total, avgLatency, pctDone, progressCompleted, progressTotal } = summarizeStats(data);
 
   // Update expanded panel bars in-place
   const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
@@ -1204,7 +1213,7 @@ function updateStatsInPlace(data) {
   const progressFill = expandedPanel.querySelector('.stats-progress-fill');
   const progressText = expandedPanel.querySelector('.stats-progress-text');
   if (progressFill) progressFill.style.width = pctDone + '%';
-  if (progressText) progressText.textContent = `${completed}/${total}`;
+  if (progressText) progressText.textContent = `${progressCompleted}/${progressTotal}`;
 
   // Update latency
   const latencyEl = expandedPanel.querySelector('.stats-metric-sm .stats-metric-value');
@@ -1380,7 +1389,7 @@ function updateStatsForFilters() {
 
 function renderStatsCompactFiltered(data, hasFilters, filtered, total) {
   const stats = summarizeStats(data);
-  const { avgLatency, chips, pctDone, progressPending, completed, notStarted, sessionName, runName } = stats;
+  const { avgLatency, chips, pctDone, progressPending, notStarted, sessionName, runName, progressCompleted, progressTotal } = stats;
 
   let sessionRunHtml = '';
   if (sessionName || runName) {
@@ -1406,7 +1415,7 @@ function renderStatsCompactFiltered(data, hasFilters, filtered, total) {
   if (notStarted === total) {
     progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Discovered</span><span class="font-mono text-[11px] text-zinc-400">${total} eval${total !== 1 ? 's' : ''}</span></div>`;
   } else if (progressPending > 0) {
-    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${completed}/${total}</span></div>`;
+    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${progressCompleted}/${progressTotal}</span></div>`;
   } else {
     // Show filtered/total when filters active
     const testsDisplay = hasFilters ? `${filtered}/${total}` : String(total);

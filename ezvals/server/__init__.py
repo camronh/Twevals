@@ -1,7 +1,7 @@
 import asyncio
 from pathlib import Path
 from threading import Lock, Thread, Event
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.templating import Jinja2Templates
@@ -18,6 +18,29 @@ from ezvals.storage import ResultsStore
 from ezvals.config import load_config, save_config
 
 console = Console()
+
+
+def _make_json_safe(obj: Any) -> Any:
+    """Recursively convert non-JSON-serializable objects to safe representations."""
+    if obj is None:
+        return None
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    if isinstance(obj, dict):
+        return {k: _make_json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_make_json_safe(v) for v in obj]
+    if isinstance(obj, type):
+        # Class reference - return its name
+        return f"<class {obj.__name__}>"
+    if callable(obj):
+        # Function/method reference - return its name
+        return f"<function {getattr(obj, '__name__', str(obj))}>"
+    # Try to convert to string as fallback
+    try:
+        return str(obj)
+    except Exception:
+        return "<unserializable>"
 
 
 class ResultUpdateBody(BaseModel):
@@ -66,6 +89,7 @@ def create_app(
     # Cancellation event for stopping running evals
     app.state.cancel_event = Event()
     app.state.cancel_lock = Lock()
+    app.state.selected_total = None  # Track count for selective reruns
 
     def start_run(
         functions: List[EvalFunction],
@@ -121,9 +145,9 @@ def create_app(
                 "dataset": f.dataset,
                 "labels": f.labels,
                 "result": {
-                    "input": f.context_kwargs.get("input"),
-                    "reference": f.context_kwargs.get("reference"),
-                    "metadata": f.context_kwargs.get("metadata"),
+                    "input": _make_json_safe(f.context_kwargs.get("input")),
+                    "reference": _make_json_safe(f.context_kwargs.get("reference")),
+                    "metadata": _make_json_safe(f.context_kwargs.get("metadata")),
                     "output": None, "error": None, "scores": None, "latency": None,
                     "trace_data": None, "annotation": None, "annotations": None, "status": "pending",
                 },
@@ -242,9 +266,9 @@ def create_app(
                     "dataset": f.dataset,
                     "labels": f.labels,
                     "result": {
-                        "input": f.context_kwargs.get("input"),
-                        "reference": f.context_kwargs.get("reference"),
-                        "metadata": f.context_kwargs.get("metadata"),
+                        "input": _make_json_safe(f.context_kwargs.get("input")),
+                        "reference": _make_json_safe(f.context_kwargs.get("reference")),
+                        "metadata": _make_json_safe(f.context_kwargs.get("metadata")),
                         "output": None,
                         "error": None,
                         "scores": None,
@@ -305,6 +329,7 @@ def create_app(
             "run_name": summary.get("run_name") or app.state.run_name,
             "run_id": app.state.active_run_id,
             "total_evaluations": summary.get("total_evaluations", 0),
+            "selected_total": app.state.selected_total,  # For selective rerun progress
             "total_errors": summary.get("total_errors", 0),
             "total_passed": summary.get("total_passed", 0),
             "average_latency": summary.get("average_latency", 0),
@@ -382,9 +407,9 @@ def create_app(
                     "dataset": f.dataset,
                     "labels": f.labels,
                     "result": {
-                        "input": f.context_kwargs.get("input"),
-                        "reference": f.context_kwargs.get("reference"),
-                        "metadata": f.context_kwargs.get("metadata"),
+                        "input": _make_json_safe(f.context_kwargs.get("input")),
+                        "reference": _make_json_safe(f.context_kwargs.get("reference")),
+                        "metadata": _make_json_safe(f.context_kwargs.get("metadata")),
                         "output": None, "error": None, "scores": None, "latency": None,
                         "trace_data": None, "annotation": None, "annotations": None, "status": "not_started",
                     },
@@ -403,10 +428,14 @@ def create_app(
             functions = [f for f in all_functions if (f.func.__name__, f.dataset) in selected_keys]
             indices_map = {id(f): selected_keys[(f.func.__name__, f.dataset)] for f in functions}
 
+            # Track selected count for progress bar
+            app.state.selected_total = len(functions)
+
             start_run(functions, run_id, existing_results=current_results, indices_map=indices_map)
             return {"ok": True, "run_id": run_id}
 
         # Full rerun: create new run
+        app.state.selected_total = None  # Clear selective count
         run_id = store.generate_run_id()
         app.state.active_run_id = run_id
         # Ensure run_name is set (belt and suspenders - should already be set in _serve)
