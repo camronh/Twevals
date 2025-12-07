@@ -344,7 +344,7 @@ function render(data) {
 
   const pillTones = {
     'pending': 'text-blue-600 bg-blue-500/10 border border-blue-500/30 dark:text-blue-400',
-    'running': 'text-cyan-600 bg-cyan-500/10 border border-cyan-500/30 dark:text-cyan-400',
+    'running': 'text-cyan-600 bg-cyan-500/10 border border-cyan-500/30 dark:text-cyan-400 animate-pulse',
     'completed': 'text-emerald-600 bg-emerald-500/10 border border-emerald-500/30 dark:text-emerald-400',
     'error': 'text-rose-600 bg-rose-500/10 border border-rose-500/30 dark:text-rose-400',
     'cancelled': 'text-amber-600 bg-amber-500/10 border border-amber-500/30 dark:text-amber-400'
@@ -411,8 +411,12 @@ function render(data) {
           </button>
         </div>
       </div>
-      <div class="flex items-center gap-1">
-        <span class="text-xs text-zinc-500 mr-2">${currentIndex + 1}/${total}</span>
+      <div class="flex items-center gap-2">
+        <button id="rerun-btn" class="flex h-7 items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300" title="Rerun this evaluation">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          Rerun
+        </button>
+        <span class="text-xs text-zinc-500">${currentIndex + 1}/${total}</span>
         <button id="prev-btn" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 dark:border-zinc-700 dark:hover:border-blue-500" title="Up" ${currentIndex <= 0 ? 'disabled' : ''}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
         </button>
@@ -496,9 +500,9 @@ function render(data) {
           ${hasTraceData && result.trace_data.trace_url ? `
           <div class="flex items-center justify-between">
             <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Trace</span>
-            <a href="${escapeHtml(result.trace_data.trace_url)}" target="_blank" class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400">
+            <a href="${escapeHtml(result.trace_data.trace_url)}" target="_blank" class="flex items-center gap-1.5 rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-xs font-medium text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              Open
+              View Trace
             </a>
           </div>` : ''}
         </div>
@@ -597,6 +601,41 @@ function render(data) {
 
   document.getElementById('prev-btn')?.addEventListener('click', () => navigateTo(currentIndex - 1));
   document.getElementById('next-btn')?.addEventListener('click', () => navigateTo(currentIndex + 1));
+
+  // Rerun button (#6)
+  document.getElementById('rerun-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('rerun-btn');
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg> Running...';
+    try {
+      const resp = await fetch('/api/runs/rerun', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ indices: [currentIndex] })
+      });
+      if (resp.ok) {
+        // Poll until this eval completes
+        const pollForCompletion = async () => {
+          const r = await fetch(`/api${window.location.pathname}`);
+          if (r.ok) {
+            const data = await r.json();
+            const status = data.result?.result?.status;
+            if (status === 'completed' || status === 'error') {
+              render(data);
+              return;
+            }
+          }
+          setTimeout(pollForCompletion, 500);
+        };
+        setTimeout(pollForCompletion, 500);
+      }
+    } catch (e) {
+      console.error('Rerun failed:', e);
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg> Rerun';
+    }
+  });
 }
 
 async function loadDetail() {
@@ -609,6 +648,16 @@ async function loadDetail() {
     document.getElementById('app').innerHTML = '<div class="flex-1 flex items-center justify-center text-rose-500">Failed to load result</div>';
   }
 }
+
+// Click outside messages pane to close it (#16)
+document.addEventListener('click', e => {
+  const pane = document.getElementById('messages-pane');
+  if (!pane || pane.classList.contains('translate-x-full')) return;
+  // Don't close if clicking inside the pane or on the toggle button
+  if (pane.contains(e.target)) return;
+  if (e.target.closest('[onclick*="toggleMessagesPane"]') || e.target.closest('button[onclick*="Messages"]')) return;
+  closeMessagesPane();
+});
 
 document.addEventListener('keydown', e => {
   if (e.target.matches('input, textarea, select')) return;
