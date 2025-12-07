@@ -392,15 +392,15 @@ function renderResultsTable(data, runId) {
     <table id="results-table" data-run-id="${runId}" class="w-full table-fixed border-collapse text-sm text-theme-text">
       <thead>
         <tr class="border-b border-theme-border">
-          <th style="width:32px;" class="sticky top-[41px] z-20 bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
-          <th data-col="function" style="width:15%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
-          <th data-col="input" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
-          <th data-col="reference" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
-          <th data-col="output" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
-          <th data-col="error" style="width:18%;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
-          <th data-col="scores" data-type="number" style="width:140px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
-          <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[41px] z-20 bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
-          <th style="width:28px;" class="sticky top-[41px] z-20 bg-theme-bg px-1 py-2"></th>
+          <th style="width:32px;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
+          <th data-col="function" style="width:15%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
+          <th data-col="input" style="width:18%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
+          <th data-col="reference" style="width:18%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
+          <th data-col="output" style="width:18%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
+          <th data-col="error" style="width:18%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
+          <th data-col="scores" data-type="number" style="width:140px;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
+          <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
+          <th style="width:28px;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-1 py-2"></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-theme-border-subtle">${rowsHtml}</tbody>
@@ -1145,7 +1145,12 @@ function updateStatsInPlace(data) {
   const compactBar = document.getElementById('stats-compact');
   if (!expandedPanel || !compactBar) return;
 
-  const { chips, total, avgLatency, pctDone, progressCompleted, progressTotal } = summarizeStats(data);
+  const stats = summarizeStats(data);
+  const { chips, total, pctDone, progressCompleted, progressTotal } = stats;
+  // Use filtered latency when filters are active, otherwise server's avgLatency
+  const hasFilters = isFilterActive();
+  const filteredStats = hasFilters ? computeFilteredStats() : null;
+  const avgLatency = filteredStats ? filteredStats.avgLatency : stats.avgLatency;
 
   // Update expanded panel bars in-place
   const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
@@ -1505,6 +1510,15 @@ async function loadResults() {
 loadResults();
 
 /* Stats panel expand/collapse */
+function updateHeaderOffset() {
+  const expandedPanel = document.getElementById('stats-expanded');
+  const compactBar = document.getElementById('stats-compact');
+  const visiblePanel = expandedPanel && !expandedPanel.classList.contains('hidden') ? expandedPanel : compactBar;
+  if (visiblePanel) {
+    document.documentElement.style.setProperty('--stats-height', visiblePanel.offsetHeight + 'px');
+  }
+}
+
 function initStatsToggle() {
   const expandBtn = document.getElementById('stats-expand-btn');
   const collapseBtn = document.getElementById('stats-collapse-btn');
@@ -1516,12 +1530,14 @@ function initStatsToggle() {
     expandedPanel.classList.remove('hidden');
     compactBar.classList.add('hidden');
     localStorage.setItem(STATS_PREF_KEY, 'true');
+    requestAnimationFrame(updateHeaderOffset);
   });
 
   collapseBtn?.addEventListener('click', () => {
     expandedPanel.classList.add('hidden');
     compactBar.classList.remove('hidden');
     localStorage.setItem(STATS_PREF_KEY, 'false');
+    requestAnimationFrame(updateHeaderOffset);
   });
 
   // Restore state (expanded by default, collapse only if explicitly set to false)
@@ -1529,4 +1545,7 @@ function initStatsToggle() {
     expandedPanel.classList.add('hidden');
     compactBar.classList.remove('hidden');
   }
+
+  // Set initial header offset
+  requestAnimationFrame(updateHeaderOffset);
 }
