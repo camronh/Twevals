@@ -635,16 +635,32 @@ function setRunningState(running) {
     btn?.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
     playIcon?.classList.remove('hidden'); stopIcon?.classList.add('hidden');
   }
-  // Add/remove running indicator bar at top of page
-  let indicator = document.getElementById('running-indicator');
-  if (running && !indicator) {
-    indicator = document.createElement('div');
-    indicator.id = 'running-indicator';
-    indicator.className = 'fixed top-0 left-0 right-0 h-1 z-50 bg-gradient-to-r from-emerald-500 via-blue-500 to-emerald-500 bg-[length:200%_100%] animate-[shimmer_1.5s_linear_infinite]';
-    indicator.innerHTML = '<style>@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>';
-    document.body.prepend(indicator);
-  } else if (!running && indicator) {
-    indicator.remove();
+  // Add/remove pulsing animation on progress bar when running
+  const progressBar = document.querySelector('.stats-progress-bar');
+  const progressFill = document.querySelector('.stats-progress-fill');
+  if (running) {
+    progressBar?.classList.add('ring-2', 'ring-emerald-400/50', 'ring-offset-1', 'ring-offset-zinc-900');
+    progressFill?.classList.add('progress-active');
+    // Add the CSS animation if not already present
+    if (!document.getElementById('progress-active-style')) {
+      const style = document.createElement('style');
+      style.id = 'progress-active-style';
+      style.textContent = `
+        .progress-active {
+          animation: progress-glow 1.5s ease-in-out infinite;
+          background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #10b981 100%);
+          background-size: 200% 100%;
+        }
+        @keyframes progress-glow {
+          0%, 100% { background-position: 0% 0; filter: brightness(1); }
+          50% { background-position: 100% 0; filter: brightness(1.3); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  } else {
+    progressBar?.classList.remove('ring-2', 'ring-emerald-400/50', 'ring-offset-1', 'ring-offset-zinc-900');
+    progressFill?.classList.remove('progress-active');
   }
   if (typeof updateRunButtonState === 'function') updateRunButtonState();
 }
