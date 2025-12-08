@@ -137,8 +137,21 @@ function renderMessages(messages) {
       if (typeof content === 'object') {
         content = JSON.stringify(content, null, 2);
       } else if (typeof content === 'string') {
+        // Try JSON first
         try { content = JSON.stringify(JSON.parse(content), null, 2); }
-        catch { /* keep as-is */ }
+        catch {
+          // Try converting Python dict syntax to JSON (single quotes -> double quotes)
+          try {
+            const jsonified = content
+              .replace(/'/g, '"')
+              .replace(/True/g, 'true')
+              .replace(/False/g, 'false')
+              .replace(/None/g, 'null')
+              .replace(/datetime\.date\([^)]+\)/g, '"[date]"')
+              .replace(/datetime\.datetime\([^)]+\)/g, '"[datetime]"');
+            content = JSON.stringify(JSON.parse(jsonified), null, 2);
+          } catch { /* keep original */ }
+        }
       }
       return `<div class="msg-box msg-tool_result">
         <div class="msg-box-header">${escapeHtml(toolName)} Result</div>

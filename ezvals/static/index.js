@@ -388,19 +388,21 @@ function renderRow(r, index, runId) {
 function renderResultsTable(data, runId) {
   const results = data.results || [];
   const rowsHtml = results.map((r, i) => renderRow(r, i, runId)).join('');
+  // Use inline style for sticky top - CSS variable in Tailwind arbitrary values doesn't work at runtime
+  const stickyStyle = 'position: sticky; top: var(--stats-height, 41px);';
   return `
     <table id="results-table" data-run-id="${runId}" class="w-full table-fixed border-collapse text-sm text-theme-text">
       <thead>
         <tr class="border-b border-theme-border">
-          <th style="width:32px;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
-          <th data-col="function" style="width:15%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
-          <th data-col="input" style="width:18%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
-          <th data-col="reference" style="width:18%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
-          <th data-col="output" style="width:18%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
-          <th data-col="error" style="width:18%;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
-          <th data-col="scores" data-type="number" style="width:140px;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
-          <th data-col="latency" data-type="number" style="width:70px;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
-          <th style="width:28px;" class="sticky top-[var(--stats-height,41px)] z-20 bg-theme-bg px-1 py-2"></th>
+          <th style="width:32px; ${stickyStyle}" class="z-20 bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
+          <th data-col="function" style="width:15%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
+          <th data-col="input" style="width:18%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
+          <th data-col="reference" style="width:18%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
+          <th data-col="output" style="width:18%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
+          <th data-col="error" style="width:18%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
+          <th data-col="scores" data-type="number" style="width:140px; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
+          <th data-col="latency" data-type="number" style="width:70px; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
+          <th style="width:28px; ${stickyStyle}" class="z-20 bg-theme-bg px-1 py-2"></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-theme-border-subtle">${rowsHtml}</tbody>
@@ -633,6 +635,17 @@ function setRunningState(running) {
     btn?.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
     playIcon?.classList.remove('hidden'); stopIcon?.classList.add('hidden');
   }
+  // Add/remove running indicator bar at top of page
+  let indicator = document.getElementById('running-indicator');
+  if (running && !indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'running-indicator';
+    indicator.className = 'fixed top-0 left-0 right-0 h-1 z-50 bg-gradient-to-r from-emerald-500 via-blue-500 to-emerald-500 bg-[length:200%_100%] animate-[shimmer_1.5s_linear_infinite]';
+    indicator.innerHTML = '<style>@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>';
+    document.body.prepend(indicator);
+  } else if (!running && indicator) {
+    indicator.remove();
+  }
   if (typeof updateRunButtonState === 'function') updateRunButtonState();
 }
 function checkRunningState() { setRunningState(!!document.querySelector('[data-status="pending"], [data-status="running"]')); }
@@ -809,7 +822,20 @@ document.getElementById('filter-has-annotation')?.addEventListener('click', () =
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 function getCellValue(tr, col) { const td = tr.querySelector(`td[data-col="${col}"]`); if (!td) return ""; const dv = td.getAttribute("data-value"); return dv !== null ? dv : td.textContent.trim(); }
 function parseValue(value, type) { if (type === "number") { const num = parseFloat(value); return isNaN(num) ? Number.POSITIVE_INFINITY : num; } return value; }
-function compareValues(a, b, type) { if (type === "number") return a - b; return collator.compare(a, b); }
+function compareValues(a, b, type, col) {
+  if (type === "number") {
+    // For scores column, empty/unscored values should ALWAYS sort to bottom
+    if (col === 'scores') {
+      const aEmpty = !isFinite(a);
+      const bEmpty = !isFinite(b);
+      if (aEmpty && !bEmpty) return 1; // a (empty) goes after b
+      if (!aEmpty && bEmpty) return -1; // b (empty) goes after a
+      if (aEmpty && bEmpty) return 0; // both empty, equal
+    }
+    return a - b;
+  }
+  return collator.compare(a, b);
+}
 function applySortState(table) {
   const state = getSortState();
   const headers = table.querySelectorAll("thead th[data-col]");
@@ -832,8 +858,12 @@ function applySortState(table) {
         const type = s.type || "string";
         const va = parseValue(getCellValue(ra, s.col), type);
         const vb = parseValue(getCellValue(rb, s.col), type);
-        const cmp = compareValues(va, vb, type);
-        if (cmp !== 0) return s.dir === "asc" ? cmp : -cmp;
+        const cmp = compareValues(va, vb, type, s.col);
+        // For scores, empty values always at bottom (cmp handles this), so don't negate
+        if (cmp !== 0) {
+          if (s.col === 'scores' && (!isFinite(va) || !isFinite(vb))) return cmp;
+          return s.dir === "asc" ? cmp : -cmp;
+        }
       }
       return Number(ra.getAttribute("data-orig-index")) - Number(rb.getAttribute("data-orig-index"));
     })
@@ -1147,10 +1177,9 @@ function updateStatsInPlace(data) {
 
   const stats = summarizeStats(data);
   const { chips, total, pctDone, progressCompleted, progressTotal } = stats;
-  // Use filtered latency when filters are active, otherwise server's avgLatency
-  const hasFilters = isFilterActive();
-  const filteredStats = hasFilters ? computeFilteredStats() : null;
-  const avgLatency = filteredStats ? filteredStats.avgLatency : stats.avgLatency;
+  // Always recalculate latency from visible rows for accurate live updates
+  const computedStats = computeFilteredStats();
+  const avgLatency = computedStats ? computedStats.avgLatency : stats.avgLatency;
 
   // Update expanded panel bars in-place
   const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
