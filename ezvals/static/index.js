@@ -166,14 +166,13 @@ function renderStatsExpanded(data) {
     headerHtml += '</div>';
   }
 
-  let latencyHtml = '';
-  if (avgLatency > 0) {
-    latencyHtml = `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span></span><span class="stats-metric-label">avg latency</span></div>`;
-  }
+  // Always render latency container so it can be updated during runs
+  const latencyDisplay = avgLatency > 0 ? `${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span>` : '—';
+  const latencyHtml = `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${latencyDisplay}</span><span class="stats-metric-label">avg latency</span></div>`;
 
   let progressHtml = '';
   if (isRunning) {
-    progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text">${progressCompleted}/${progressTotal}</span></div>`;
+    progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text text-emerald-400">${progressCompleted}/${progressTotal}</span></div>`;
   }
 
   let barsHtml = '';
@@ -388,21 +387,19 @@ function renderRow(r, index, runId) {
 function renderResultsTable(data, runId) {
   const results = data.results || [];
   const rowsHtml = results.map((r, i) => renderRow(r, i, runId)).join('');
-  // Use inline style for sticky top - CSS variable in Tailwind arbitrary values doesn't work at runtime
-  const stickyStyle = 'position: sticky; top: var(--stats-height, 41px);';
   return `
     <table id="results-table" data-run-id="${runId}" class="w-full table-fixed border-collapse text-sm text-theme-text">
       <thead>
         <tr class="border-b border-theme-border">
-          <th style="width:32px; ${stickyStyle}" class="z-20 bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
-          <th data-col="function" style="width:15%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
-          <th data-col="input" style="width:18%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
-          <th data-col="reference" style="width:18%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
-          <th data-col="output" style="width:18%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
-          <th data-col="error" style="width:18%; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
-          <th data-col="scores" data-type="number" style="width:140px; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
-          <th data-col="latency" data-type="number" style="width:70px; ${stickyStyle}" class="z-20 bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
-          <th style="width:28px; ${stickyStyle}" class="z-20 bg-theme-bg px-1 py-2"></th>
+          <th style="width:32px" class="bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" /></th>
+          <th data-col="function" style="width:15%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
+          <th data-col="input" style="width:18%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
+          <th data-col="reference" style="width:18%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
+          <th data-col="output" style="width:18%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Output</th>
+          <th data-col="error" style="width:18%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Error</th>
+          <th data-col="scores" data-type="number" style="width:140px" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Scores</th>
+          <th data-col="latency" data-type="number" style="width:70px" class="bg-theme-bg px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Time</th>
+          <th style="width:28px" class="bg-theme-bg px-1 py-2"></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-theme-border-subtle">${rowsHtml}</tbody>
@@ -661,6 +658,29 @@ function setRunningState(running) {
   } else {
     progressBar?.classList.remove('ring-2', 'ring-emerald-400/50', 'ring-offset-1', 'ring-offset-zinc-900');
     progressFill?.classList.remove('progress-active');
+    // Show success animation if we were running (progress bar exists with fill at 100%)
+    const progressContainer = document.querySelector('.stats-progress');
+    if (progressContainer && progressFill && parseFloat(progressFill.style.width) >= 100) {
+      // Flash success animation
+      progressContainer.innerHTML = `<span class="text-emerald-400 font-medium animate-success-flash">✓ Complete</span>`;
+      // Add CSS for animation if not present
+      if (!document.getElementById('success-flash-style')) {
+        const style = document.createElement('style');
+        style.id = 'success-flash-style';
+        style.textContent = `
+          @keyframes success-flash {
+            0% { opacity: 0; transform: scale(0.8); }
+            20% { opacity: 1; transform: scale(1.1); }
+            40% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1); }
+          }
+          .animate-success-flash { animation: success-flash 2s ease-out forwards; }
+        `;
+        document.head.appendChild(style);
+      }
+      // Remove after animation completes
+      setTimeout(() => progressContainer.remove(), 2000);
+    }
   }
   if (typeof updateRunButtonState === 'function') updateRunButtonState();
 }
@@ -1281,12 +1301,12 @@ function updateStatsInPlace(data) {
   if (progressFill) progressFill.style.width = pctDone + '%';
   if (progressText) progressText.textContent = `${progressCompleted}/${progressTotal}`;
 
-  // Update latency
+  // Update latency (always exists now)
   const latencyEl = expandedPanel.querySelector('.stats-metric-sm .stats-metric-value');
-  if (latencyEl && avgLatency > 0) {
-    const newLatency = avgLatency.toFixed(2);
-    if (!latencyEl.textContent.startsWith(newLatency)) {
-      latencyEl.innerHTML = `${newLatency}<span class="stats-metric-unit">s</span>`;
+  if (latencyEl) {
+    const newDisplay = avgLatency > 0 ? `${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span>` : '—';
+    if (latencyEl.innerHTML !== newDisplay) {
+      latencyEl.innerHTML = newDisplay;
     }
   }
 
@@ -1555,15 +1575,6 @@ async function loadResults() {
 loadResults();
 
 /* Stats panel expand/collapse */
-function updateHeaderOffset() {
-  const expandedPanel = document.getElementById('stats-expanded');
-  const compactBar = document.getElementById('stats-compact');
-  const visiblePanel = expandedPanel && !expandedPanel.classList.contains('hidden') ? expandedPanel : compactBar;
-  if (visiblePanel) {
-    document.documentElement.style.setProperty('--stats-height', visiblePanel.offsetHeight + 'px');
-  }
-}
-
 function initStatsToggle() {
   const expandBtn = document.getElementById('stats-expand-btn');
   const collapseBtn = document.getElementById('stats-collapse-btn');
@@ -1575,14 +1586,12 @@ function initStatsToggle() {
     expandedPanel.classList.remove('hidden');
     compactBar.classList.add('hidden');
     localStorage.setItem(STATS_PREF_KEY, 'true');
-    requestAnimationFrame(updateHeaderOffset);
   });
 
   collapseBtn?.addEventListener('click', () => {
     expandedPanel.classList.add('hidden');
     compactBar.classList.remove('hidden');
     localStorage.setItem(STATS_PREF_KEY, 'false');
-    requestAnimationFrame(updateHeaderOffset);
   });
 
   // Restore state (expanded by default, collapse only if explicitly set to false)
@@ -1590,7 +1599,4 @@ function initStatsToggle() {
     expandedPanel.classList.add('hidden');
     compactBar.classList.remove('hidden');
   }
-
-  // Set initial header offset
-  requestAnimationFrame(updateHeaderOffset);
 }
