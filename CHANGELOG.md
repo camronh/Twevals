@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added: Per-case `dataset` and `labels` support via `@parametrize` and `input_loader`. Dataset overrides function-level; labels merge (no duplicates).
 - Added: `input_loader` parameter on `@eval` decorator for dynamic data loading from external sources (databases, APIs like LangSmith). Loader is called lazily at eval time, each example becomes a separate eval run.
 - Added: Load previous runs with `ezvals serve path/to/run.json`. Opens UI with that run loaded; rerun enabled if source eval file exists, view-only mode if not.
 - Changed: Stats panel now dynamically updates when filters/search are active. Shows "filtered/total" format for test count, with latency and score chips calculated from visible rows only.

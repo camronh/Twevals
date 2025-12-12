@@ -98,6 +98,8 @@ Only parameters with these special names automatically populate the context:
 - `metadata` → merged into `ctx.metadata`
 - `trace_data` → `ctx.trace_data`
 - `latency` → `ctx.latency`
+- `dataset` → overrides the function's dataset
+- `labels` → merged with the function's labels
 
 ```python
 @eval(dataset="qa")
@@ -110,6 +112,23 @@ async def test_qa(ctx: EvalContext):
     ctx.output = await my_agent(ctx.input)
     assert ctx.output == ctx.reference
 ```
+
+### Per-Case Dataset and Labels
+
+You can override dataset or add labels on a per-case basis:
+
+```python
+@eval(dataset="default", labels=["base"])
+@parametrize("input,dataset,labels", [
+    ("case A", "custom_dataset", ["extra"]),  # dataset="custom_dataset", labels=["base", "extra"]
+    ("case B", None, None),                    # dataset="default", labels=["base"]
+])
+def test_per_case(ctx: EvalContext):
+    ctx.output = process(ctx.input)
+```
+
+- **Dataset**: Per-case value overrides the function's dataset
+- **Labels**: Per-case labels are merged with function labels (duplicates removed)
 
 ## Accessing Non-Special Parameters
 

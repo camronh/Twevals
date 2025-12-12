@@ -291,7 +291,26 @@ Scenario: Parameters named input/reference auto-populate context
   And parameters don't need to be in function signature
 ```
 
-**Special parameter names:** `input`, `reference`, `metadata`, `trace_data`, `latency`
+**Special parameter names:** `input`, `reference`, `metadata`, `trace_data`, `latency`, `dataset`, `labels`
+
+### Per-Case Dataset and Labels
+
+```gherkin
+Scenario: Per-case dataset overrides function dataset
+  Given @eval(dataset="default")
+  And @parametrize("input,dataset", [("a", "custom"), ("b", None)])
+  When evaluations run
+  Then first case has dataset="custom"
+  And second case has dataset="default"
+
+Scenario: Per-case labels merge with function labels
+  Given @eval(labels=["base"])
+  And @parametrize("input,labels", [("a", ["extra"]), ("b", None)])
+  When evaluations run
+  Then first case has labels=["base", "extra"]
+  And second case has labels=["base"]
+  And duplicate labels are not added
+```
 
 ### Custom Parameter Names
 
@@ -404,11 +423,13 @@ Scenario: Loader failure creates error result
 
 The loader can return a list of dicts or objects. Field mapping:
 
-| Dict Key / Object Attr | Maps To |
-|------------------------|---------|
-| `input` | ctx.input |
-| `reference` | ctx.reference |
-| `metadata` | ctx.metadata |
+| Dict Key / Object Attr | Maps To | Behavior |
+|------------------------|---------|----------|
+| `input` | ctx.input | Overrides |
+| `reference` | ctx.reference | Overrides |
+| `metadata` | ctx.metadata | Overrides |
+| `dataset` | result dataset | Overrides function dataset |
+| `labels` | result labels | Merges with function labels (no duplicates) |
 
 ### Constraints
 
