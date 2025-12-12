@@ -166,9 +166,10 @@ function renderStatsExpanded(data) {
     headerHtml += '</div>';
   }
 
-  // Always render latency container so it can be updated during runs
-  const latencyDisplay = avgLatency > 0 ? `${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span>` : '—';
-  const latencyHtml = `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${latencyDisplay}</span><span class="stats-metric-label">avg latency</span></div>`;
+  // Only render latency if we have data (will be created dynamically during live updates)
+  const latencyHtml = avgLatency > 0
+    ? `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span></span><span class="stats-metric-label">avg latency</span></div>`
+    : '';
 
   let progressHtml = '';
   if (isRunning) {
@@ -662,7 +663,7 @@ function setRunningState(running) {
     const progressContainer = document.querySelector('.stats-progress');
     if (progressContainer && progressFill && parseFloat(progressFill.style.width) >= 100) {
       // Flash success animation
-      progressContainer.innerHTML = `<span class="text-emerald-400 font-medium animate-success-flash">✓ Complete</span>`;
+      progressContainer.innerHTML = `<span class="text-emerald-400 text-lg animate-success-flash">✓</span>`;
       // Add CSS for animation if not present
       if (!document.getElementById('success-flash-style')) {
         const style = document.createElement('style');
@@ -1301,12 +1302,23 @@ function updateStatsInPlace(data) {
   if (progressFill) progressFill.style.width = pctDone + '%';
   if (progressText) progressText.textContent = `${progressCompleted}/${progressTotal}`;
 
-  // Update latency (always exists now)
-  const latencyEl = expandedPanel.querySelector('.stats-metric-sm .stats-metric-value');
-  if (latencyEl) {
-    const newDisplay = avgLatency > 0 ? `${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span>` : '—';
-    if (latencyEl.innerHTML !== newDisplay) {
-      latencyEl.innerHTML = newDisplay;
+  // Update latency - only show when we have data
+  let latencyMetric = expandedPanel.querySelector('.stats-metric-sm');
+  if (avgLatency > 0) {
+    const latencyDisplay = `${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span>`;
+    if (!latencyMetric) {
+      const leftContent = expandedPanel.querySelector('.stats-left-content');
+      if (leftContent) {
+        latencyMetric = document.createElement('div');
+        latencyMetric.className = 'stats-metric stats-metric-sm';
+        latencyMetric.innerHTML = `<span class="stats-metric-value">${latencyDisplay}</span><span class="stats-metric-label">avg latency</span>`;
+        leftContent.appendChild(latencyMetric);
+      }
+    } else {
+      const latencyEl = latencyMetric.querySelector('.stats-metric-value');
+      if (latencyEl && latencyEl.innerHTML !== latencyDisplay) {
+        latencyEl.innerHTML = latencyDisplay;
+      }
     }
   }
 
@@ -1359,23 +1371,30 @@ function updateStatsForFilters() {
     }
   }
 
-  // Update latency
-  const latencyMetric = expandedPanel.querySelector('.stats-metric-sm');
-  if (latencyMetric) {
-    const latencyEl = latencyMetric.querySelector('.stats-metric-value');
-    if (displayLatency > 0 && latencyEl) {
-      const newLatency = displayLatency.toFixed(2);
-      const newHtml = `${newLatency}<span class="stats-metric-unit">s</span>`;
-      if (latencyEl.innerHTML !== newHtml) {
+  // Update latency - only show when we have data
+  let latencyMetric = expandedPanel.querySelector('.stats-metric-sm');
+  if (displayLatency > 0) {
+    const latencyDisplay = `${displayLatency.toFixed(2)}<span class="stats-metric-unit">s</span>`;
+    if (!latencyMetric) {
+      const leftContent = expandedPanel.querySelector('.stats-left-content');
+      if (leftContent) {
+        latencyMetric = document.createElement('div');
+        latencyMetric.className = 'stats-metric stats-metric-sm';
+        latencyMetric.innerHTML = `<span class="stats-metric-value">${latencyDisplay}</span><span class="stats-metric-label">avg latency</span>`;
+        leftContent.appendChild(latencyMetric);
+      }
+    } else {
+      const latencyEl = latencyMetric.querySelector('.stats-metric-value');
+      if (latencyEl && latencyEl.innerHTML !== latencyDisplay) {
         latencyEl.classList.add('updating');
         setTimeout(() => {
-          latencyEl.innerHTML = newHtml;
+          latencyEl.innerHTML = latencyDisplay;
           latencyEl.classList.remove('updating');
         }, 100);
       }
     }
-    // Show/hide latency based on whether there are any
-    latencyMetric.style.display = displayLatency > 0 ? '' : 'none';
+  } else if (latencyMetric) {
+    latencyMetric.remove();
   }
 
   // Update bars
