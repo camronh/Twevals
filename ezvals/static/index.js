@@ -663,7 +663,7 @@ function setRunningState(running) {
     const progressContainer = document.querySelector('.stats-progress');
     if (progressContainer && progressFill && parseFloat(progressFill.style.width) >= 100) {
       // Flash success animation
-      progressContainer.innerHTML = `<span class="text-emerald-400 text-lg animate-success-flash">✓</span>`;
+      progressContainer.innerHTML = `<span class="text-emerald-400 text-lg animate-success-flash flex justify-center w-full">✓</span>`;
       // Add CSS for animation if not present
       if (!document.getElementById('success-flash-style')) {
         const style = document.createElement('style');
