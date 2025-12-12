@@ -86,6 +86,89 @@ function chipStats(chip, precision = 2) {
   return { pct, value: avg.toFixed(precision) };
 }
 
+function updateLatencyDisplay(expandedPanel, avgLatency, animate = false) {
+  let latencyMetric = expandedPanel.querySelector('.stats-metric-sm');
+  if (avgLatency > 0) {
+    const html = `${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span>`;
+    if (!latencyMetric) {
+      const leftContent = expandedPanel.querySelector('.stats-left-content');
+      if (leftContent) {
+        latencyMetric = document.createElement('div');
+        latencyMetric.className = 'stats-metric stats-metric-sm';
+        latencyMetric.innerHTML = `<span class="stats-metric-value">${html}</span><span class="stats-metric-label">avg latency</span>`;
+        leftContent.appendChild(latencyMetric);
+      }
+    } else {
+      const el = latencyMetric.querySelector('.stats-metric-value');
+      if (el && el.innerHTML !== html) {
+        if (animate) {
+          el.classList.add('updating');
+          setTimeout(() => { el.innerHTML = html; el.classList.remove('updating'); }, 100);
+        } else {
+          el.innerHTML = html;
+        }
+      }
+    }
+  } else if (latencyMetric) {
+    latencyMetric.remove();
+  }
+}
+
+function updateChartBars(expandedPanel, chips) {
+  const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
+  const labelsContainer = expandedPanel.querySelector('.stats-chart-labels');
+  const valuesContainer = expandedPanel.querySelector('.stats-chart-values');
+  if (!barsContainer || !labelsContainer || !valuesContainer) return;
+
+  const existingBars = barsContainer.querySelectorAll('.stats-bar-col');
+  const existingLabels = labelsContainer.querySelectorAll('.stats-chart-label');
+  const existingValues = valuesContainer.querySelectorAll('.stats-chart-value');
+
+  chips.forEach((chip, i) => {
+    const { pct, value } = chipStats(chip, 2);
+    const colorClass = getBarColor(pct);
+
+    if (existingBars[i]) {
+      const fill = existingBars[i].querySelector('.stats-chart-fill');
+      if (fill) { fill.style.height = pct + '%'; fill.className = 'stats-chart-fill ' + colorClass; }
+    } else {
+      const barCol = document.createElement('div');
+      barCol.className = 'stats-bar-col entering';
+      barCol.innerHTML = `<div class="stats-chart-fill ${colorClass}" style="height: 0%"></div>`;
+      barsContainer.appendChild(barCol);
+      requestAnimationFrame(() => { barCol.classList.remove('entering'); barCol.querySelector('.stats-chart-fill').style.height = pct + '%'; });
+    }
+
+    if (existingLabels[i]) {
+      existingLabels[i].textContent = chip.key;
+    } else {
+      const label = document.createElement('span');
+      label.className = 'stats-chart-label entering';
+      label.textContent = chip.key;
+      labelsContainer.appendChild(label);
+      requestAnimationFrame(() => label.classList.remove('entering'));
+    }
+
+    if (existingValues[i]) {
+      if (existingValues[i].textContent !== value) {
+        existingValues[i].classList.add('updating');
+        setTimeout(() => { existingValues[i].textContent = value; existingValues[i].classList.remove('updating'); }, 100);
+      }
+    } else {
+      const valSpan = document.createElement('span');
+      valSpan.className = 'stats-chart-value entering';
+      valSpan.textContent = value;
+      valuesContainer.appendChild(valSpan);
+      requestAnimationFrame(() => valSpan.classList.remove('entering'));
+    }
+  });
+
+  // Remove excess bars/labels/values with exit animation
+  for (let i = chips.length; i < existingBars.length; i++) { existingBars[i].classList.add('exiting'); setTimeout(() => existingBars[i].remove(), 400); }
+  for (let i = chips.length; i < existingLabels.length; i++) { existingLabels[i].classList.add('exiting'); setTimeout(() => existingLabels[i].remove(), 300); }
+  for (let i = chips.length; i < existingValues.length; i++) { existingValues[i].classList.add('exiting'); setTimeout(() => existingValues[i].remove(), 300); }
+}
+
 function computeFilteredStats() {
   const tbody = document.querySelector('#results-table tbody');
   if (!tbody) return null;
@@ -228,7 +311,7 @@ function renderStatsExpanded(data) {
     </div>`;
 }
 
-function renderStatsCompact(data) {
+function renderStatsCompact(data, hasFilters = false, filteredCount = null) {
   const stats = summarizeStats(data);
   const { total, avgLatency, chips, pctDone, progressPending, notStarted, sessionName, runName, progressCompleted, progressTotal } = stats;
 
@@ -258,7 +341,8 @@ function renderStatsCompact(data) {
   } else if (progressPending > 0) {
     progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${progressCompleted}/${progressTotal}</span></div>`;
   } else {
-    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span><span class="font-mono text-[11px] text-accent-link">${total}</span></div>`;
+    const testsDisplay = hasFilters && filteredCount != null ? `${filteredCount}/${total}` : String(total);
+    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span><span class="font-mono text-[11px] text-accent-link">${testsDisplay}</span></div>`;
   }
 
   let chipsHtml = '';
@@ -639,47 +723,13 @@ function setRunningState(running) {
   if (running) {
     progressBar?.classList.add('ring-2', 'ring-emerald-400/50', 'ring-offset-1', 'ring-offset-zinc-900');
     progressFill?.classList.add('progress-active');
-    // Add the CSS animation if not already present
-    if (!document.getElementById('progress-active-style')) {
-      const style = document.createElement('style');
-      style.id = 'progress-active-style';
-      style.textContent = `
-        .progress-active {
-          animation: progress-glow 1.5s ease-in-out infinite;
-          background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #10b981 100%);
-          background-size: 200% 100%;
-        }
-        @keyframes progress-glow {
-          0%, 100% { background-position: 0% 0; filter: brightness(1); }
-          50% { background-position: 100% 0; filter: brightness(1.3); }
-        }
-      `;
-      document.head.appendChild(style);
-    }
   } else {
     progressBar?.classList.remove('ring-2', 'ring-emerald-400/50', 'ring-offset-1', 'ring-offset-zinc-900');
     progressFill?.classList.remove('progress-active');
     // Show success animation if we were running (progress bar exists with fill at 100%)
     const progressContainer = document.querySelector('.stats-progress');
     if (progressContainer && progressFill && parseFloat(progressFill.style.width) >= 100) {
-      // Flash success animation
       progressContainer.innerHTML = `<span class="text-emerald-400 text-lg animate-success-flash flex justify-center w-full">✓</span>`;
-      // Add CSS for animation if not present
-      if (!document.getElementById('success-flash-style')) {
-        const style = document.createElement('style');
-        style.id = 'success-flash-style';
-        style.textContent = `
-          @keyframes success-flash {
-            0% { opacity: 0; transform: scale(0.8); }
-            20% { opacity: 1; transform: scale(1.1); }
-            40% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0; transform: scale(1); }
-          }
-          .animate-success-flash { animation: success-flash 2s ease-out forwards; }
-        `;
-        document.head.appendChild(style);
-      }
-      // Remove after animation completes
       setTimeout(() => progressContainer.remove(), 2000);
     }
   }
@@ -1218,77 +1268,7 @@ function updateStatsInPlace(data) {
   const computedStats = computeFilteredStats();
   const avgLatency = computedStats ? computedStats.avgLatency : stats.avgLatency;
 
-  // Update expanded panel bars in-place
-  const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
-  const labelsContainer = expandedPanel.querySelector('.stats-chart-labels');
-  const valuesContainer = expandedPanel.querySelector('.stats-chart-values');
-
-  if (barsContainer && labelsContainer && valuesContainer) {
-    const existingBars = barsContainer.querySelectorAll('.stats-bar-col');
-    const existingLabels = labelsContainer.querySelectorAll('.stats-chart-label');
-    const existingValues = valuesContainer.querySelectorAll('.stats-chart-value');
-
-    chips.forEach((chip, i) => {
-      const { pct, value } = chipStats(chip, 2);
-      const colorClass = getBarColor(pct);
-
-      if (existingBars[i]) {
-        // Update existing bar
-        const fill = existingBars[i].querySelector('.stats-chart-fill');
-        if (fill) {
-          fill.style.height = pct + '%';
-          fill.className = 'stats-chart-fill ' + colorClass;
-        }
-      } else {
-        // Add new bar with enter animation
-        const barCol = document.createElement('div');
-        barCol.className = 'stats-bar-col entering';
-        barCol.innerHTML = `<div class="stats-chart-fill ${colorClass}" style="height: 0%"></div>`;
-        barsContainer.appendChild(barCol);
-        requestAnimationFrame(() => {
-          barCol.classList.remove('entering');
-          barCol.querySelector('.stats-chart-fill').style.height = pct + '%';
-        });
-      }
-
-      if (existingLabels[i]) {
-        existingLabels[i].textContent = chip.key;
-      } else {
-        const label = document.createElement('span');
-        label.className = 'stats-chart-label entering';
-        label.textContent = chip.key;
-        labelsContainer.appendChild(label);
-        requestAnimationFrame(() => label.classList.remove('entering'));
-      }
-
-      if (existingValues[i]) {
-        if (existingValues[i].textContent !== value) {
-          existingValues[i].classList.add('updating');
-          setTimeout(() => {
-            existingValues[i].textContent = value;
-            existingValues[i].classList.remove('updating');
-          }, 75);
-        }
-      } else {
-        const valSpan = document.createElement('span');
-        valSpan.className = 'stats-chart-value';
-        valSpan.textContent = value;
-        valuesContainer.appendChild(valSpan);
-      }
-    });
-
-    // Remove excess bars/labels/values with exit animation
-    for (let i = chips.length; i < existingBars.length; i++) {
-      existingBars[i].classList.add('exiting');
-      setTimeout(() => existingBars[i].remove(), 400);
-    }
-    for (let i = chips.length; i < existingLabels.length; i++) {
-      existingLabels[i].remove();
-    }
-    for (let i = chips.length; i < existingValues.length; i++) {
-      existingValues[i].remove();
-    }
-  }
+  updateChartBars(expandedPanel, chips);
 
   // Update test count
   const testMetric = expandedPanel.querySelector('.stats-metric-value');
@@ -1302,25 +1282,7 @@ function updateStatsInPlace(data) {
   if (progressFill) progressFill.style.width = pctDone + '%';
   if (progressText) progressText.textContent = `${progressCompleted}/${progressTotal}`;
 
-  // Update latency - only show when we have data
-  let latencyMetric = expandedPanel.querySelector('.stats-metric-sm');
-  if (avgLatency > 0) {
-    const latencyDisplay = `${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span>`;
-    if (!latencyMetric) {
-      const leftContent = expandedPanel.querySelector('.stats-left-content');
-      if (leftContent) {
-        latencyMetric = document.createElement('div');
-        latencyMetric.className = 'stats-metric stats-metric-sm';
-        latencyMetric.innerHTML = `<span class="stats-metric-value">${latencyDisplay}</span><span class="stats-metric-label">avg latency</span>`;
-        leftContent.appendChild(latencyMetric);
-      }
-    } else {
-      const latencyEl = latencyMetric.querySelector('.stats-metric-value');
-      if (latencyEl && latencyEl.innerHTML !== latencyDisplay) {
-        latencyEl.innerHTML = latencyDisplay;
-      }
-    }
-  }
+  updateLatencyDisplay(expandedPanel, avgLatency);
 
   // Update compact bar (simpler, just re-render)
   const wasExpanded = !expandedPanel.classList.contains('hidden');
@@ -1371,104 +1333,8 @@ function updateStatsForFilters() {
     }
   }
 
-  // Update latency - only show when we have data
-  let latencyMetric = expandedPanel.querySelector('.stats-metric-sm');
-  if (displayLatency > 0) {
-    const latencyDisplay = `${displayLatency.toFixed(2)}<span class="stats-metric-unit">s</span>`;
-    if (!latencyMetric) {
-      const leftContent = expandedPanel.querySelector('.stats-left-content');
-      if (leftContent) {
-        latencyMetric = document.createElement('div');
-        latencyMetric.className = 'stats-metric stats-metric-sm';
-        latencyMetric.innerHTML = `<span class="stats-metric-value">${latencyDisplay}</span><span class="stats-metric-label">avg latency</span>`;
-        leftContent.appendChild(latencyMetric);
-      }
-    } else {
-      const latencyEl = latencyMetric.querySelector('.stats-metric-value');
-      if (latencyEl && latencyEl.innerHTML !== latencyDisplay) {
-        latencyEl.classList.add('updating');
-        setTimeout(() => {
-          latencyEl.innerHTML = latencyDisplay;
-          latencyEl.classList.remove('updating');
-        }, 100);
-      }
-    }
-  } else if (latencyMetric) {
-    latencyMetric.remove();
-  }
-
-  // Update bars
-  const barsContainer = expandedPanel.querySelector('.stats-chart-bars');
-  const labelsContainer = expandedPanel.querySelector('.stats-chart-labels');
-  const valuesContainer = expandedPanel.querySelector('.stats-chart-values');
-
-  if (barsContainer && labelsContainer && valuesContainer) {
-    const existingBars = barsContainer.querySelectorAll('.stats-bar-col');
-    const existingLabels = labelsContainer.querySelectorAll('.stats-chart-label');
-    const existingValues = valuesContainer.querySelectorAll('.stats-chart-value');
-
-    displayChips.forEach((chip, i) => {
-      const { pct, value } = chipStats(chip, 2);
-      const colorClass = getBarColor(pct);
-
-      if (existingBars[i]) {
-        const fill = existingBars[i].querySelector('.stats-chart-fill');
-        if (fill) {
-          fill.style.height = pct + '%';
-          fill.className = 'stats-chart-fill ' + colorClass;
-        }
-      } else {
-        const barCol = document.createElement('div');
-        barCol.className = 'stats-bar-col entering';
-        barCol.innerHTML = `<div class="stats-chart-fill ${colorClass}" style="height: 0%"></div>`;
-        barsContainer.appendChild(barCol);
-        requestAnimationFrame(() => {
-          barCol.classList.remove('entering');
-          barCol.querySelector('.stats-chart-fill').style.height = pct + '%';
-        });
-      }
-
-      if (existingLabels[i]) {
-        existingLabels[i].textContent = chip.key;
-      } else {
-        const label = document.createElement('span');
-        label.className = 'stats-chart-label entering';
-        label.textContent = chip.key;
-        labelsContainer.appendChild(label);
-        requestAnimationFrame(() => label.classList.remove('entering'));
-      }
-
-      if (existingValues[i]) {
-        if (existingValues[i].textContent !== value) {
-          existingValues[i].classList.add('updating');
-          setTimeout(() => {
-            existingValues[i].textContent = value;
-            existingValues[i].classList.remove('updating');
-          }, 100);
-        }
-      } else {
-        const valSpan = document.createElement('span');
-        valSpan.className = 'stats-chart-value entering';
-        valSpan.textContent = value;
-        valuesContainer.appendChild(valSpan);
-        requestAnimationFrame(() => valSpan.classList.remove('entering'));
-      }
-    });
-
-    // Remove excess bars with exit animation
-    for (let i = displayChips.length; i < existingBars.length; i++) {
-      existingBars[i].classList.add('exiting');
-      setTimeout(() => existingBars[i].remove(), 400);
-    }
-    for (let i = displayChips.length; i < existingLabels.length; i++) {
-      existingLabels[i].classList.add('exiting');
-      setTimeout(() => existingLabels[i].remove(), 300);
-    }
-    for (let i = displayChips.length; i < existingValues.length; i++) {
-      existingValues[i].classList.add('exiting');
-      setTimeout(() => existingValues[i].remove(), 300);
-    }
-  }
+  updateLatencyDisplay(expandedPanel, displayLatency, true);
+  updateChartBars(expandedPanel, displayChips);
 
   // Update compact bar - re-render with filtered stats
   const wasExpanded = !expandedPanel.classList.contains('hidden');
@@ -1481,7 +1347,7 @@ function updateStatsForFilters() {
     _hasFilters: hasFilters
   };
   const temp = document.createElement('div');
-  temp.innerHTML = renderStatsCompactFiltered(compactData, hasFilters, filtered, total);
+  temp.innerHTML = renderStatsCompact(compactData, hasFilters, filtered);
   const newCompact = temp.querySelector('#stats-compact');
   if (wasExpanded) {
     newCompact.classList.add('hidden');
@@ -1490,73 +1356,6 @@ function updateStatsForFilters() {
   }
   compactBar.replaceWith(newCompact);
   initStatsToggle();
-}
-
-function renderStatsCompactFiltered(data, hasFilters, filtered, total) {
-  const stats = summarizeStats(data);
-  const { avgLatency, chips, pctDone, progressPending, notStarted, sessionName, runName, progressCompleted, progressTotal } = stats;
-
-  let sessionRunHtml = '';
-  if (sessionName || runName) {
-    sessionRunHtml = '<div class="flex items-center gap-2">';
-    if (sessionName) {
-      sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Session</span>
-        <span id="session-name-text" class="copyable font-mono text-[11px] text-theme-text cursor-pointer hover:text-zinc-300">${escapeHtml(sessionName)}</span>`;
-    }
-    if (runName) {
-      if (sessionName) sessionRunHtml += '<span class="text-zinc-600">·</span>';
-      sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
-        <div class="group flex items-center gap-1">
-          <span id="run-name-text" class="copyable font-mono text-[11px] text-accent-link cursor-pointer hover:text-accent-link-hover">${escapeHtml(runName)}</span>
-          <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 transition hover:text-zinc-400" title="Rename run">
-            <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg>
-          </button>
-        </div>`;
-    }
-    sessionRunHtml += '</div><div class="h-3 w-px bg-zinc-700"></div>';
-  }
-
-  let progressHtml;
-  if (notStarted === total) {
-    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Discovered</span><span class="font-mono text-[11px] text-zinc-400">${total} eval${total !== 1 ? 's' : ''}</span></div>`;
-  } else if (progressPending > 0) {
-    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${progressCompleted}/${progressTotal}</span></div>`;
-  } else {
-    // Show filtered/total when filters active
-    const testsDisplay = hasFilters ? `${filtered}/${total}` : String(total);
-    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span><span class="font-mono text-[11px] text-accent-link">${testsDisplay}</span></div>`;
-  }
-
-  let chipsHtml = '';
-  chips.forEach((chip, i) => {
-    const { pct, value } = chipStats(chip, 1);
-    chipsHtml += `<div class="flex items-center gap-2">
-      <span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">${escapeHtml(chip.key)}</span>
-      <div class="h-1 w-5 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full ${getBgBarColor(pct)}" style="width: ${pct}%"></div></div>
-      <span class="font-mono text-[11px] ${getTextColor(pct)}">${value}</span>
-    </div>`;
-    if (i < chips.length - 1) chipsHtml += '<div class="h-3 w-px bg-zinc-700"></div>';
-  });
-
-  let latencyHtml = '';
-  if (avgLatency > 0) {
-    latencyHtml = `<div class="h-3 w-px bg-zinc-700"></div><div class="flex items-center gap-2"><span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">Latency</span><span class="font-mono text-[11px] text-zinc-400">${avgLatency.toFixed(2)}s</span></div>`;
-  }
-
-  const isCollapsed = localStorage.getItem(STATS_PREF_KEY) === 'false';
-  return `
-    <div id="stats-compact" class="mb-3 flex flex-wrap items-center gap-3 border-b border-theme-border bg-theme-bg-secondary/50 px-4 py-2${isCollapsed ? '' : ' hidden'}">
-      ${sessionRunHtml}
-      ${progressHtml}
-      <div class="h-3 w-px bg-zinc-700"></div>
-      ${chipsHtml}
-      ${latencyHtml}
-      <div class="ml-auto">
-        <button id="stats-expand-btn" class="stats-toggle-btn" title="Expand stats">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-chevron-down"></use></svg>
-        </button>
-      </div>
-    </div>`;
 }
 
 (function wireSettingsModal() {
