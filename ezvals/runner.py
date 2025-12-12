@@ -55,25 +55,16 @@ class EvalRunner:
     def _map_example_to_context(self, example) -> Dict[str, Any]:
         """Map a loader example (dict or object) to EvalContext fields."""
         result = {}
+        keys = ('input', 'reference', 'metadata', 'dataset', 'labels')
 
         if isinstance(example, dict):
-            if 'input' in example:
-                result['input'] = example['input']
-
-            if 'reference' in example:
-                result['reference'] = example['reference']
-
-            if 'metadata' in example:
-                result['metadata'] = example['metadata']
+            for key in keys:
+                if key in example:
+                    result[key] = example[key]
         else:
-            if hasattr(example, 'input'):
-                result['input'] = example.input
-
-            if hasattr(example, 'reference'):
-                result['reference'] = example.reference
-
-            if hasattr(example, 'metadata'):
-                result['metadata'] = example.metadata
+            for key in keys:
+                if hasattr(example, key):
+                    result[key] = getattr(example, key)
 
         return result
 
@@ -91,10 +82,17 @@ class EvalRunner:
 
         wrapper.__name__ = wrapper.__qualname__ = func_name
 
+        # Dataset: per-case overrides template
+        dataset = context_kwargs.get('dataset') or template.dataset
+        # Labels: merge template + per-case (avoid duplicates)
+        base_labels = list(template.labels or [])
+        per_case_labels = context_kwargs.get('labels') or []
+        labels = base_labels + [l for l in per_case_labels if l not in base_labels] or None
+
         return EvalFunction(
             func=wrapper,
-            dataset=template.dataset,
-            labels=template.labels,
+            dataset=dataset,
+            labels=labels,
             evaluators=template.evaluators,
             target=template.target,
             input=context_kwargs.get('input'),

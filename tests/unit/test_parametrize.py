@@ -311,3 +311,43 @@ def test_normal():
         funcs = generate_eval_functions(test_func)
         assert len(funcs) == 1
         assert funcs[0]().output == 84
+
+    def test_per_case_dataset_overrides(self):
+        """Per-case dataset should override decorator dataset"""
+        @eval(dataset="default_ds")
+        @parametrize("input,dataset", [
+            ("a", "custom_ds"),
+            ("b", None),
+        ])
+        def test_func(ctx: EvalContext):
+            return ctx.build()
+
+        funcs = generate_eval_functions(test_func)
+        assert funcs[0].dataset == "custom_ds"
+        assert funcs[1].dataset == "default_ds"
+
+    def test_per_case_labels_merge(self):
+        """Per-case labels should merge with decorator labels"""
+        @eval(labels=["base"])
+        @parametrize("input,labels", [
+            ("a", ["extra"]),
+            ("b", None),
+        ])
+        def test_func(ctx: EvalContext):
+            return ctx.build()
+
+        funcs = generate_eval_functions(test_func)
+        assert funcs[0].labels == ["base", "extra"]
+        assert funcs[1].labels == ["base"]
+
+    def test_per_case_labels_no_duplicates(self):
+        """Per-case labels should not duplicate existing labels"""
+        @eval(labels=["base", "shared"])
+        @parametrize("input,labels", [
+            ("a", ["shared", "new"]),
+        ])
+        def test_func(ctx: EvalContext):
+            return ctx.build()
+
+        funcs = generate_eval_functions(test_func)
+        assert funcs[0].labels == ["base", "shared", "new"]

@@ -15,7 +15,7 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
 
     sig = inspect.signature(base_func)
     has_context = any(p.annotation is EvalContext for p in sig.parameters.values())
-    context_field_names = {'input', 'output', 'reference', 'metadata', 'trace_data', 'latency'}
+    context_field_names = {'input', 'output', 'reference', 'metadata', 'trace_data', 'latency', 'dataset', 'labels'}
     is_async = inspect.iscoroutinefunction(base_func)
 
     functions = []
@@ -62,10 +62,17 @@ def generate_eval_functions(func: Callable) -> List[EvalFunction]:
             if m:
                 merged_metadata.update(m)
 
+        # Dataset: per-case overrides decorator
+        dataset = context_kwargs.get('dataset') or (eval_settings.dataset if eval_settings else None)
+        # Labels: merge decorator + per-case (avoid duplicates)
+        base_labels = list(eval_settings.labels or []) if eval_settings else []
+        per_case_labels = context_kwargs.get('labels') or []
+        labels = base_labels + [l for l in per_case_labels if l not in base_labels] or None
+
         eval_func = EvalFunction(
             func=wrapper,
-            dataset=eval_settings.dataset if eval_settings else None,
-            labels=eval_settings.labels if eval_settings else None,
+            dataset=dataset,
+            labels=labels,
             evaluators=eval_settings.evaluators if eval_settings else None,
             target=eval_settings.target if eval_settings else None,
             input=default_input or (eval_settings.context_kwargs.get('input') if eval_settings else context_kwargs.get('input')),

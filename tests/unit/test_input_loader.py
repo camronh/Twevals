@@ -274,3 +274,68 @@ def test_func(ctx: EvalContext):
         result = summary["results"][0]["result"]
         assert result["metadata"]["model"] == "gpt-4"
         assert result["metadata"]["temp"] == 0.7
+
+    def test_per_case_dataset_overrides(self, tmp_path):
+        """Per-case dataset from loader should override decorator dataset"""
+        test_file = tmp_path / "test_dataset_override.py"
+        test_file.write_text("""
+from ezvals import eval, EvalContext
+
+def my_loader():
+    return [
+        {"input": "a", "dataset": "custom_ds"},
+        {"input": "b"},
+    ]
+
+@eval(dataset="default_ds", input_loader=my_loader)
+def test_func(ctx: EvalContext):
+    ctx.output = ctx.input
+""")
+
+        runner = EvalRunner(concurrency=1)
+        summary = runner.run(str(test_file))
+
+        assert summary["results"][0]["dataset"] == "custom_ds"
+        assert summary["results"][1]["dataset"] == "default_ds"
+
+    def test_per_case_labels_merge(self, tmp_path):
+        """Per-case labels from loader should merge with decorator labels"""
+        test_file = tmp_path / "test_labels_merge.py"
+        test_file.write_text("""
+from ezvals import eval, EvalContext
+
+def my_loader():
+    return [
+        {"input": "a", "labels": ["extra"]},
+        {"input": "b"},
+    ]
+
+@eval(labels=["base"], input_loader=my_loader)
+def test_func(ctx: EvalContext):
+    ctx.output = ctx.input
+""")
+
+        runner = EvalRunner(concurrency=1)
+        summary = runner.run(str(test_file))
+
+        assert summary["results"][0]["labels"] == ["base", "extra"]
+        assert summary["results"][1]["labels"] == ["base"]
+
+    def test_per_case_labels_no_duplicates(self, tmp_path):
+        """Per-case labels should not duplicate existing labels"""
+        test_file = tmp_path / "test_labels_no_dups.py"
+        test_file.write_text("""
+from ezvals import eval, EvalContext
+
+def my_loader():
+    return [{"input": "a", "labels": ["base", "new"]}]
+
+@eval(labels=["base"], input_loader=my_loader)
+def test_func(ctx: EvalContext):
+    ctx.output = ctx.input
+""")
+
+        runner = EvalRunner(concurrency=1)
+        summary = runner.run(str(test_file))
+
+        assert summary["results"][0]["labels"] == ["base", "new"]
