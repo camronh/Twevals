@@ -141,3 +141,50 @@ class TestEvalDiscovery:
         # Alphabetical would be: async_fixture_function, test_fixture_function, test_no_params
         func_names = [f.func.__name__ for f in functions]
         assert func_names == ["test_fixture_function", "async_fixture_function", "test_no_params"]
+
+    def test_hot_reload_picks_up_module_changes(self):
+        """Test that re-discovering picks up changes to imported modules (hot reload)"""
+        # Create a temp directory with an eval file that imports a target module
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target_path = Path(tmpdir) / "target_module.py"
+            eval_path = Path(tmpdir) / "my_eval.py"
+
+            # Write initial target module that returns "v1"
+            target_path.write_text('''
+def get_version():
+    return "v1"
+''')
+
+            # Write eval file that imports and uses the target module
+            eval_path.write_text('''
+from ezvals import eval, EvalContext
+from target_module import get_version
+
+@eval()
+def version_check(ctx: EvalContext):
+    ctx.output = get_version()
+''')
+
+            # First discovery - should get "v1"
+            discovery1 = EvalDiscovery()
+            functions1 = discovery1.discover(str(eval_path))
+            assert len(functions1) == 1
+
+            # Run the function to verify it returns v1
+            result1 = functions1[0]()
+            assert result1.output == "v1"
+
+            # Modify the target module to return "v2"
+            target_path.write_text('''
+def get_version():
+    return "v2"
+''')
+
+            # Re-discover - should pick up the change due to module cache clearing
+            discovery2 = EvalDiscovery()
+            functions2 = discovery2.discover(str(eval_path))
+            assert len(functions2) == 1
+
+            # Run the function to verify it now returns v2 (hot reload worked)
+            result2 = functions2[0]()
+            assert result2.output == "v2", "Hot reload failed - expected v2 but got v1"

@@ -16,12 +16,22 @@ def _clear_project_modules(directory: Path) -> None:
     This enables hot-reloading: when a target module is edited and evals are rerun,
     the updated code is picked up instead of serving stale cached imports.
     """
-    dir_str = str(directory.absolute())
+    # Resolve symlinks to handle macOS /var -> /private/var etc
+    dir_resolved = str(directory.resolve())
+    # Ensure trailing separator for proper path matching (avoid /tmp/foo matching /tmp/foobar)
+    if not dir_resolved.endswith(os.sep):
+        dir_resolved += os.sep
     to_remove = []
     for name, mod in sys.modules.items():
         mod_file = getattr(mod, '__file__', None)
-        if mod_file and mod_file.startswith(dir_str):
-            to_remove.append(name)
+        if mod_file:
+            try:
+                mod_file_resolved = str(Path(mod_file).resolve())
+                # Check if module file is under the directory
+                if mod_file_resolved.startswith(dir_resolved):
+                    to_remove.append(name)
+            except (OSError, ValueError):
+                pass
 
     for name in to_remove:
         del sys.modules[name]

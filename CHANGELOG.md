@@ -2,6 +2,14 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Added: Run dropdown selector to switch between past runs in the same session. Dropdown appears when 2+ runs exist.
+- Added: Activate run endpoint `POST /api/runs/{run_id}/activate` to switch the active run being viewed.
+- Changed: Stats bar chart values now show stacked format—percentage prominent on top, ratio smaller below (e.g., "87%" over "54/62").
+- Fixed: Progress bar now uses CSS variable `--progress-bar-bg` for proper light/dark mode theming.
+- Fixed: Edit run name button now works when dropdown is shown (hides dropdown, shows input).
+
 ## 0.0.2a17 - 2025-12-16
 
 - Added: Per-case `dataset` and `labels` support via `@parametrize` and `input_loader`. Dataset overrides function-level; labels merge (no duplicates).

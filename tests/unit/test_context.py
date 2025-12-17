@@ -452,3 +452,89 @@ class TestContextParameterNames:
 
         result = test_func()
         assert result.input == "test"
+
+
+class TestRunMetadata:
+    """Test run and eval metadata fields on EvalContext"""
+
+    def test_context_has_run_metadata_fields(self):
+        """Test EvalContext accepts run-level metadata fields"""
+        ctx = EvalContext(
+            run_id="12345",
+            session_name="test-session",
+            run_name="baseline-run",
+            eval_path="evals/my_eval.py",
+        )
+
+        assert ctx.run_id == "12345"
+        assert ctx.session_name == "test-session"
+        assert ctx.run_name == "baseline-run"
+        assert ctx.eval_path == "evals/my_eval.py"
+
+    def test_context_has_per_eval_metadata_fields(self):
+        """Test EvalContext accepts per-eval metadata fields"""
+        ctx = EvalContext(
+            function_name="test_eval",
+            dataset="customer_service",
+            labels=["production", "v2"],
+        )
+
+        assert ctx.function_name == "test_eval"
+        assert ctx.dataset == "customer_service"
+        assert ctx.labels == ["production", "v2"]
+
+    def test_context_metadata_defaults_to_none(self):
+        """Test run metadata fields default to None"""
+        ctx = EvalContext()
+
+        assert ctx.run_id is None
+        assert ctx.session_name is None
+        assert ctx.run_name is None
+        assert ctx.eval_path is None
+        assert ctx.function_name is None
+        assert ctx.dataset is None
+        assert ctx.labels is None
+
+
+class TestRunMetadataInjection:
+    """Test that run_metadata_var ContextVar is injected into context"""
+
+    def test_decorator_injects_per_eval_metadata(self):
+        """Test that decorator injects function_name, dataset, labels into context"""
+
+        @eval(dataset="my_dataset", labels=["label1", "label2"], default_score_key="test")
+        def my_test_eval(ctx: EvalContext):
+            # Per-eval metadata should be injected
+            assert ctx.function_name == "my_test_eval"
+            assert ctx.dataset == "my_dataset"
+            assert ctx.labels == ["label1", "label2"]
+            ctx.store(scores=True)
+
+        result = my_test_eval()
+        assert isinstance(result, EvalResult)
+
+    def test_run_metadata_var_injection(self):
+        """Test that run_metadata_var ContextVar values are injected into context"""
+        from ezvals.decorators import run_metadata_var
+
+        @eval(default_score_key="test")
+        def test_func(ctx: EvalContext):
+            assert ctx.run_id == "test-run-123"
+            assert ctx.session_name == "test-session"
+            assert ctx.run_name == "my-run"
+            assert ctx.eval_path == "evals/"
+            ctx.store(scores=True)
+
+        # Set the context var
+        token = run_metadata_var.set({
+            "run_id": "test-run-123",
+            "session_name": "test-session",
+            "run_name": "my-run",
+            "eval_path": "evals/",
+        })
+
+        try:
+            result = test_func()
+            assert isinstance(result, EvalResult)
+        finally:
+            run_metadata_var.reset(token)

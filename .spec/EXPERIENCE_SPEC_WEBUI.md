@@ -239,21 +239,33 @@ Scenario: Switch session
 
 ### Run Selector
 
-```gherkin
-Scenario: View runs in session
-  Given a session is selected
-  When the user clicks the run dropdown
-  Then all runs in that session are listed
-  And each shows: run_name and timestamp
-  And runs are sorted newest-first
+The run selector displays as a dropdown when multiple runs exist in the session, otherwise as plain text.
 
-Scenario: Switch run
+```gherkin
+Scenario: Single run in session
+  Given only one run exists in the current session
+  When the user views the run name in the stats bar
+  Then it displays as plain text (not a dropdown)
+  And the pencil edit icon is shown next to it
+
+Scenario: Multiple runs in session (dropdown)
+  Given two or more runs exist in the current session
+  When the user views the run name in the stats bar
+  Then it displays as a dropdown selector
+  And each option shows: run_name and formatted timestamp (e.g., "run-one (Dec 17, 9:52 AM)")
+  And runs are sorted newest-first
+  And the pencil edit icon is shown next to the dropdown
+
+Scenario: Switch run via dropdown
+  Given the run dropdown is visible
   When the user selects a different run
   Then that run's results load in the table
+  And the dropdown updates to show the new selection
 
 Scenario: Rename run via inline editing
   When the user clicks the pencil icon next to the run name in the stats bar
   Then the run name becomes an editable text field
+  And if a dropdown was shown, it hides and the input appears in its place
   And pressing Enter or clicking the checkmark saves the new name
   And pressing Escape or clicking outside cancels the edit
   And the filename and JSON metadata update on save
@@ -274,15 +286,24 @@ Scenario: Delete run
 
 ## Stats Bar
 
-The top stats bar shows:
+The top stats bar shows session/run info, test counts, and score breakdown.
 
+### Expanded View (default)
+
+Shows a bar chart with score breakdown:
+- Each score key has a colored bar (green ≥80%, amber ≥50%, red <50%)
+- Below each bar: percentage prominent on top, ratio smaller below
+  - Example: "87%" on first line, "54/62" smaller below
+- Left side shows: session name, run name (dropdown if multiple runs), test count, avg latency
+
+### Compact View
+
+Single-line format with inline score chips:
 ```
-SESSION {name} · RUN {name} | TESTS {n} | PASSED {n}/{total} | ERRORS {n} | AVG LATENCY {n}s
+SESSION {name} · RUN {name} | TESTS {n} | {score_key}: {pct}% ({n}/{total}) | AVG LATENCY {n}s
 ```
 
-Plus per-score-key chips:
-- For boolean scores: `{key}: {passed}/{total}`
-- For numeric scores: `{key}: {avg} avg`
+Toggle between views with collapse/expand button.
 
 ### Dynamic Stats
 
@@ -396,6 +417,7 @@ The UI is backed by these REST endpoints, also available programmatically.
 | `/api/sessions/{name}` | DELETE | Delete entire session and all runs |
 | `/api/runs/{run_id}` | PATCH | Update run metadata (rename updates filename) |
 | `/api/runs/{run_id}` | DELETE | Delete specific run |
+| `/api/runs/{run_id}/activate` | POST | Switch active run to view/edit a different run |
 | `/api/runs/new` | POST | Create new run (no overwrite) |
 
 ### Configuration
