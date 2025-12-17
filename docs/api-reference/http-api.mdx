@@ -211,6 +211,24 @@ Delete a session and all its runs.
 {"ok": true}
 ```
 
+### `POST /api/runs/{run_id}/activate`
+
+Switch the active run being viewed.
+
+**Response:**
+
+```json
+{"ok": true}
+```
+
+### `GET /api/runs/{run_id}/data`
+
+Get run data without changing the active run. Used for comparison mode.
+
+**Response:**
+
+Same structure as `GET /results` but for the specified run.
+
 ## Configuration
 
 ### GET /api/config
