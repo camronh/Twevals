@@ -1085,22 +1085,48 @@ document.addEventListener('click', async (e) => {
   } catch { /* ignore */ }
 });
 
-// Edit run name inline (works for both compact and expanded views)
+// Edit run name inline (works for both compact and expanded views, with or without dropdown)
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.edit-run-btn') || e.target.closest('.edit-run-btn-expanded');
   if (!btn) return;
   const isExpanded = btn.classList.contains('edit-run-btn-expanded');
-  const span = document.getElementById(isExpanded ? 'run-name-expanded' : 'run-name-text');
-  if (!span || span.querySelector('input')) return;
-  const originalText = span.textContent;
+
+  // Find the target element - could be a span or a dropdown
+  let span = document.getElementById(isExpanded ? 'run-name-expanded' : 'run-name-text');
+  const dropdown = document.getElementById(isExpanded ? 'run-dropdown-expanded' : 'run-dropdown-compact');
+
+  // If there's already an input being edited, bail
+  if (span && span.querySelector('input')) return;
+  if (btn.parentElement.querySelector('input.run-name-edit')) return;
+
+  // Get original text from span or dropdown
+  let originalText;
+  if (span) {
+    originalText = span.textContent;
+  } else if (dropdown) {
+    // Extract run name from dropdown (format: "run-name (timestamp)")
+    const selectedText = dropdown.options[dropdown.selectedIndex]?.text || '';
+    originalText = selectedText.replace(/\s*\([^)]+\)\s*$/, '').trim();
+  } else {
+    return;
+  }
+
   const input = document.createElement('input');
   input.type = 'text';
   input.value = originalText;
-  input.className = isExpanded
+  input.className = (isExpanded
     ? 'font-mono text-sm bg-zinc-800 border border-zinc-600 rounded px-1 w-28 text-white outline-none focus:border-zinc-500'
-    : 'font-mono text-[11px] bg-zinc-800 border border-zinc-600 rounded px-1 w-24 text-accent-link outline-none focus:border-zinc-500';
-  span.textContent = '';
-  span.appendChild(input);
+    : 'font-mono text-[11px] bg-zinc-800 border border-zinc-600 rounded px-1 w-24 text-accent-link outline-none focus:border-zinc-500') + ' run-name-edit';
+
+  if (span) {
+    span.textContent = '';
+    span.appendChild(input);
+  } else if (dropdown) {
+    // Hide dropdown and insert input in its place
+    dropdown.style.display = 'none';
+    dropdown.parentElement.insertBefore(input, dropdown);
+  }
+
   input.focus();
   input.select();
   // Turn pencil into checkmark
