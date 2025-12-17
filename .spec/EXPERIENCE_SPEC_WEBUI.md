@@ -27,6 +27,16 @@ Scenario: View discovered evaluations
   And status is "not_started" for all rows
 ```
 
+### Table Sorting
+
+```gherkin
+Scenario: Sort by scores column
+  Given results are displayed in the table
+  When the user clicks the Scores column header
+  Then rows sort by aggregate score (pass ratio or average value)
+  And clicking again reverses the sort order
+```
+
 ### Run Button (GitHub-style Split Button)
 
 The Run button is context-aware with a split-button design like GitHub's "Create pull request" button.
@@ -241,11 +251,17 @@ Scenario: Switch run
   When the user selects a different run
   Then that run's results load in the table
 
-Scenario: Rename run
-  When the user right-clicks a run or uses the rename option
-  Then a prompt appears for the new name
-  And the filename and JSON metadata update
-  And the dropdown refreshes
+Scenario: Rename run via inline editing
+  When the user clicks the pencil icon next to the run name in the stats bar
+  Then the run name becomes an editable text field
+  And pressing Enter or clicking the checkmark saves the new name
+  And pressing Escape or clicking outside cancels the edit
+  And the filename and JSON metadata update on save
+
+Scenario: Copy session/run name
+  When the user clicks on the session or run name in the stats bar
+  Then the name is copied to the clipboard
+  And a "Copied!" tooltip appears briefly
 
 Scenario: Delete run
   When the user clicks delete on a run
@@ -267,6 +283,17 @@ SESSION {name} · RUN {name} | TESTS {n} | PASSED {n}/{total} | ERRORS {n} | AVG
 Plus per-score-key chips:
 - For boolean scores: `{key}: {passed}/{total}`
 - For numeric scores: `{key}: {avg} avg`
+
+### Dynamic Stats
+
+```gherkin
+Scenario: Stats update with filters
+  Given filters or search are active
+  When rows are filtered
+  Then stats bar shows "filtered/total" format (e.g., "TESTS 5/20")
+  And latency and score chips calculate from visible rows only
+  And chips show actual filtered counts, not original totals
+```
 
 ---
 

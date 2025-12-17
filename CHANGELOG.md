@@ -7,11 +7,20 @@ All notable changes to this project will be documented in this file.
 - Added: Per-case `dataset` and `labels` support via `@parametrize` and `input_loader`. Dataset overrides function-level; labels merge (no duplicates).
 - Added: `input_loader` parameter on `@eval` decorator for dynamic data loading from external sources (databases, APIs like LangSmith). Loader is called lazily at eval time, each example becomes a separate eval run.
 - Added: Load previous runs with `ezvals serve path/to/run.json`. Opens UI with that run loaded; rerun enabled if source eval file exists, view-only mode if not.
+- Added: HTTP API reference documentation for building custom UIs and integrations.
+- Added: Inline run name editing—click pencil icon in stats bar to rename runs. Enter or checkmark saves, Escape or blur cancels.
+- Added: Click-to-copy on session/run names with "Copied!" tooltip feedback.
 - Changed: Stats panel now dynamically updates when filters/search are active. Shows "filtered/total" format for test count, with latency and score chips calculated from visible rows only.
 - Changed: Removed separate filtered summary bar—main stats panel now serves as single source of truth for all statistics.
+- Changed: Scores column is now sortable in the results table.
+- Fixed: Sticky header no longer overlaps content when scrolling.
+- Fixed: Progress bar uses subtle animation instead of shimmer effect.
+- Fixed: Latency display now shows correct values for filtered results.
+- Fixed: Detail page correctly displays reference values and trace URLs.
 - Tests: Added unit tests for input_loader functionality.
 - Tests: Updated E2E filter test to verify new dynamic stats behavior.
 - Tests: Added integration tests for loading previous run JSON files.
+- Tests: Added E2E tests for run rename feature and UI fixes.
 
 ## 0.0.2a9 - 2025-12-06
 
