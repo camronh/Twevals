@@ -115,12 +115,9 @@ function formatRunTimestamp(ts) {
 
 function renderRunDropdown(currentRunId, id, className) {
   if (_sessionRuns.length <= 1) return '';
-  const options = _sessionRuns.map(r => {
-    const sel = r.run_id === currentRunId ? ' selected' : '';
-    const label = `${r.run_name || r.run_id} (${formatRunTimestamp(r.timestamp)})`;
-    return `<option value="${r.run_id}"${sel}>${escapeHtml(label)}</option>`;
-  }).join('');
-  return `<select id="${id}" class="${className}" onchange="activateRun(this.value)">${options}</select>`;
+  const current = _sessionRuns.find(r => r.run_id === currentRunId);
+  const label = current ? `${current.run_name || current.run_id} (${formatRunTimestamp(current.timestamp)})` : currentRunId;
+  return `<button id="${id}" class="${className} run-dropdown-btn" data-run-id="${currentRunId}">${escapeHtml(label)} <span class="dropdown-arrow">▾</span></button>`;
 }
 
 const PILL_TONES = {
@@ -839,11 +836,13 @@ function renderResultsTableComparison() {
         const errorHtml = result.error ? `<div class="text-[10px] text-accent-error truncate" title="${escapeHtml(result.error)}">Error: ${escapeHtml(result.error.split('\\n')[0])}</div>` : '';
 
         rowsHtml += `
-          <td data-col="output-${run.runId}" class="px-3 py-3 align-middle comparison-output-cell" style="border-left: 2px solid ${run.color}20">
-            <div class="space-y-2">
-              <div class="line-clamp-3 text-[12px] text-theme-text">${outputText}</div>
-              ${errorHtml}
-              <div class="flex flex-wrap gap-1">${scoreBadges}</div>
+          <td data-col="output-${run.runId}" class="px-3 py-3 comparison-output-cell" style="border-left: 2px solid ${run.color}20">
+            <div class="comparison-output-content">
+              <div>
+                <div class="line-clamp-3 text-[12px] text-theme-text">${outputText}</div>
+                ${errorHtml}
+              </div>
+              <div class="flex flex-wrap gap-1 mt-2">${scoreBadges}</div>
             </div>
           </td>
         `;
@@ -888,6 +887,50 @@ function onResultsRendered() {
   initStatsToggle();
   animateInitialBars();
   initComparisonHandlers();
+}
+
+function showRunsDropdown(anchorEl, currentRunId) {
+  // Remove any existing dropdown
+  document.querySelector('.compare-dropdown')?.remove();
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'compare-dropdown';
+
+  // Render all runs with current one marked
+  const options = _sessionRuns.map(r => {
+    const isCurrent = r.run_id === currentRunId;
+    return `<button class="compare-option${isCurrent ? ' current-run' : ''}" data-run-id="${r.run_id}">${escapeHtml(r.run_name || r.run_id)} <span class="text-zinc-500">(${formatRunTimestamp(r.timestamp)})</span></button>`;
+  }).join('');
+  dropdown.innerHTML = options;
+
+  // Position relative to anchor
+  const rect = anchorEl.getBoundingClientRect();
+  dropdown.style.position = 'fixed';
+  dropdown.style.top = `${rect.bottom + 4}px`;
+  dropdown.style.left = `${rect.left}px`;
+
+  document.body.appendChild(dropdown);
+
+  // Handle selection
+  dropdown.addEventListener('click', (e) => {
+    const option = e.target.closest('.compare-option');
+    if (option) {
+      const runId = option.dataset.runId;
+      if (runId !== currentRunId) {
+        activateRun(runId);
+      }
+      dropdown.remove();
+    }
+  });
+
+  // Close on click outside
+  const closeHandler = (e) => {
+    if (!dropdown.contains(e.target) && e.target !== anchorEl) {
+      dropdown.remove();
+      document.removeEventListener('click', closeHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeHandler), 0);
 }
 
 function showCompareDropdown(anchorEl) {
@@ -939,6 +982,15 @@ function showCompareDropdown(anchorEl) {
 }
 
 function initComparisonHandlers() {
+  // Run dropdown buttons (custom dropdowns replacing native select)
+  document.querySelectorAll('.run-dropdown-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentRunId = btn.dataset.runId;
+      showRunsDropdown(btn, currentRunId);
+    });
+  });
+
   // +Compare button
   const addCompareBtn = document.getElementById('add-compare-btn');
   addCompareBtn?.addEventListener('click', (e) => {
