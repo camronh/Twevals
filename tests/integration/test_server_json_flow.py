@@ -424,12 +424,23 @@ def test_list_session_runs_endpoint(tmp_path: Path):
 def test_activate_run_endpoint(tmp_path: Path):
     """POST /api/runs/{run_id}/activate switches the active run"""
     store = ResultsStore(tmp_path / "runs")
-    run_id_1 = store.save_run(make_summary(), session_name="test-session", run_name="run-one")
-    run_id_2 = store.save_run(make_summary(), session_name="test-session", run_name="run-two")
+    eval_1 = tmp_path / "eval_1.py"
+    eval_2 = tmp_path / "eval_2.py"
+    eval_1.write_text("# eval 1")
+    eval_2.write_text("# eval 2")
+
+    summary_1 = make_summary()
+    summary_1["path"] = str(eval_1)
+    run_id_1 = store.save_run(summary_1, run_id="1111", session_name="test-session", run_name="run-one")
+
+    summary_2 = make_summary()
+    summary_2["path"] = str(eval_2)
+    run_id_2 = store.save_run(summary_2, run_id="2222", session_name="test-session", run_name="run-two")
 
     app = create_app(
         results_dir=str(tmp_path / "runs"),
         active_run_id=run_id_1,
+        path=str(eval_1),
         session_name="test-session",
         run_name="run-one",
     )
@@ -438,6 +449,7 @@ def test_activate_run_endpoint(tmp_path: Path):
     # Verify initial active run
     assert app.state.active_run_id == run_id_1
     assert app.state.run_name == "run-one"
+    assert app.state.path == str(eval_1)
 
     # Activate the second run
     response = client.post(f"/api/runs/{run_id_2}/activate")
@@ -450,6 +462,7 @@ def test_activate_run_endpoint(tmp_path: Path):
     # Verify state was updated
     assert app.state.active_run_id == run_id_2
     assert app.state.run_name == "run-two"
+    assert app.state.path == str(eval_2)
 
 
 def test_activate_run_not_found(tmp_path: Path):

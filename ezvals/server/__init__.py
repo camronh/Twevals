@@ -158,6 +158,9 @@ def create_app(
         summary = EvalRunner._calculate_summary(current_results)
         summary["results"] = current_results
         summary["path"] = app.state.path
+        summary["dataset"] = app.state.dataset
+        summary["labels"] = app.state.labels
+        summary["function_name"] = app.state.function_name
         run_store.save_run(summary, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name, overwrite=overwrite)
 
         def _persist():
@@ -166,6 +169,9 @@ def create_app(
             s = EvalRunner._calculate_summary(current_results)
             s["results"] = current_results
             s["path"] = app.state.path
+            s["dataset"] = app.state.dataset
+            s["labels"] = app.state.labels
+            s["function_name"] = app.state.function_name
             run_store.save_run(s, run_id=run_id, session_name=app.state.session_name, run_name=app.state.run_name)
 
         def _on_start(func: EvalFunction):
@@ -562,6 +568,14 @@ def create_app(
             app.state.active_run_id = run_id
             app.state.run_name = data.get("run_name", run_id)
             app.state.session_name = data.get("session_name", app.state.session_name)
+            # Sync rerun configuration to the selected run to keep "Rerun/New Run" aligned.
+            app.state.path = data.get("path")
+            if "dataset" in data:
+                app.state.dataset = data.get("dataset")
+            if "labels" in data:
+                app.state.labels = data.get("labels")
+            if "function_name" in data:
+                app.state.function_name = data.get("function_name")
             return {"ok": True, "run_id": run_id, "run_name": app.state.run_name}
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Run not found")

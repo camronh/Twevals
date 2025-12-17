@@ -187,7 +187,8 @@ function updateChartBars(expandedPanel, chips) {
     const valueHtml = `<span class="stats-pct">${pct}%</span><span class="stats-ratio">${value}</span>`;
     if (existingValues[i]) {
       const currentPct = existingValues[i].querySelector('.stats-pct')?.textContent;
-      if (currentPct !== `${pct}%`) {
+      const currentRatio = existingValues[i].querySelector('.stats-ratio')?.textContent;
+      if (currentPct !== `${pct}%` || currentRatio !== value) {
         existingValues[i].classList.add('updating');
         setTimeout(() => { existingValues[i].innerHTML = valueHtml; existingValues[i].classList.remove('updating'); }, 100);
       }
