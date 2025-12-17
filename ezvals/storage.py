@@ -4,6 +4,7 @@ import json
 import os
 import random
 import re
+import secrets
 import shutil
 import tempfile
 import time
@@ -69,8 +70,8 @@ class ResultsStore:
         self._run_id_cache: dict[str, tuple[str, str]] = {}
 
     def generate_run_id(self) -> str:
-        """Generate a run ID using Unix timestamp."""
-        return str(int(time.time()))
+        """Generate a random 8-character hex run ID."""
+        return secrets.token_hex(4)
 
     def _session_dir(self, session_name: str) -> Path:
         """Get path to session directory."""
@@ -162,6 +163,7 @@ class ResultsStore:
             "session_name": sess,
             "run_name": rname,
             "run_id": rid,
+            "created_at": int(time.time()),
             **summary,
         }
         _atomic_write_json(path, summary)
@@ -204,19 +206,20 @@ class ResultsStore:
         return sorted(sessions)
 
     def list_runs(self) -> list[str]:
-        """Return all run_ids across all sessions, sorted descending (newest first)."""
+        """Return all run_ids across all sessions, sorted descending (newest first by mtime)."""
         items = []
         for session_dir in self.base_dir.iterdir():
             if not session_dir.is_dir():
                 continue
             for p in session_dir.glob("*.json"):
                 run_id = self._extract_run_id(p.name)
-                items.append(run_id)
+                items.append((run_id, p.stat().st_mtime))
                 self._run_id_cache[run_id] = (session_dir.name, p.name)
-        return sorted(items, key=lambda x: int(x) if x.isdigit() else 0, reverse=True)
+        items.sort(key=lambda x: x[1], reverse=True)
+        return [run_id for run_id, _ in items]
 
     def list_runs_for_session(self, session_name: str) -> list[str]:
-        """Return run_ids for a specific session, sorted descending (newest first)."""
+        """Return run_ids for a specific session, sorted descending (newest first by mtime)."""
         session_dir = self._session_dir(session_name)
         if not session_dir.exists():
             return []
@@ -224,9 +227,10 @@ class ResultsStore:
         items = []
         for p in session_dir.glob("*.json"):
             run_id = self._extract_run_id(p.name)
-            items.append(run_id)
+            items.append((run_id, p.stat().st_mtime))
             self._run_id_cache[run_id] = (session_dir.name, p.name)
-        return sorted(items, key=lambda x: int(x) if x.isdigit() else 0, reverse=True)
+        items.sort(key=lambda x: x[1], reverse=True)
+        return [run_id for run_id, _ in items]
 
     def rename_run(self, run_id: str, new_name: str, session_name: Optional[str] = None) -> str:
         """Rename a run - updates filename and JSON metadata."""

@@ -39,8 +39,8 @@ def test_save_and_load_run(tmp_path: Path):
     summary = minimal_summary()
 
     run_id = store.save_run(summary)
-    # Run IDs are Unix timestamps (numeric strings)
-    assert re.match(r"\d+", run_id)
+    # Run IDs are 8-char hex strings
+    assert re.match(r"[a-f0-9]{8}$", run_id)
 
     # Load works
     loaded = store.load_run(run_id)
@@ -55,21 +55,24 @@ def test_save_and_load_run(tmp_path: Path):
 
 def test_list_runs_sorted(tmp_path: Path):
     store = ResultsStore(tmp_path / "sessions")
-    # Save with explicit run ids for deterministic order
+    # Save runs with explicit run_ids - sorting is by file mtime (newest first)
     s = minimal_summary()
-    store.save_run(s, run_id="1704067200")  # 2024-01-01
-    store.save_run(s, run_id="1704153600")  # 2024-01-02
-    store.save_run(s, run_id="1703980799")  # 2023-12-31
+    import time
+    store.save_run(s, run_id="aaaa1111")
+    time.sleep(0.01)  # Ensure distinct mtimes
+    store.save_run(s, run_id="bbbb2222")
+    time.sleep(0.01)
+    store.save_run(s, run_id="cccc3333")
 
     runs = store.list_runs()
-    # Sorted by timestamp descending (most recent first)
-    assert runs == ["1704153600", "1704067200", "1703980799"]
+    # Sorted by mtime descending (most recently modified first)
+    assert runs == ["cccc3333", "bbbb2222", "aaaa1111"]
 
 
 def test_update_result_persists_and_limits_fields(tmp_path: Path):
     store = ResultsStore(tmp_path / "sessions")
     summary = minimal_summary()
-    run_id = store.save_run(summary, run_id="1704067200", run_name="test-run")
+    run_id = store.save_run(summary, run_id="abcd1234", run_name="test-run")
 
     # Only scores and annotations are editable
     updated = store.update_result(
@@ -100,7 +103,7 @@ def test_update_result_persists_and_limits_fields(tmp_path: Path):
 
 def test_replace_annotations_via_update_result(tmp_path: Path):
     store = ResultsStore(tmp_path / "sessions")
-    run_id = store.save_run(minimal_summary(), run_id="1704067200")
+    run_id = store.save_run(minimal_summary(), run_id="abcd1234")
 
     store.update_result(run_id, 0, {"result": {"annotations": [{"text": "a"}]}})
     data = store.load_run(run_id)
@@ -163,20 +166,24 @@ def test_save_run_with_run_name_only(tmp_path: Path):
 def test_list_runs_for_session(tmp_path: Path):
     store = ResultsStore(tmp_path / "sessions")
     s = minimal_summary()
+    import time
 
-    # Create runs in different sessions
-    store.save_run(s, run_id="1704067200", session_name="session-a", run_name="run1")
-    store.save_run(s, run_id="1704153600", session_name="session-a", run_name="run2")
-    store.save_run(s, run_id="1704240000", session_name="session-b", run_name="run3")
-    store.save_run(s, run_id="1704326400", session_name="session-c", run_name="run4")
+    # Create runs in different sessions - sorting is by mtime
+    store.save_run(s, run_id="aaaa1111", session_name="session-a", run_name="run1")
+    time.sleep(0.01)
+    store.save_run(s, run_id="bbbb2222", session_name="session-a", run_name="run2")
+    time.sleep(0.01)
+    store.save_run(s, run_id="cccc3333", session_name="session-b", run_name="run3")
+    time.sleep(0.01)
+    store.save_run(s, run_id="dddd4444", session_name="session-c", run_name="run4")
 
-    # List runs for session-a (sorted by timestamp descending)
+    # List runs for session-a (sorted by mtime descending)
     runs_a = store.list_runs_for_session("session-a")
-    assert runs_a == ["1704153600", "1704067200"]
+    assert runs_a == ["bbbb2222", "aaaa1111"]
 
     # List runs for session-b
     runs_b = store.list_runs_for_session("session-b")
-    assert runs_b == ["1704240000"]
+    assert runs_b == ["cccc3333"]
 
     # List all runs still works
     all_runs = store.list_runs()
@@ -210,7 +217,7 @@ def test_save_run_updates_same_file_when_run_id_exists(tmp_path: Path):
     summary = minimal_summary()
 
     # First save - creates the file with auto-generated names
-    run_id = "1704067200"
+    run_id = "abcd1234"
     store.save_run(summary, run_id=run_id)
 
     # Count files
@@ -243,7 +250,7 @@ def test_save_run_different_store_instances_update_same_file(tmp_path: Path):
     # First store creates the file
     store1 = ResultsStore(sessions_dir)
     summary1 = minimal_summary()
-    run_id = "1704067200"
+    run_id = "abcd1234"
     store1.save_run(summary1, run_id=run_id)
 
     first_loaded = store1.load_run(run_id)
@@ -371,11 +378,11 @@ def test_overwrite_behavior(tmp_path: Path):
     s = minimal_summary()
 
     # First save with explicit run_id
-    run_id1 = "1704067200"
+    run_id1 = "aaaa1111"
     store.save_run(s, run_id=run_id1, session_name="test", run_name="baseline")
 
     # Second save with same session and run_name, but different run_id
-    run_id2 = "1704153600"
+    run_id2 = "bbbb2222"
     store.save_run(s, run_id=run_id2, session_name="test", run_name="baseline", overwrite=True)
 
     # Should only have 1 file (the second one)
@@ -395,11 +402,11 @@ def test_no_overwrite_behavior(tmp_path: Path):
     s = minimal_summary()
 
     # First save with explicit run_id
-    run_id1 = "1704067200"
+    run_id1 = "aaaa1111"
     store.save_run(s, run_id=run_id1, session_name="test", run_name="baseline")
 
     # Second save with overwrite=False and different run_id
-    run_id2 = "1704153600"
+    run_id2 = "bbbb2222"
     store.save_run(s, run_id=run_id2, session_name="test", run_name="baseline", overwrite=False)
 
     # Should have 2 files

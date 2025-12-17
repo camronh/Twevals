@@ -545,7 +545,7 @@ def create_app(
                     "total_evaluations": data.get("total_evaluations", 0),
                     "total_passed": data.get("total_passed", 0),
                     "total_errors": data.get("total_errors", 0),
-                    "timestamp": int(run_id) if run_id.isdigit() else 0,
+                    "timestamp": data.get("created_at", 0),
                 })
             except Exception:
                 continue
