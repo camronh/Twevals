@@ -190,6 +190,52 @@ result = ctx.build()           # Normal completion
 result = ctx.build_with_error("message")  # Error with partial data
 ```
 
+### Run Metadata (for Observability)
+
+**Intent:** User wants to access run/eval identifiers inside eval functions for LangSmith tagging or other observability integration.
+
+```gherkin
+Scenario: Access run metadata in eval function
+  Given an eval function with ctx: EvalContext
+  When the function executes during a run
+  Then ctx.run_id contains the unique run identifier
+  And ctx.session_name contains the session name
+  And ctx.run_name contains the run name
+  And ctx.eval_path contains the path to the eval file(s)
+  And ctx.function_name contains the decorated function's name
+  And ctx.dataset contains the eval's dataset
+  And ctx.labels contains the eval's labels list
+```
+
+**Run-level metadata** (set by server/CLI, same for all evals in a run):
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `run_id` | str \| None | Unique run identifier (timestamp) |
+| `session_name` | str \| None | Session name for the run |
+| `run_name` | str \| None | Human-readable run name |
+| `eval_path` | str \| None | Path to eval file(s) being run |
+
+**Per-eval metadata** (from the decorated function):
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `function_name` | str \| None | Name of the eval function |
+| `dataset` | str \| None | Dataset from @eval decorator |
+| `labels` | list[str] \| None | Labels from @eval decorator |
+
+**Usage example:**
+```python
+@eval(dataset="customer_service", labels=["production"])
+def my_eval(ctx: EvalContext):
+    # Tag traces with run metadata
+    with langsmith.trace(
+        tags=[f"run:{ctx.run_id}", f"dataset:{ctx.dataset}"],
+        metadata={"session": ctx.session_name, "function": ctx.function_name}
+    ):
+        ctx.output = my_agent(ctx.input)
+```
+
 ### TraceData
 
 **Intent:** User wants structured storage for trace/debug info with first-class support for messages and trace URLs.

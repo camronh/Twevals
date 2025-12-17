@@ -166,6 +166,45 @@ async def test_classification(ctx: EvalContext, prompt, expected_category):
     assert ctx.output == expected_category
 ```
 
+## Run Metadata (for Observability)
+
+When your eval function runs, the context includes metadata about the current run and eval. This is useful for tagging traces in LangSmith or other observability tools.
+
+```python
+@eval(dataset="customer_service", labels=["production"])
+async def my_eval(ctx: EvalContext):
+    # Run-level metadata (same for all evals in a run)
+    print(ctx.run_id)        # "1705312200"
+    print(ctx.session_name)  # "model-upgrade"
+    print(ctx.run_name)      # "baseline"
+    print(ctx.eval_path)     # "evals/"
+
+    # Per-eval metadata (from decorator)
+    print(ctx.function_name) # "my_eval"
+    print(ctx.dataset)       # "customer_service"
+    print(ctx.labels)        # ["production"]
+
+    # Tag traces with this metadata
+    ctx.output = await my_agent(ctx.input)
+```
+
+### Run-Level Metadata
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `run_id` | str \| None | Unique run identifier (timestamp) |
+| `session_name` | str \| None | Session name for the run |
+| `run_name` | str \| None | Human-readable run name |
+| `eval_path` | str \| None | Path to eval file(s) being run |
+
+### Per-Eval Metadata
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `function_name` | str \| None | Name of the eval function |
+| `dataset` | str \| None | Dataset from @eval decorator |
+| `labels` | list[str] \| None | Labels from @eval decorator |
+
 ## API Reference
 
 | Method | Description |

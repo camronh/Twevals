@@ -6,9 +6,14 @@ All notable changes to this project will be documented in this file.
 
 - Added: Run dropdown selector to switch between past runs in the same session. Dropdown appears when 2+ runs exist.
 - Added: Activate run endpoint `POST /api/runs/{run_id}/activate` to switch the active run being viewed.
+- Added: Run metadata on `EvalContext` for observability tagging. Access `ctx.run_id`, `ctx.session_name`, `ctx.run_name`, `ctx.eval_path` (run-level) and `ctx.function_name`, `ctx.dataset`, `ctx.labels` (per-eval) inside eval functions for LangSmith/observability integration.
 - Changed: Stats bar chart values now show stacked format—percentage prominent on top, ratio smaller below (e.g., "87%" over "54/62").
+- Fixed: Hot reload now works when editing target modules. Previously, changes to imported modules weren't picked up on Rerun because Python's `sys.modules` cache wasn't cleared.
+- Fixed: Rerun after renaming a run now works correctly. Previously, `app.state.run_name` wasn't synced after rename, causing results to write to a duplicate file.
 - Fixed: Progress bar now uses CSS variable `--progress-bar-bg` for proper light/dark mode theming.
 - Fixed: Edit run name button now works when dropdown is shown (hides dropdown, shows input).
+- Tests: Added hot reload test for module cache clearing.
+- Tests: Added tests for run metadata injection into EvalContext.
 
 ## 0.0.2a17 - 2025-12-16
 
