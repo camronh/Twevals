@@ -7,11 +7,29 @@ similar to pytest's pytestmark pattern.
 
 from ezvals import eval, parametrize, EvalContext
 
+
+def analyze_sentiment(ctx: EvalContext):
+    """
+    Shared target that runs before each eval function.
+    Simulates sentiment analysis - in reality this would call an LLM.
+    """
+    text = ctx.input or ""
+    # Simple keyword-based sentiment (mock implementation)
+    text_lower = text.lower()
+    if any(word in text_lower for word in ["amazing", "great", "love", "excellent"]):
+        ctx.output = "positive"
+    elif any(word in text_lower for word in ["terrible", "worst", "hate", "awful"]):
+        ctx.output = "negative"
+    else:
+        ctx.output = "neutral"
+
+
 # Set file-level defaults that all tests in this file will inherit
 ezvals_defaults = {
     "dataset": "sentiment_analysis",
     "labels": ["production", "nlp"],
     "default_score_key": "correctness",
+    "target": analyze_sentiment,  # All evals use this target by default
     "metadata": {
         "model": "gpt-4",
         "version": "v1.0"
@@ -19,91 +37,71 @@ ezvals_defaults = {
 }
 
 
-@eval
+@eval(input="This product is amazing!", reference="positive")
 def test_positive_sentiment(ctx: EvalContext):
     """
     This test inherits all defaults from ezvals_defaults:
     - dataset: sentiment_analysis
     - labels: ["production", "nlp"]
     - default_score_key: correctness
+    - target: analyze_sentiment (runs before this function)
     - metadata: {"model": "gpt-4", "version": "v1.0"}
+
+    The target already set ctx.output, so we just assert.
     """
-    ctx.store(
-        input="This product is amazing!",
-        output="positive",
-        reference="positive",
-        scores=1.0
-    )
+    assert ctx.output == ctx.reference
 
 
-@eval
+@eval(input="This is terrible.", reference="negative")
 def test_negative_sentiment(ctx: EvalContext):
     """
-    This test also inherits all file-level defaults.
+    This test also inherits the file-level target.
     """
-    ctx.store(
-        input="This is terrible.",
-        output="negative",
-        reference="negative",
-        scores=1.0
-    )
+    assert ctx.output == ctx.reference
 
 
-@eval(labels=["experimental"])  # Override just the labels
+@eval(input="It's okay, I guess.", reference="neutral", labels=["experimental"])
 def test_mixed_sentiment(ctx: EvalContext):
     """
-    This test overrides the labels but inherits everything else:
+    This test overrides the labels but inherits the target:
     - dataset: sentiment_analysis (from file)
     - labels: ["experimental"] (overridden)
+    - target: analyze_sentiment (from file)
     - default_score_key: correctness (from file)
     - metadata: {"model": "gpt-4", "version": "v1.0"} (from file)
     """
-    ctx.store(
-        input="It's okay, I guess.",
-        output="neutral",
-        reference="neutral",
-        scores=0.8
-    )
+    assert ctx.output == ctx.reference
 
 
-@eval(dataset="edge_cases", labels=["testing"])  # Override multiple fields
+@eval(input="", reference="neutral", dataset="edge_cases", labels=["testing"])
 def test_empty_input(ctx: EvalContext):
     """
-    This test overrides both dataset and labels:
+    This test overrides both dataset and labels but inherits the target:
     - dataset: edge_cases (overridden)
     - labels: ["testing"] (overridden)
+    - target: analyze_sentiment (from file)
     - default_score_key: correctness (from file)
     - metadata: {"model": "gpt-4", "version": "v1.0"} (from file)
     """
-    ctx.store(
-        input="",
-        output="neutral",
-        reference="neutral",
-        scores=0.5
-    )
+    assert ctx.output == ctx.reference
 
 
 @eval
-@parametrize("text,expected", [
+@parametrize("input,reference", [
     ("Great product!", "positive"),
     ("Worst experience ever", "negative"),
     ("It's fine", "neutral"),
 ])
-def test_sentiment_parametrized(ctx: EvalContext, text, expected):
+def test_sentiment_parametrized(ctx: EvalContext):
     """
-    Parametrized tests also inherit file-level defaults.
+    Parametrized tests also inherit file-level target.
     All three generated test cases will have:
     - dataset: sentiment_analysis
     - labels: ["production", "nlp"]
+    - target: analyze_sentiment (runs before each case)
     - default_score_key: correctness
     - metadata: {"model": "gpt-4", "version": "v1.0"}
-    """
-    # Simulate sentiment analysis
-    output = expected  # In reality, this would call an LLM or model
 
-    ctx.store(
-        input=text,
-        output=output,
-        reference=expected,
-        scores=1.0 if output == expected else 0.0
-    )
+    The target populates ctx.output, then we assert.
+    """
+    assert ctx.output == ctx.reference
