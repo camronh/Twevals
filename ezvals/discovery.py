@@ -17,10 +17,11 @@ def _clear_project_modules(directory: Path) -> None:
     the updated code is picked up instead of serving stale cached imports.
     """
     # Resolve symlinks to handle macOS /var -> /private/var etc
-    dir_resolved = str(directory.resolve())
+    dir_resolved = directory.resolve()
+    dir_str = str(dir_resolved)
     # Ensure trailing separator for proper path matching (avoid /tmp/foo matching /tmp/foobar)
-    if not dir_resolved.endswith(os.sep):
-        dir_resolved += os.sep
+    if not dir_str.endswith(os.sep):
+        dir_str += os.sep
     to_remove = []
     for name, mod in sys.modules.items():
         mod_file = getattr(mod, '__file__', None)
@@ -28,13 +29,22 @@ def _clear_project_modules(directory: Path) -> None:
             try:
                 mod_file_resolved = str(Path(mod_file).resolve())
                 # Check if module file is under the directory
-                if mod_file_resolved.startswith(dir_resolved):
+                if mod_file_resolved.startswith(dir_str):
                     to_remove.append(name)
             except (OSError, ValueError):
                 pass
 
     for name in to_remove:
         del sys.modules[name]
+
+    # Delete .pyc files in __pycache__ to ensure fresh bytecode on reimport
+    pycache_dir = dir_resolved / "__pycache__"
+    if pycache_dir.exists():
+        for pyc_file in pycache_dir.glob("*.pyc"):
+            try:
+                pyc_file.unlink()
+            except OSError:
+                pass
 
     importlib.invalidate_caches()
 
