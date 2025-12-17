@@ -708,7 +708,6 @@ tr[data-row="main"] {
 /* Expand chart elements in comparison mode */
 .stats-expanded.comparison-mode .stats-chart-bars {
   gap: 3rem;
-  justify-content: center;
 }
 
 .stats-expanded.comparison-mode .stats-bar-group {
@@ -718,12 +717,10 @@ tr[data-row="main"] {
 
 .stats-expanded.comparison-mode .stats-chart-labels {
   gap: 3rem;
-  justify-content: center;
 }
 
 .stats-expanded.comparison-mode .stats-chart-values {
   gap: 3rem;
-  justify-content: center;
 }
 
 .stats-expanded.comparison-mode .stats-chart-label {
