@@ -37,71 +37,91 @@ ezvals_defaults = {
 }
 
 
-@eval(input="This product is amazing!", reference="positive")
+@eval
 def test_positive_sentiment(ctx: EvalContext):
     """
     This test inherits all defaults from ezvals_defaults:
     - dataset: sentiment_analysis
     - labels: ["production", "nlp"]
     - default_score_key: correctness
-    - target: analyze_sentiment (runs before this function)
     - metadata: {"model": "gpt-4", "version": "v1.0"}
-
-    The target already set ctx.output, so we just assert.
     """
-    assert ctx.output == ctx.reference
-
-
-@eval(input="This is terrible.", reference="negative")
-def test_negative_sentiment(ctx: EvalContext):
-    """
-    This test also inherits the file-level target.
-    """
-    assert ctx.output == ctx.reference
-
-
-@eval(input="It's okay, I guess.", reference="neutral", labels=["experimental"])
-def test_mixed_sentiment(ctx: EvalContext):
-    """
-    This test overrides the labels but inherits the target:
-    - dataset: sentiment_analysis (from file)
-    - labels: ["experimental"] (overridden)
-    - target: analyze_sentiment (from file)
-    - default_score_key: correctness (from file)
-    - metadata: {"model": "gpt-4", "version": "v1.0"} (from file)
-    """
-    assert ctx.output == ctx.reference
-
-
-@eval(input="", reference="neutral", dataset="edge_cases", labels=["testing"])
-def test_empty_input(ctx: EvalContext):
-    """
-    This test overrides both dataset and labels but inherits the target:
-    - dataset: edge_cases (overridden)
-    - labels: ["testing"] (overridden)
-    - target: analyze_sentiment (from file)
-    - default_score_key: correctness (from file)
-    - metadata: {"model": "gpt-4", "version": "v1.0"} (from file)
-    """
-    assert ctx.output == ctx.reference
+    ctx.store(
+        input="This product is amazing!",
+        output="positive",
+        reference="positive",
+        scores=1.0
+    )
 
 
 @eval
-@parametrize("input,reference", [
+def test_negative_sentiment(ctx: EvalContext):
+    """
+    This test also inherits all file-level defaults.
+    """
+    ctx.store(
+        input="This is terrible.",
+        output="negative",
+        reference="negative",
+        scores=1.0
+    )
+
+
+@eval(labels=["experimental"])  # Override just the labels
+def test_mixed_sentiment(ctx: EvalContext):
+    """
+    This test overrides the labels but inherits everything else:
+    - dataset: sentiment_analysis (from file)
+    - labels: ["experimental"] (overridden)
+    - default_score_key: correctness (from file)
+    - metadata: {"model": "gpt-4", "version": "v1.0"} (from file)
+    """
+    ctx.store(
+        input="It's okay, I guess.",
+        output="neutral",
+        reference="neutral",
+        scores=0.8
+    )
+
+
+@eval(dataset="edge_cases", labels=["testing"])  # Override multiple fields
+def test_empty_input(ctx: EvalContext):
+    """
+    This test overrides both dataset and labels:
+    - dataset: edge_cases (overridden)
+    - labels: ["testing"] (overridden)
+    - default_score_key: correctness (from file)
+    - metadata: {"model": "gpt-4", "version": "v1.0"} (from file)
+    """
+    ctx.store(
+        input="",
+        output="neutral",
+        reference="neutral",
+        scores=0.5
+    )
+
+
+@eval
+@parametrize("text,expected", [
     ("Great product!", "positive"),
     ("Worst experience ever", "negative"),
     ("It's fine", "neutral"),
 ])
-def test_sentiment_parametrized(ctx: EvalContext):
+def test_sentiment_parametrized(ctx: EvalContext, text, expected):
     """
-    Parametrized tests also inherit file-level target.
+    Parametrized tests also inherit file-level defaults.
     All three generated test cases will have:
     - dataset: sentiment_analysis
     - labels: ["production", "nlp"]
-    - target: analyze_sentiment (runs before each case)
     - default_score_key: correctness
     - metadata: {"model": "gpt-4", "version": "v1.0"}
-
-    The target populates ctx.output, then we assert.
     """
-    assert ctx.output == ctx.reference
+    # Simulate sentiment analysis
+    output = expected  # In reality, this would call an LLM or model
+
+    ctx.store(
+        input=text,
+        output=output,
+        reference=expected,
+        scores=1.0 if output == expected else 0.0
+    )
