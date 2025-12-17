@@ -20,6 +20,7 @@
   --accent-success-bg: rgba(5, 150, 105, 0.15);
   --accent-error: #dc2626;
   --accent-error-bg: rgba(220, 38, 38, 0.15);
+  --progress-bar-bg: #d4d4d4;
 }
 .dark {
   --bg: #09090b;
@@ -40,7 +41,11 @@
   --accent-success-bg: rgba(52, 211, 153, 0.15);
   --accent-error: #f87171;
   --accent-error-bg: rgba(248, 113, 113, 0.15);
+  --progress-bar-bg: #27272a;
 }
+
+/* Utility class for theme-aware progress bar background */
+.bg-theme-progress-bar { background: var(--progress-bar-bg); }
 
 /* Panels */
 .filters-panel, .columns-panel { display: none; }
@@ -291,11 +296,11 @@ tr[data-row="main"] {
 .stats-progress-bar {
   flex: 1;
   height: 8px;
-  background: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
+  background: var(--progress-bar-bg);
   border-radius: 4px;
   overflow: hidden;
   position: relative;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
 }
 .stats-progress-bar::before {
   content: '';

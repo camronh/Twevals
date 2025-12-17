@@ -256,7 +256,7 @@ function renderStatsExpanded(data) {
 
   let progressHtml = '';
   if (isRunning) {
-    progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text text-emerald-400">${progressCompleted}/${progressTotal}</span></div>`;
+    progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text text-emerald-400">${pctDone}% (${progressCompleted}/${progressTotal})</span></div>`;
   }
 
   let barsHtml = '';
@@ -339,7 +339,7 @@ function renderStatsCompact(data, hasFilters = false, filteredCount = null) {
   if (notStarted === total) {
     progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Discovered</span><span class="font-mono text-[11px] text-zinc-400">${total} eval${total !== 1 ? 's' : ''}</span></div>`;
   } else if (progressPending > 0) {
-    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${progressCompleted}/${progressTotal}</span></div>`;
+    progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Progress</span><div class="h-1 w-6 overflow-hidden rounded-full bg-theme-progress-bar"><div class="h-full rounded-full bg-blue-500" style="width: ${pctDone}%"></div></div><span class="font-mono text-[11px] text-accent-link">${pctDone}% (${progressCompleted}/${progressTotal})</span></div>`;
   } else {
     const testsDisplay = hasFilters && filteredCount != null ? `${filteredCount}/${total}` : String(total);
     progressHtml = `<div class="flex items-center gap-2"><span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Tests</span><span class="font-mono text-[11px] text-accent-link">${testsDisplay}</span></div>`;
@@ -350,8 +350,8 @@ function renderStatsCompact(data, hasFilters = false, filteredCount = null) {
     const { pct, value } = chipStats(chip, 1);
     chipsHtml += `<div class="flex items-center gap-2">
       <span class="text-[10px] font-medium uppercase tracking-wider text-theme-text-secondary">${escapeHtml(chip.key)}</span>
-      <div class="h-1 w-5 overflow-hidden rounded-full bg-zinc-800"><div class="h-full rounded-full ${getBgBarColor(pct)}" style="width: ${pct}%"></div></div>
-      <span class="font-mono text-[11px] ${getTextColor(pct)}">${value}</span>
+      <div class="h-1 w-5 overflow-hidden rounded-full bg-theme-progress-bar"><div class="h-full rounded-full ${getBgBarColor(pct)}" style="width: ${pct}%"></div></div>
+      <span class="font-mono text-[11px] ${getTextColor(pct)}">${pct}% (${value})</span>
     </div>`;
     if (i < chips.length - 1) chipsHtml += '<div class="h-3 w-px bg-zinc-700"></div>';
   });

@@ -544,6 +544,18 @@ def create_app(
             return {"ok": True}
         raise HTTPException(status_code=404, detail="Run not found")
 
+    @app.post("/api/runs/{run_id}/activate")
+    def activate_run(run_id: str):
+        """Switch the active run to view/edit a different run."""
+        try:
+            data = store.load_run(run_id)
+            app.state.active_run_id = run_id
+            app.state.run_name = data.get("run_name", run_id)
+            app.state.session_name = data.get("session_name", app.state.session_name)
+            return {"ok": True, "run_id": run_id, "run_name": app.state.run_name}
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Run not found")
+
     class RunUpdateBody(BaseModel):
         run_name: Optional[str] = None
 
