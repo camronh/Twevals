@@ -465,9 +465,9 @@ function renderStatsExpanded(data) {
       } else {
         headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run copyable cursor-pointer hover:text-zinc-300">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 transition hover:text-zinc-400" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
       }
-      // Show +Compare button on its own row if there are other runs in the session
+      // Show +Compare button on its own row below run name
       if (_sessionRuns.length > 1) {
-        headerHtml += `<div class="stats-info-row"><button id="add-compare-btn" class="rounded bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-400 hover:bg-blue-500/30 transition" title="Compare with another run">+ Compare</button></div>`;
+        headerHtml += `<div class="stats-info-row"><span class="stats-info-label"></span><button id="add-compare-btn" class="add-compare-btn" title="Compare with another run">+ Compare</button></div>`;
       }
     }
     headerHtml += '</div>';
@@ -895,7 +895,7 @@ function showCompareDropdown(anchorEl) {
   document.querySelector('.compare-dropdown')?.remove();
 
   const dropdown = document.createElement('div');
-  dropdown.className = 'compare-dropdown absolute right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg z-50 min-w-[200px] max-h-[200px] overflow-y-auto';
+  dropdown.className = 'compare-dropdown';
   dropdown.innerHTML = renderCompareDropdown();
 
   // Position relative to anchor
