@@ -60,6 +60,38 @@ function clearComparison() {
   sessionStorage.removeItem(COMPARISON_STORAGE_KEY);
 }
 
+async function restoreComparisonState(currentRunId, currentData) {
+  const saved = sessionStorage.getItem(COMPARISON_STORAGE_KEY);
+  if (!saved) return;
+
+  try {
+    const savedRuns = JSON.parse(saved);
+    if (!Array.isArray(savedRuns) || savedRuns.length < 2) {
+      sessionStorage.removeItem(COMPARISON_STORAGE_KEY);
+      return;
+    }
+
+    // Restore comparison runs with colors
+    _comparisonRuns = savedRuns.map((r, i) => ({
+      runId: r.runId,
+      runName: r.runName,
+      color: COMPARISON_COLORS[i]
+    }));
+
+    // Fetch data for all comparison runs
+    for (const run of _comparisonRuns) {
+      if (run.runId === currentRunId) {
+        _comparisonData[run.runId] = currentData;
+      } else {
+        await fetchRunForComparison(run.runId);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to restore comparison state:', e);
+    clearComparison();
+  }
+}
+
 function getResultKey(result) {
   return `${result.function}::${result.dataset || ''}`;
 }
@@ -1954,6 +1986,8 @@ async function loadResults() {
     const data = await resp.json();
     // Fetch session runs for the dropdown
     if (data.session_name) await fetchSessionRuns(data.session_name);
+    // Restore comparison state if previously in comparison mode
+    await restoreComparisonState(data.run_id, data);
     renderResults(data);
   } catch (e) {
     console.error('Failed to load results:', e);
