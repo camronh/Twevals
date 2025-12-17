@@ -15,7 +15,7 @@ from threading import Thread
 from rich.console import Console
 
 from ezvals.formatters import format_results_table
-from ezvals.decorators import EvalFunction
+from ezvals.decorators import EvalFunction, run_metadata_var
 from ezvals.discovery import EvalDiscovery
 from ezvals.runner import EvalRunner
 from ezvals.config import load_config
@@ -250,6 +250,12 @@ def run_cmd(
     runner = EvalRunner(concurrency=concurrency, verbose=verbose, timeout=timeout)
     reporter = ProgressReporter() if visual else None
 
+    # Generate run metadata for context var (so eval code can access it)
+    results_dir_resolved = config.get("results_dir", ".ezvals/sessions")
+    store = ResultsStore(results_dir_resolved)
+    run_id = store.generate_run_id()
+    sess = session if session else "default"
+
     def on_complete_callback(func, result_dict):
         if verbose:
             result = result_dict["result"]
@@ -262,6 +268,14 @@ def run_cmd(
         console.print("[bold green]Running evaluations...[/bold green]")
     else:
         console.print(f"Running {path}...")
+
+    # Set run metadata context var for this run
+    token = run_metadata_var.set({
+        'run_id': run_id,
+        'session_name': sess,
+        'run_name': run_name,
+        'eval_path': path,
+    })
 
     try:
         summary = runner.run(
@@ -279,6 +293,8 @@ def run_cmd(
         if visual:
             console.print(traceback.format_exc())
         sys.exit(1)
+    finally:
+        run_metadata_var.reset(token)
 
     # Save results to file (unless --no-save)
     saved_path = None
@@ -288,13 +304,9 @@ def run_cmd(
             runner._save_results(summary, output)
             saved_path = output
         else:
-            # Save to config results_dir (default .ezvals/sessions)
-            results_dir = config.get("results_dir", ".ezvals/sessions")
+            # Save using pre-generated run_id and store instance
             overwrite = config.get("overwrite", True)
-            store = ResultsStore(results_dir)
-            # CLI run defaults to "default" session when not specified
-            sess = session if session else "default"
-            run_id = store.save_run(summary, session_name=sess, run_name=run_name, overwrite=overwrite)
+            store.save_run(summary, run_id=run_id, session_name=sess, run_name=run_name, overwrite=overwrite)
             saved_path = str(store._find_run_file(run_id))
 
     if visual:

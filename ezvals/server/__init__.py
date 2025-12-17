@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from rich.console import Console
 
-from ezvals.decorators import EvalFunction
+from ezvals.decorators import EvalFunction, run_metadata_var
 from ezvals.discovery import EvalDiscovery
 from ezvals.runner import EvalRunner
 from ezvals.storage import ResultsStore
@@ -198,14 +198,24 @@ def create_app(
                     _persist()
 
         def _run_evals():
-            asyncio.run(runner.run_all_async(
-                functions,
-                on_start=_on_start,
-                on_complete=_on_complete,
-                cancel_event=cancel_event,
-            ))
-            if not cancel_event.is_set():
-                _persist()
+            # Set run metadata context var for this run
+            token = run_metadata_var.set({
+                'run_id': run_id,
+                'session_name': app.state.session_name,
+                'run_name': app.state.run_name,
+                'eval_path': str(app.state.path) if app.state.path else None,
+            })
+            try:
+                asyncio.run(runner.run_all_async(
+                    functions,
+                    on_start=_on_start,
+                    on_complete=_on_complete,
+                    cancel_event=cancel_event,
+                ))
+                if not cancel_event.is_set():
+                    _persist()
+            finally:
+                run_metadata_var.reset(token)
 
         Thread(target=_run_evals, daemon=True).start()
 

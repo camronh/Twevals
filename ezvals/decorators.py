@@ -1,4 +1,5 @@
 from typing import Any, Callable, Dict, List, Optional, Union, ForwardRef, get_args, get_origin, get_type_hints
+from contextvars import ContextVar
 import functools
 import time
 import asyncio
@@ -9,6 +10,11 @@ import types
 
 from ezvals.schemas import EvalResult, Score
 from ezvals.context import EvalContext
+
+
+# ContextVar for run-level metadata (set by server/CLI before running evals)
+# Allows eval code to access run_id, session_name, run_name, eval_path for observability tagging
+run_metadata_var: ContextVar[Optional[Dict[str, Any]]] = ContextVar('run_metadata', default=None)
 
 
 class EvalFunction:
@@ -109,6 +115,16 @@ class EvalFunction:
         # Default ctx.input to provided function kwargs if not explicitly set
         if 'input' not in context_init and 'input' in kwargs:
             context_init['input'] = kwargs['input']
+
+        # Inject run-level metadata from ContextVar (set by server/CLI)
+        run_metadata = run_metadata_var.get()
+        if run_metadata:
+            context_init.update(run_metadata)
+
+        # Inject per-eval metadata from EvalFunction attributes
+        context_init['function_name'] = self.func.__name__
+        context_init['dataset'] = self.dataset
+        context_init['labels'] = self.labels
 
         return EvalContext(**context_init)
 

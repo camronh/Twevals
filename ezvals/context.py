@@ -15,6 +15,15 @@ class EvalContext:
         metadata: Optional[Dict[str, Any]] = None,
         trace_data: Optional[Union[Dict[str, Any], TraceData]] = None,
         latency: Optional[float] = None,
+        # Run-level metadata (for observability/tagging)
+        run_id: Optional[str] = None,
+        session_name: Optional[str] = None,
+        run_name: Optional[str] = None,
+        eval_path: Optional[str] = None,
+        # Per-eval metadata (for observability/tagging)
+        function_name: Optional[str] = None,
+        dataset: Optional[str] = None,
+        labels: Optional[List[str]] = None,
         **kwargs
     ):
         self.input = input
@@ -31,6 +40,15 @@ class EvalContext:
         self.latency = latency
         self.scores: List[Dict] = []
         self.error: Optional[str] = None
+        # Run-level metadata
+        self.run_id = run_id
+        self.session_name = session_name
+        self.run_name = run_name
+        self.eval_path = eval_path
+        # Per-eval metadata
+        self.function_name = function_name
+        self.dataset = dataset
+        self.labels = labels
 
     def store(
         self,
