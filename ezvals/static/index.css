@@ -278,6 +278,34 @@ tr[data-row="main"] {
   color: #3b82f6;
 }
 
+/* Run dropdown */
+.stats-run-dropdown {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-link);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  max-width: 200px;
+}
+.stats-run-dropdown:hover { border-color: var(--accent-link); }
+.stats-run-dropdown:focus { outline: none; border-color: var(--accent-link); }
+.stats-run-dropdown-compact {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-link);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  cursor: pointer;
+  max-width: 180px;
+}
+.stats-run-dropdown-compact:hover { border-color: var(--accent-link); }
+.stats-run-dropdown-compact:focus { outline: none; border-color: var(--accent-link); }
+
 /* Progress bar for expanded stats - inline with tests */
 .stats-metric-row-main {
   display: flex;

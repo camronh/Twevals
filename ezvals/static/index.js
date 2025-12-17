@@ -25,6 +25,40 @@ function defaultFilters() { return { valueRules: [], passedRules: [], annotation
 // Current data for updates
 let _currentData = null;
 let _currentRunId = null;
+let _sessionRuns = [];
+
+async function fetchSessionRuns(sessionName) {
+  if (!sessionName) return;
+  try {
+    const resp = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}/runs`);
+    if (resp.ok) {
+      const data = await resp.json();
+      _sessionRuns = data.runs || [];
+    }
+  } catch (e) { console.error('Failed to fetch session runs:', e); }
+}
+
+async function activateRun(runId) {
+  try {
+    const resp = await fetch(`/api/runs/${encodeURIComponent(runId)}/activate`, { method: 'POST' });
+    if (resp.ok) { loadResults(); }
+  } catch (e) { console.error('Failed to activate run:', e); }
+}
+
+function formatRunTimestamp(ts) {
+  const d = new Date(ts * 1000);
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function renderRunDropdown(currentRunId, id, className) {
+  if (_sessionRuns.length <= 1) return '';
+  const options = _sessionRuns.map(r => {
+    const sel = r.run_id === currentRunId ? ' selected' : '';
+    const label = `${r.run_name || r.run_id} (${formatRunTimestamp(r.timestamp)})`;
+    return `<option value="${r.run_id}"${sel}>${escapeHtml(label)}</option>`;
+  }).join('');
+  return `<select id="${id}" class="${className}" onchange="activateRun(this.value)">${options}</select>`;
+}
 
 const PILL_TONES = {
   'not_started': 'text-zinc-400 bg-zinc-500/10 border border-zinc-500/40',
@@ -72,6 +106,7 @@ function summarizeStats(data) {
     progressPending: inProgress,
     sessionName: data.session_name,
     runName: data.run_name,
+    runId: data.run_id,
     isRunning: inProgress > 0,
   };
 }
@@ -239,13 +274,20 @@ function getTextColor(pct) {
 }
 
 function renderStatsExpanded(data) {
-  const { total, avgLatency, chips, pctDone, isRunning, sessionName, runName, progressCompleted, progressTotal } = summarizeStats(data);
+  const { total, avgLatency, chips, pctDone, isRunning, sessionName, runName, runId, progressCompleted, progressTotal } = summarizeStats(data);
 
   let headerHtml = '';
   if (sessionName || runName) {
     headerHtml = '<div class="stats-left-header">';
     if (sessionName) headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session copyable cursor-pointer hover:text-zinc-300">${escapeHtml(sessionName)}</span></div>`;
-    if (runName) headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run copyable cursor-pointer hover:text-zinc-300">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 transition hover:text-zinc-400" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
+    if (runName) {
+      const dropdown = renderRunDropdown(runId, 'run-dropdown-expanded', 'stats-run-dropdown');
+      if (dropdown) {
+        headerHtml += `<div class="stats-info-row"><span class="stats-info-label">run</span>${dropdown}</div>`;
+      } else {
+        headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run copyable cursor-pointer hover:text-zinc-300">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 transition hover:text-zinc-400" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
+      }
+    }
     headerHtml += '</div>';
   }
 
@@ -313,7 +355,7 @@ function renderStatsExpanded(data) {
 
 function renderStatsCompact(data, hasFilters = false, filteredCount = null) {
   const stats = summarizeStats(data);
-  const { total, avgLatency, chips, pctDone, progressPending, notStarted, sessionName, runName, progressCompleted, progressTotal } = stats;
+  const { total, avgLatency, chips, pctDone, progressPending, notStarted, sessionName, runName, runId, progressCompleted, progressTotal } = stats;
 
   let sessionRunHtml = '';
   if (sessionName || runName) {
@@ -324,13 +366,18 @@ function renderStatsCompact(data, hasFilters = false, filteredCount = null) {
     }
     if (runName) {
       if (sessionName) sessionRunHtml += '<span class="text-zinc-600">·</span>';
-      sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
-        <div class="group flex items-center gap-1">
-          <span id="run-name-text" class="copyable font-mono text-[11px] text-accent-link cursor-pointer hover:text-accent-link-hover">${escapeHtml(runName)}</span>
-          <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 transition hover:text-zinc-400" title="Rename run">
-            <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg>
-          </button>
-        </div>`;
+      const dropdown = renderRunDropdown(runId, 'run-dropdown-compact', 'stats-run-dropdown-compact');
+      if (dropdown) {
+        sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>${dropdown}`;
+      } else {
+        sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
+          <div class="group flex items-center gap-1">
+            <span id="run-name-text" class="copyable font-mono text-[11px] text-accent-link cursor-pointer hover:text-accent-link-hover">${escapeHtml(runName)}</span>
+            <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 transition hover:text-zinc-400" title="Rename run">
+              <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg>
+            </button>
+          </div>`;
+      }
     }
     sessionRunHtml += '</div><div class="h-3 w-px bg-zinc-700"></div>';
   }
@@ -1384,6 +1431,8 @@ async function loadResults() {
     const resp = await fetch('/results');
     if (!resp.ok) throw new Error('Failed to load results');
     const data = await resp.json();
+    // Fetch session runs for the dropdown
+    if (data.session_name) await fetchSessionRuns(data.session_name);
     renderResults(data);
   } catch (e) {
     console.error('Failed to load results:', e);
