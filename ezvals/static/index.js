@@ -184,15 +184,16 @@ function updateChartBars(expandedPanel, chips) {
       requestAnimationFrame(() => label.classList.remove('entering'));
     }
 
+    const valueWithPct = `${pct}% (${value})`;
     if (existingValues[i]) {
-      if (existingValues[i].textContent !== value) {
+      if (existingValues[i].textContent !== valueWithPct) {
         existingValues[i].classList.add('updating');
-        setTimeout(() => { existingValues[i].textContent = value; existingValues[i].classList.remove('updating'); }, 100);
+        setTimeout(() => { existingValues[i].textContent = valueWithPct; existingValues[i].classList.remove('updating'); }, 100);
       }
     } else {
       const valSpan = document.createElement('span');
       valSpan.className = 'stats-chart-value entering';
-      valSpan.textContent = value;
+      valSpan.textContent = valueWithPct;
       valuesContainer.appendChild(valSpan);
       requestAnimationFrame(() => valSpan.classList.remove('entering'));
     }
