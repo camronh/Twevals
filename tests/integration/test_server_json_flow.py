@@ -421,6 +421,49 @@ def test_list_session_runs_endpoint(tmp_path: Path):
     assert run_id_2 in run_ids
 
 
+def test_activate_run_endpoint(tmp_path: Path):
+    """POST /api/runs/{run_id}/activate switches the active run"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id_1 = store.save_run(make_summary(), session_name="test-session", run_name="run-one")
+    run_id_2 = store.save_run(make_summary(), session_name="test-session", run_name="run-two")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run_id_1,
+        session_name="test-session",
+        run_name="run-one",
+    )
+    client = TestClient(app)
+
+    # Verify initial active run
+    assert app.state.active_run_id == run_id_1
+    assert app.state.run_name == "run-one"
+
+    # Activate the second run
+    response = client.post(f"/api/runs/{run_id_2}/activate")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is True
+    assert data["run_id"] == run_id_2
+    assert data["run_name"] == "run-two"
+
+    # Verify state was updated
+    assert app.state.active_run_id == run_id_2
+    assert app.state.run_name == "run-two"
+
+
+def test_activate_run_not_found(tmp_path: Path):
+    """POST /api/runs/{run_id}/activate returns 404 for nonexistent run"""
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary())
+
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+    client = TestClient(app)
+
+    response = client.post("/api/runs/nonexistent-run-id/activate")
+    assert response.status_code == 404
+
+
 def test_update_run_name_endpoint(tmp_path: Path):
     """PATCH /api/runs/{run_id} updates run_name"""
     store = ResultsStore(tmp_path / "runs")

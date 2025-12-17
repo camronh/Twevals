@@ -309,7 +309,7 @@ function renderStatsExpanded(data) {
     // Start at 0 height, will animate to target via JS
     barsHtml += `<div class="stats-bar-col" style="opacity:0;transform:translateY(20px)"><div class="stats-chart-fill ${getBarColor(pct)}" data-target-height="${pct}" style="height: 0%"></div></div>`;
     labelsHtml += `<span class="stats-chart-label" style="opacity:0">${escapeHtml(chip.key)}</span>`;
-    valuesHtml += `<span class="stats-chart-value" style="opacity:0">${value}</span>`;
+    valuesHtml += `<span class="stats-chart-value" style="opacity:0">${pct}% (${value})</span>`;
   });
 
   const isCollapsed = localStorage.getItem(STATS_PREF_KEY) === 'false';

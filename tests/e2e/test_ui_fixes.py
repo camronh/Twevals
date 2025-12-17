@@ -443,3 +443,200 @@ class TestRerunButton:
                 expect(rerun_btn).to_contain_text("Rerun")
 
                 browser.close()
+
+
+class TestProgressBarLightMode:
+    """Progress bar should use theme-aware CSS variables for light/dark modes."""
+
+    def test_progress_bar_css_variable_dark_mode(self, tmp_path):
+        store = ResultsStore(tmp_path / "runs")
+        run_id = store.save_run(make_summary_with_error(), "2024-01-01T00-00-00Z")
+        app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+        with run_server(app) as url:
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page()
+                page.goto(url)
+                page.wait_for_selector("#results-table")
+
+                # Check dark mode progress bar CSS variable
+                progress_bg = page.evaluate(
+                    "getComputedStyle(document.documentElement).getPropertyValue('--progress-bar-bg').trim()"
+                )
+                assert progress_bg == "#27272a", f"Dark mode should have #27272a, got {progress_bg}"
+
+                browser.close()
+
+    def test_progress_bar_css_variable_light_mode(self, tmp_path):
+        store = ResultsStore(tmp_path / "runs")
+        run_id = store.save_run(make_summary_with_error(), "2024-01-01T00-00-00Z")
+        app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+        with run_server(app) as url:
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page()
+                page.goto(url)
+                page.wait_for_selector("#results-table")
+
+                # Switch to light mode
+                page.evaluate("document.documentElement.classList.remove('dark')")
+
+                # Check light mode progress bar CSS variable
+                progress_bg = page.evaluate(
+                    "getComputedStyle(document.documentElement).getPropertyValue('--progress-bar-bg').trim()"
+                )
+                assert progress_bg == "#d4d4d4", f"Light mode should have #d4d4d4, got {progress_bg}"
+
+                browser.close()
+
+
+class TestPercentageDisplay:
+    """Stats should show percentage format like '66% (33/50)'."""
+
+    def make_summary_with_scores(self):
+        """Summary with pass/fail scores for percentage display."""
+        return {
+            "total_evaluations": 3,
+            "total_functions": 3,
+            "total_errors": 0,
+            "total_passed": 2,
+            "total_with_scores": 3,
+            "average_latency": 0.5,
+            "score_chips": [{"key": "accuracy", "type": "ratio", "passed": 2, "total": 3}],
+            "results": [
+                {
+                    "function": "test1",
+                    "dataset": "ds",
+                    "labels": [],
+                    "result": {
+                        "input": "i1",
+                        "output": "o1",
+                        "reference": None,
+                        "scores": [{"key": "accuracy", "passed": True}],
+                        "error": None,
+                        "latency": 0.3,
+                        "metadata": None,
+                        "status": "completed",
+                    },
+                },
+                {
+                    "function": "test2",
+                    "dataset": "ds",
+                    "labels": [],
+                    "result": {
+                        "input": "i2",
+                        "output": "o2",
+                        "reference": None,
+                        "scores": [{"key": "accuracy", "passed": True}],
+                        "error": None,
+                        "latency": 0.5,
+                        "metadata": None,
+                        "status": "completed",
+                    },
+                },
+                {
+                    "function": "test3",
+                    "dataset": "ds",
+                    "labels": [],
+                    "result": {
+                        "input": "i3",
+                        "output": "o3",
+                        "reference": None,
+                        "scores": [{"key": "accuracy", "passed": False}],
+                        "error": None,
+                        "latency": 0.7,
+                        "metadata": None,
+                        "status": "completed",
+                    },
+                },
+            ],
+        }
+
+    def test_score_chips_show_percentage(self, tmp_path):
+        store = ResultsStore(tmp_path / "runs")
+        run_id = store.save_run(self.make_summary_with_scores(), "2024-01-01T00-00-00Z")
+        app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+        with run_server(app) as url:
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page()
+                page.goto(url)
+                page.wait_for_selector("#results-table")
+
+                # Check that percentage format is shown in compact stats
+                compact_stats = page.locator("#stats-compact").text_content()
+                # Should show percentage format like "67% (2/3)"
+                assert "%" in compact_stats, f"Compact stats should show percentage: {compact_stats}"
+                assert "2/3" in compact_stats, f"Compact stats should show ratio: {compact_stats}"
+
+                browser.close()
+
+
+class TestRunDropdown:
+    """Run dropdown should appear when multiple runs exist in session."""
+
+    def test_run_dropdown_appears_with_multiple_runs(self, tmp_path):
+        store = ResultsStore(tmp_path / "runs")
+        # Create two runs in the same session
+        summary1 = make_summary_with_error()
+        summary1["session_name"] = "test-session"
+        summary1["run_name"] = "run-one"
+        run_id1 = store.save_run(summary1, session_name="test-session", run_name="run-one")
+
+        summary2 = make_summary_with_error()
+        summary2["session_name"] = "test-session"
+        summary2["run_name"] = "run-two"
+        run_id2 = store.save_run(summary2, session_name="test-session", run_name="run-two")
+
+        app = create_app(
+            results_dir=str(tmp_path / "runs"),
+            active_run_id=run_id2,
+            session_name="test-session",
+            run_name="run-two",
+        )
+
+        with run_server(app) as url:
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page()
+                page.goto(url)
+                page.wait_for_selector("#results-table")
+
+                # Wait for async session runs fetch and re-render
+                time.sleep(1)
+
+                # Reload to ensure fresh render with session runs
+                page.reload()
+                page.wait_for_selector("#results-table")
+                time.sleep(0.5)
+
+                # Check that run dropdown exists
+                dropdown = page.locator(".stats-run-dropdown, .stats-run-dropdown-compact")
+                assert dropdown.count() > 0, "Run dropdown should appear with multiple runs"
+
+                # Check dropdown has both runs as options
+                options = dropdown.first.locator("option").all_text_contents()
+                assert len(options) >= 2, f"Dropdown should have 2+ options, got {options}"
+
+                browser.close()
+
+    def test_run_dropdown_hidden_with_single_run(self, tmp_path):
+        store = ResultsStore(tmp_path / "runs")
+        run_id = store.save_run(make_summary_with_error(), "2024-01-01T00-00-00Z")
+        app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+        with run_server(app) as url:
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page()
+                page.goto(url)
+                page.wait_for_selector("#results-table")
+
+                # With only one run, dropdown should not appear
+                dropdown = page.locator(".stats-run-dropdown, .stats-run-dropdown-compact")
+                assert dropdown.count() == 0, "Run dropdown should not appear with single run"
+
+                browser.close()
