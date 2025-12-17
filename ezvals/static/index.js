@@ -284,7 +284,7 @@ function renderStatsExpanded(data) {
     if (runName) {
       const dropdown = renderRunDropdown(runId, 'run-dropdown-expanded', 'stats-run-dropdown');
       if (dropdown) {
-        headerHtml += `<div class="stats-info-row"><span class="stats-info-label">run</span>${dropdown}</div>`;
+        headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span>${dropdown}<button class="edit-run-btn-expanded ml-1 text-zinc-600 transition hover:text-zinc-400" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
       } else {
         headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run copyable cursor-pointer hover:text-zinc-300">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 transition hover:text-zinc-400" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
       }
@@ -369,7 +369,13 @@ function renderStatsCompact(data, hasFilters = false, filteredCount = null) {
       if (sessionName) sessionRunHtml += '<span class="text-zinc-600">·</span>';
       const dropdown = renderRunDropdown(runId, 'run-dropdown-compact', 'stats-run-dropdown-compact');
       if (dropdown) {
-        sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>${dropdown}`;
+        sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
+          <div class="group flex items-center gap-1">
+            ${dropdown}
+            <button class="edit-run-btn flex h-4 w-4 items-center justify-center rounded text-zinc-600 transition hover:text-zinc-400" title="Rename run">
+              <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg>
+            </button>
+          </div>`;
       } else {
         sessionRunHtml += `<span class="text-[11px] font-medium uppercase tracking-wider text-theme-text-secondary">Run</span>
           <div class="group flex items-center gap-1">
