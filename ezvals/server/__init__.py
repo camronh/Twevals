@@ -20,6 +20,43 @@ from ezvals.config import load_config, save_config
 console = Console()
 
 
+def _build_score_chips(results: list) -> list:
+    """Build per-score-key chips: ratio for boolean passed, average for numeric value."""
+    score_map: dict[str, dict] = {}
+    for r in results:
+        res = (r or {}).get("result") or {}
+        scores = res.get("scores") or []
+        for s in scores:
+            key = s.get("key") if isinstance(s, dict) else getattr(s, "key", None)
+            if not key:
+                continue
+            d = score_map.setdefault(key, {"passed": 0, "failed": 0, "bool": 0, "sum": 0.0, "count": 0})
+            passed = s.get("passed") if isinstance(s, dict) else getattr(s, "passed", None)
+            if passed is True:
+                d["passed"] += 1
+                d["bool"] += 1
+            elif passed is False:
+                d["failed"] += 1
+                d["bool"] += 1
+            value = s.get("value") if isinstance(s, dict) else getattr(s, "value", None)
+            if value is not None:
+                try:
+                    d["sum"] += float(value)
+                    d["count"] += 1
+                except Exception:
+                    pass
+
+    score_chips = []
+    for k, d in score_map.items():
+        if d["bool"] > 0:
+            total = d["passed"] + d["failed"]
+            score_chips.append({"key": k, "type": "ratio", "passed": d["passed"], "total": total})
+        elif d["count"] > 0:
+            avg = d["sum"] / d["count"]
+            score_chips.append({"key": k, "type": "avg", "avg": avg, "count": d["count"]})
+    return score_chips
+
+
 def _make_json_safe(obj: Any) -> Any:
     """Recursively convert non-JSON-serializable objects to safe representations."""
     if obj is None:
@@ -306,39 +343,7 @@ def create_app(
                 }
             raise HTTPException(status_code=404, detail="Active run not found")
 
-        # Build per-score-key chips: ratio for boolean passed, average for numeric value
-        score_map: dict[str, dict] = {}
-        for r in summary.get("results", []):
-            res = (r or {}).get("result") or {}
-            scores = res.get("scores") or []
-            for s in scores:
-                key = s.get("key") if isinstance(s, dict) else getattr(s, "key", None)
-                if not key:
-                    continue
-                d = score_map.setdefault(key, {"passed": 0, "failed": 0, "bool": 0, "sum": 0.0, "count": 0})
-                passed = s.get("passed") if isinstance(s, dict) else getattr(s, "passed", None)
-                if passed is True:
-                    d["passed"] += 1
-                    d["bool"] += 1
-                elif passed is False:
-                    d["failed"] += 1
-                    d["bool"] += 1
-                value = s.get("value") if isinstance(s, dict) else getattr(s, "value", None)
-                if value is not None:
-                    try:
-                        d["sum"] += float(value)
-                        d["count"] += 1
-                    except Exception:
-                        pass
-
-        score_chips = []
-        for k, d in score_map.items():
-            if d["bool"] > 0:
-                total = d["passed"] + d["failed"]
-                score_chips.append({"key": k, "type": "ratio", "passed": d["passed"], "total": total})
-            elif d["count"] > 0:
-                avg = d["sum"] / d["count"]
-                score_chips.append({"key": k, "type": "avg", "avg": avg, "count": d["count"]})
+        score_chips = _build_score_chips(summary.get("results", []))
 
         return {
             "session_name": summary.get("session_name") or app.state.session_name,
@@ -577,6 +582,27 @@ def create_app(
             if "function_name" in data:
                 app.state.function_name = data.get("function_name")
             return {"ok": True, "run_id": run_id, "run_name": app.state.run_name}
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+    @app.get("/api/runs/{run_id}/data")
+    def get_run_data(run_id: str):
+        """Get full run data without changing active run. Used for comparison mode."""
+        try:
+            summary = store.load_run(run_id)
+            score_chips = _build_score_chips(summary.get("results", []))
+            return {
+                "session_name": summary.get("session_name"),
+                "run_name": summary.get("run_name"),
+                "run_id": run_id,
+                "total_evaluations": summary.get("total_evaluations", 0),
+                "total_errors": summary.get("total_errors", 0),
+                "total_passed": summary.get("total_passed", 0),
+                "average_latency": summary.get("average_latency", 0),
+                "results": summary.get("results", []),
+                "score_chips": score_chips,
+                "eval_path": summary.get("path"),
+            }
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Run not found")
 

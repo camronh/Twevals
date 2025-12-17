@@ -550,3 +550,134 @@ tr[data-row="main"] {
   100% { opacity: 0; transform: scale(1); }
 }
 .animate-success-flash { animation: success-flash 2s ease-out forwards; }
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPARISON MODE STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Comparison chips in left panel */
+.comparison-chips {
+  margin-top: 8px;
+}
+
+.comparison-chip {
+  transition: all 0.2s ease-out;
+}
+
+.comparison-chip:hover {
+  filter: brightness(1.1);
+}
+
+.comparison-chip .remove-comparison {
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.comparison-chip:hover .remove-comparison {
+  opacity: 1;
+}
+
+/* Grouped bar chart for comparison mode */
+.stats-bar-group {
+  flex: 1;
+  max-width: 100px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.comparison-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  height: 100%;
+  min-width: 16px;
+}
+
+.comparison-bar-label {
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-bottom: 2px;
+}
+
+.comparison-bar {
+  width: 100%;
+  transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 2px 2px 0 0;
+  min-width: 12px;
+  height: 0%; /* Start at 0 for animation */
+}
+
+/* Comparison mode: match label/value widths to bar groups */
+.stats-expanded.comparison-mode .stats-chart-label,
+.stats-expanded.comparison-mode .stats-chart-value {
+  max-width: 100px;
+}
+
+.stats-expanded.comparison-mode .stats-chart-value.comparison-value {
+  flex-direction: row;
+  gap: 0.25rem;
+  font-size: 10px;
+}
+
+/* Comparison mode table */
+.comparison-table .comparison-output-cell {
+  vertical-align: top;
+}
+
+.comparison-table .comparison-output-header {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Compare dropdown */
+.compare-dropdown {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.compare-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.compare-option:hover {
+  background: var(--bg-elevated);
+}
+
+.compare-option:first-child {
+  border-radius: 5px 5px 0 0;
+}
+
+.compare-option:last-child {
+  border-radius: 0 0 5px 5px;
+}
+
+/* Adjust stats-right width in comparison mode for more horizontal space */
+.stats-expanded.comparison-mode .stats-right {
+  width: 80%;
+}
+
+.stats-expanded.comparison-mode .stats-left {
+  width: 20%;
+}

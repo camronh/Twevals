@@ -27,6 +27,69 @@ let _currentData = null;
 let _currentRunId = null;
 let _sessionRuns = [];
 
+// Comparison mode state
+const COMPARISON_COLORS = ['#3b82f6', '#f97316', '#22c55e', '#a855f7']; // blue, orange, green, purple
+const COMPARISON_STORAGE_KEY = 'ezvals:comparisonRuns';
+let _comparisonRuns = [];  // Array of { runId, runName, color }
+let _comparisonData = {};  // Map: runId -> run data
+
+function isComparisonMode() {
+  return _comparisonRuns.length > 1;
+}
+
+function addRunToComparison(runId, runName) {
+  if (_comparisonRuns.length >= 4) return false;
+  if (_comparisonRuns.find(r => r.runId === runId)) return false;
+  const colorIndex = _comparisonRuns.length;
+  _comparisonRuns.push({ runId, runName, color: COMPARISON_COLORS[colorIndex] });
+  sessionStorage.setItem(COMPARISON_STORAGE_KEY, JSON.stringify(_comparisonRuns));
+  return true;
+}
+
+function removeRunFromComparison(runId) {
+  _comparisonRuns = _comparisonRuns.filter(r => r.runId !== runId);
+  // Reassign colors to maintain palette order
+  _comparisonRuns.forEach((r, i) => r.color = COMPARISON_COLORS[i]);
+  delete _comparisonData[runId];
+  sessionStorage.setItem(COMPARISON_STORAGE_KEY, JSON.stringify(_comparisonRuns));
+}
+
+function clearComparison() {
+  _comparisonRuns = [];
+  _comparisonData = {};
+  sessionStorage.removeItem(COMPARISON_STORAGE_KEY);
+}
+
+function getResultKey(result) {
+  return `${result.function}::${result.dataset || ''}`;
+}
+
+function buildComparisonMatrix() {
+  // Creates a map: resultKey -> { _meta: {function, dataset, labels}, runId1: result, runId2: result, ... }
+  const matrix = {};
+  for (const [runId, data] of Object.entries(_comparisonData)) {
+    for (const r of data.results || []) {
+      const key = getResultKey(r);
+      if (!matrix[key]) matrix[key] = { _meta: { function: r.function, dataset: r.dataset, labels: r.labels } };
+      matrix[key][runId] = r;
+    }
+  }
+  return matrix;
+}
+
+async function fetchRunForComparison(runId) {
+  try {
+    const resp = await fetch(`/api/runs/${encodeURIComponent(runId)}/data`);
+    if (!resp.ok) throw new Error('Failed to fetch run');
+    const data = await resp.json();
+    _comparisonData[runId] = data;
+    return data;
+  } catch (e) {
+    console.error('Failed to fetch comparison run:', e);
+    return null;
+  }
+}
+
 async function fetchSessionRuns(sessionName) {
   if (!sessionName) return;
   try {
@@ -276,11 +339,123 @@ function getTextColor(pct) {
   return pct >= 80 ? 'text-accent-success' : (pct >= 50 ? 'text-amber-500' : 'text-accent-error');
 }
 
+function renderCompareDropdown() {
+  // Show other runs in session that aren't already in comparison
+  const currentIds = new Set([_currentRunId, ..._comparisonRuns.map(r => r.runId)]);
+  const available = _sessionRuns.filter(r => !currentIds.has(r.run_id));
+  if (available.length === 0) return '<div class="text-zinc-500 text-[10px] p-2">No other runs available</div>';
+  return available.map(r => `
+    <button class="compare-option w-full text-left px-3 py-2 hover:bg-zinc-700 text-xs text-zinc-300"
+            data-run-id="${r.run_id}" data-run-name="${escapeHtml(r.run_name || r.run_id)}">
+      ${escapeHtml(r.run_name || r.run_id)} <span class="text-zinc-500">(${formatRunTimestamp(r.timestamp)})</span>
+    </button>
+  `).join('');
+}
+
+function renderComparisonChips() {
+  let html = '<div class="comparison-chips flex flex-wrap gap-2 items-center">';
+
+  _comparisonRuns.forEach((run, i) => {
+    const data = _comparisonData[run.runId];
+    const testCount = data?.results?.length || 0;
+    const isFirst = i === 0;
+
+    html += `
+      <span class="comparison-chip rounded-full px-3 py-1 text-[11px] font-medium flex items-center gap-1.5"
+            style="background: ${run.color}20; border: 1px solid ${run.color}; color: ${run.color}"
+            data-run-id="${run.runId}">
+        <span class="w-2 h-2 rounded-full" style="background: ${run.color}"></span>
+        <span class="truncate max-w-[120px]">${escapeHtml(run.runName)}</span>
+        <span class="text-zinc-500">(${testCount})</span>
+        ${!isFirst ? `<button class="remove-comparison ml-1 hover:text-white text-[14px] leading-none" data-run-id="${run.runId}" title="Remove from comparison">&times;</button>` : ''}
+      </span>
+    `;
+  });
+
+  // Add more button if < 4 runs and more available
+  const currentIds = new Set(_comparisonRuns.map(r => r.runId));
+  const hasMore = _sessionRuns.some(r => !currentIds.has(r.run_id));
+  if (_comparisonRuns.length < 4 && hasMore) {
+    html += `<button id="add-more-compare" class="rounded-full px-2 py-1 text-[10px] bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300" title="Add another run to compare">+</button>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderComparisonBars() {
+  // Collect all unique score keys across all comparison runs, plus latency
+  const allKeys = new Set();
+  for (const data of Object.values(_comparisonData)) {
+    for (const chip of (data.score_chips || [])) {
+      allKeys.add(chip.key);
+    }
+  }
+  allKeys.add('_latency');
+  const keys = Array.from(allKeys);
+
+  // Find max latency for normalization (100% = highest latency)
+  let maxLatency = 0;
+  for (const data of Object.values(_comparisonData)) {
+    const lat = data?.average_latency || 0;
+    if (lat > maxLatency) maxLatency = lat;
+  }
+
+  let barsHtml = '';
+  let labelsHtml = '';
+  let valuesHtml = '';
+
+  keys.forEach((key, keyIdx) => {
+    // Create a group of bars for this metric
+    let groupBars = '';
+
+    _comparisonRuns.forEach((run) => {
+      const data = _comparisonData[run.runId];
+      let pct = 0;
+      let displayVal = '—';
+
+      if (key === '_latency') {
+        const lat = data?.average_latency || 0;
+        // Normalize: highest latency = 100%
+        pct = maxLatency > 0 ? (lat / maxLatency) * 100 : 0;
+        displayVal = lat > 0 ? lat.toFixed(2) + 's' : '—';
+      } else {
+        const chip = (data?.score_chips || []).find(c => c.key === key);
+        if (chip) {
+          const stats = chipStats(chip, 2);
+          pct = stats.pct;
+          displayVal = stats.pct + '%';
+        }
+      }
+
+      // Bar with label on top
+      groupBars += `<div class="comparison-bar-wrapper"><span class="comparison-bar-label" style="color: ${run.color}">${displayVal}</span><div class="comparison-bar" style="background: ${run.color};" data-target-height="${pct}"></div></div>`;
+    });
+
+    barsHtml += `<div class="stats-bar-group" style="opacity:0;transform:translateY(20px)">${groupBars}</div>`;
+    labelsHtml += `<span class="stats-chart-label" style="opacity:0">${key === '_latency' ? 'Latency' : escapeHtml(key)}</span>`;
+    valuesHtml += `<span class="stats-chart-value comparison-value" style="opacity:0"></span>`;
+  });
+
+  return { barsHtml, labelsHtml, valuesHtml };
+}
+
 function renderStatsExpanded(data) {
   const { total, avgLatency, chips, pctDone, isRunning, sessionName, runName, runId, progressCompleted, progressTotal } = summarizeStats(data);
+  const inComparisonMode = isComparisonMode();
 
   let headerHtml = '';
-  if (sessionName || runName) {
+  if (inComparisonMode) {
+    // Comparison mode: show session + comparison chips
+    headerHtml = '<div class="stats-left-header">';
+    if (sessionName) {
+      headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session copyable cursor-pointer hover:text-zinc-300">${escapeHtml(sessionName)}</span></div>`;
+    }
+    headerHtml += `<div class="stats-info-row"><span class="stats-info-label">comparing</span></div>`;
+    headerHtml += renderComparisonChips();
+    headerHtml += '</div>';
+  } else if (sessionName || runName) {
+    // Normal mode
     headerHtml = '<div class="stats-left-header">';
     if (sessionName) headerHtml += `<div class="stats-info-row"><span class="stats-info-label">session</span><span class="stats-session copyable cursor-pointer hover:text-zinc-300">${escapeHtml(sessionName)}</span></div>`;
     if (runName) {
@@ -290,34 +465,58 @@ function renderStatsExpanded(data) {
       } else {
         headerHtml += `<div class="stats-info-row group"><span class="stats-info-label">run</span><span id="run-name-expanded" class="stats-run copyable cursor-pointer hover:text-zinc-300">${escapeHtml(runName)}</span><button class="edit-run-btn-expanded ml-1 text-zinc-600 transition hover:text-zinc-400" title="Rename run"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-pencil"></use></svg></button></div>`;
       }
+      // Show +Compare button on its own row if there are other runs in the session
+      if (_sessionRuns.length > 1) {
+        headerHtml += `<div class="stats-info-row"><button id="add-compare-btn" class="rounded bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-400 hover:bg-blue-500/30 transition" title="Compare with another run">+ Compare</button></div>`;
+      }
     }
     headerHtml += '</div>';
   }
 
-  // Only render latency if we have data (will be created dynamically during live updates)
-  const latencyHtml = avgLatency > 0
-    ? `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span></span><span class="stats-metric-label">avg latency</span></div>`
-    : '';
+  // In comparison mode, don't show latency or test count in left panel (they're in chips/chart)
+  let latencyHtml = '';
+  let metricsHtml = '';
+  if (!inComparisonMode) {
+    latencyHtml = avgLatency > 0
+      ? `<div class="stats-metric stats-metric-sm"><span class="stats-metric-value">${avgLatency.toFixed(2)}<span class="stats-metric-unit">s</span></span><span class="stats-metric-label">avg latency</span></div>`
+      : '';
 
-  let progressHtml = '';
-  if (isRunning) {
-    progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text text-emerald-400">${pctDone}% (${progressCompleted}/${progressTotal})</span></div>`;
+    let progressHtml = '';
+    if (isRunning) {
+      progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text text-emerald-400">${pctDone}% (${progressCompleted}/${progressTotal})</span></div>`;
+    }
+
+    metricsHtml = `
+      <div class="stats-metric-row-main">
+        <div class="stats-metric"><span class="stats-metric-value">${total}</span><span class="stats-metric-label">tests</span></div>
+        ${progressHtml}
+      </div>
+      ${latencyHtml}
+    `;
   }
 
+  // Chart bars - different rendering for comparison mode
   let barsHtml = '';
   let labelsHtml = '';
   let valuesHtml = '';
-  chips.forEach((chip) => {
-    const { pct, value } = chipStats(chip, 2);
-    // Start at 0 height, will animate to target via JS
-    barsHtml += `<div class="stats-bar-col" style="opacity:0;transform:translateY(20px)"><div class="stats-chart-fill ${getBarColor(pct)}" data-target-height="${pct}" style="height: 0%"></div></div>`;
-    labelsHtml += `<span class="stats-chart-label" style="opacity:0">${escapeHtml(chip.key)}</span>`;
-    valuesHtml += `<span class="stats-chart-value" style="opacity:0"><span class="stats-pct">${pct}%</span><span class="stats-ratio">${value}</span></span>`;
-  });
+
+  if (inComparisonMode) {
+    const chartData = renderComparisonBars();
+    barsHtml = chartData.barsHtml;
+    labelsHtml = chartData.labelsHtml;
+    valuesHtml = chartData.valuesHtml;
+  } else {
+    chips.forEach((chip) => {
+      const { pct, value } = chipStats(chip, 2);
+      barsHtml += `<div class="stats-bar-col" style="opacity:0;transform:translateY(20px)"><div class="stats-chart-fill ${getBarColor(pct)}" data-target-height="${pct}" style="height: 0%"></div></div>`;
+      labelsHtml += `<span class="stats-chart-label" style="opacity:0">${escapeHtml(chip.key)}</span>`;
+      valuesHtml += `<span class="stats-chart-value" style="opacity:0"><span class="stats-pct">${pct}%</span><span class="stats-ratio">${value}</span></span>`;
+    });
+  }
 
   const isCollapsed = localStorage.getItem(STATS_PREF_KEY) === 'false';
   return `
-    <div id="stats-expanded" class="stats-expanded${isCollapsed ? ' hidden' : ''}">
+    <div id="stats-expanded" class="stats-expanded${isCollapsed ? ' hidden' : ''}${inComparisonMode ? ' comparison-mode' : ''}">
       <div class="stats-layout">
         <button id="stats-collapse-btn" class="stats-collapse-btn" title="Collapse">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-chevron-up"></use></svg>
@@ -325,11 +524,7 @@ function renderStatsExpanded(data) {
         <div class="stats-left">
           <div class="stats-left-content">
             ${headerHtml}
-            <div class="stats-metric-row-main">
-              <div class="stats-metric"><span class="stats-metric-value">${total}</span><span class="stats-metric-label">tests</span></div>
-              ${progressHtml}
-            </div>
-            ${latencyHtml}
+            ${metricsHtml}
           </div>
           <div class="stats-yaxis">
             <span class="stats-axis-label">100%</span>
@@ -547,6 +742,124 @@ function renderResultsTable(data, runId) {
     </table>`;
 }
 
+function renderInlineScoreBadges(scores, latency) {
+  let html = '';
+  if (scores?.length) {
+    for (const s of scores) {
+      let badgeClass = 'bg-theme-bg-elevated text-theme-text-muted';
+      if (s.passed === true) badgeClass = 'bg-accent-success-bg text-accent-success';
+      else if (s.passed === false) badgeClass = 'bg-accent-error-bg text-accent-error';
+      const val = s.value != null ? `:${typeof s.value === 'number' ? s.value.toFixed(1) : s.value}` : '';
+      html += `<span class="rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}">${escapeHtml(s.key)}${val}</span>`;
+    }
+  }
+  if (latency != null) {
+    const latColor = latency <= 1 ? 'text-accent-success' : (latency <= 5 ? 'text-theme-text-muted' : 'text-accent-error');
+    html += `<span class="font-mono text-[10px] ${latColor}">${latency.toFixed(2)}s</span>`;
+  }
+  return html;
+}
+
+function renderResultsTableComparison() {
+  const matrix = buildComparisonMatrix();
+  const keys = Object.keys(matrix).sort();
+  const outputColWidth = Math.floor(50 / _comparisonRuns.length);
+
+  // Build header
+  let headerHtml = `
+    <tr class="border-b border-theme-border">
+      <th style="width:32px" class="bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" disabled /></th>
+      <th data-col="function" style="width:15%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
+      <th data-col="input" style="width:15%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
+      <th data-col="reference" style="width:15%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
+  `;
+
+  // One output column per run
+  for (const run of _comparisonRuns) {
+    headerHtml += `
+      <th data-col="output-${run.runId}" style="width:${outputColWidth}%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider comparison-output-header" style="border-left: 2px solid ${run.color}40">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full shrink-0" style="background: ${run.color}"></span>
+          <span class="truncate">${escapeHtml(run.runName)}</span>
+        </span>
+      </th>
+    `;
+  }
+  headerHtml += '<th style="width:28px" class="bg-theme-bg px-1 py-2"></th></tr>';
+
+  // Build rows
+  let rowsHtml = '';
+  keys.forEach((key, index) => {
+    const entry = matrix[key];
+    const meta = entry._meta;
+    // Find first result with data for input/reference display
+    let firstResult = null;
+    for (const run of _comparisonRuns) {
+      if (entry[run.runId]?.result) {
+        firstResult = entry[run.runId];
+        break;
+      }
+    }
+
+    // Labels HTML
+    let labelsHtml = '';
+    if (meta.labels?.length) {
+      labelsHtml = '<span class="text-zinc-700">·</span>' + meta.labels.map(la => `<span class="rounded bg-theme-bg-elevated px-1 py-0.5 text-[9px] text-theme-text-muted">${escapeHtml(la)}</span>`).join('');
+    }
+
+    rowsHtml += `
+      <tr data-row="main" data-row-id="${index}" class="group hover:bg-theme-bg-elevated/50 transition-colors">
+        <td class="px-2 py-3 text-center align-middle">
+          <input type="checkbox" class="row-checkbox" data-row-id="${index}" disabled />
+        </td>
+        <td data-col="function" class="px-3 py-3 align-middle">
+          <div class="flex flex-col gap-0.5">
+            <span class="font-mono text-[12px] font-medium text-theme-text">${escapeHtml(meta.function)}</span>
+            <div class="flex items-center gap-1.5 text-[10px] text-zinc-500"><span>${escapeHtml(meta.dataset || '')}</span>${labelsHtml}</div>
+          </div>
+        </td>
+        <td data-col="input" class="px-3 py-3 align-middle">
+          <div class="line-clamp-4 text-[12px] text-theme-text">${escapeHtml(formatValue(firstResult?.result?.input))}</div>
+        </td>
+        <td data-col="reference" class="px-3 py-3 align-middle">
+          ${firstResult?.result?.reference != null ? `<div class="line-clamp-4 text-[12px] text-theme-text">${escapeHtml(formatValue(firstResult.result.reference))}</div>` : '<span class="text-zinc-600">—</span>'}
+        </td>
+    `;
+
+    // Output cells per run
+    for (const run of _comparisonRuns) {
+      const r = entry[run.runId];
+      const result = r?.result;
+      if (!result) {
+        rowsHtml += `<td data-col="output-${run.runId}" class="px-3 py-3 align-middle comparison-output-cell" style="border-left: 2px solid ${run.color}20"><span class="text-zinc-600">—</span></td>`;
+      } else {
+        const scores = result.scores || [];
+        const scoreBadges = renderInlineScoreBadges(scores, result.latency);
+        const outputText = result.output != null ? escapeHtml(formatValue(result.output)) : '<span class="text-zinc-600">—</span>';
+        const errorHtml = result.error ? `<div class="text-[10px] text-accent-error truncate" title="${escapeHtml(result.error)}">Error: ${escapeHtml(result.error.split('\\n')[0])}</div>` : '';
+
+        rowsHtml += `
+          <td data-col="output-${run.runId}" class="px-3 py-3 align-middle comparison-output-cell" style="border-left: 2px solid ${run.color}20">
+            <div class="space-y-2">
+              <div class="line-clamp-3 text-[12px] text-theme-text">${outputText}</div>
+              ${errorHtml}
+              <div class="flex flex-wrap gap-1">${scoreBadges}</div>
+            </div>
+          </td>
+        `;
+      }
+    }
+
+    rowsHtml += '<td class="px-1 py-3 align-middle"></td></tr>';
+  });
+
+  return `
+    <table id="results-table" class="w-full table-fixed border-collapse text-sm text-theme-text comparison-table">
+      <thead>${headerHtml}</thead>
+      <tbody class="divide-y divide-theme-border-subtle">${rowsHtml}</tbody>
+    </table>`;
+}
+
 function renderResults(data) {
   _currentData = data;
   _currentRunId = data.run_id;
@@ -556,7 +869,8 @@ function renderResults(data) {
   _hasRunBefore = _hasRunBefore || (data.results || []).some(r => r.result?.status && r.result.status !== 'not_started');
 
   const container = document.getElementById('results');
-  container.innerHTML = renderStatsExpanded(data) + renderStatsCompact(data) + renderResultsTable(data, data.run_id);
+  const tableHtml = isComparisonMode() ? renderResultsTableComparison() : renderResultsTable(data, data.run_id);
+  container.innerHTML = renderStatsExpanded(data) + renderStatsCompact(data) + tableHtml;
   onResultsRendered();
 }
 
@@ -573,13 +887,92 @@ function onResultsRendered() {
   scheduleLiveRefresh();
   initStatsToggle();
   animateInitialBars();
+  initComparisonHandlers();
+}
+
+function showCompareDropdown(anchorEl) {
+  // Remove any existing dropdown
+  document.querySelector('.compare-dropdown')?.remove();
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'compare-dropdown absolute right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg z-50 min-w-[200px] max-h-[200px] overflow-y-auto';
+  dropdown.innerHTML = renderCompareDropdown();
+
+  // Position relative to anchor
+  const rect = anchorEl.getBoundingClientRect();
+  dropdown.style.position = 'fixed';
+  dropdown.style.top = `${rect.bottom + 4}px`;
+  dropdown.style.left = `${rect.left}px`;
+
+  document.body.appendChild(dropdown);
+
+  // Handle selection
+  dropdown.addEventListener('click', async (e) => {
+    const option = e.target.closest('.compare-option');
+    if (option) {
+      const runId = option.dataset.runId;
+      const runName = option.dataset.runName;
+
+      // Initialize comparison with current run if not already in comparison
+      if (_comparisonRuns.length === 0) {
+        addRunToComparison(_currentRunId, _currentData?.run_name || _currentRunId);
+        _comparisonData[_currentRunId] = _currentData;
+      }
+
+      // Add the new run
+      if (addRunToComparison(runId, runName)) {
+        await fetchRunForComparison(runId);
+        dropdown.remove();
+        renderResults(_currentData);
+      }
+    }
+  });
+
+  // Close on click outside
+  const closeHandler = (e) => {
+    if (!dropdown.contains(e.target) && e.target !== anchorEl) {
+      dropdown.remove();
+      document.removeEventListener('click', closeHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeHandler), 0);
+}
+
+function initComparisonHandlers() {
+  // +Compare button
+  const addCompareBtn = document.getElementById('add-compare-btn');
+  addCompareBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showCompareDropdown(addCompareBtn);
+  });
+
+  // Add more compare button (in comparison mode)
+  const addMoreBtn = document.getElementById('add-more-compare');
+  addMoreBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showCompareDropdown(addMoreBtn);
+  });
+
+  // Remove from comparison buttons
+  document.querySelectorAll('.remove-comparison').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const runId = btn.dataset.runId;
+      removeRunFromComparison(runId);
+
+      // If only one run left, exit comparison mode
+      if (_comparisonRuns.length <= 1) {
+        clearComparison();
+      }
+
+      renderResults(_currentData);
+    });
+  });
 }
 
 function animateInitialBars() {
+  // Normal mode bars
   const bars = document.querySelectorAll('.stats-bar-col');
-  const labels = document.querySelectorAll('.stats-chart-label');
-  const values = document.querySelectorAll('.stats-chart-value');
-
   bars.forEach((bar, i) => {
     const fill = bar.querySelector('.stats-chart-fill');
     const targetHeight = fill?.dataset.targetHeight;
@@ -591,6 +984,25 @@ function animateInitialBars() {
       }
     }, 50 + i * 80);
   });
+
+  // Comparison mode grouped bars
+  const barGroups = document.querySelectorAll('.stats-bar-group');
+  barGroups.forEach((group, i) => {
+    setTimeout(() => {
+      group.style.opacity = '';
+      group.style.transform = '';
+      // Animate individual bars in the group
+      group.querySelectorAll('.comparison-bar').forEach(bar => {
+        const targetHeight = bar.dataset.targetHeight;
+        if (targetHeight) {
+          bar.style.height = targetHeight + '%';
+        }
+      });
+    }, 50 + i * 80);
+  });
+
+  const labels = document.querySelectorAll('.stats-chart-label');
+  const values = document.querySelectorAll('.stats-chart-value');
 
   labels.forEach((label, i) => {
     setTimeout(() => { label.style.opacity = ''; }, 100 + i * 80);
@@ -1179,6 +1591,21 @@ function updateRunButtonState() {
 
   if (!playBtn) return;
 
+  // Disable in comparison mode (read-only analysis)
+  if (isComparisonMode()) {
+    playBtnText.textContent = 'Compare Mode';
+    playBtn.classList.remove('rounded-l');
+    playBtn.classList.add('rounded', 'opacity-50', 'cursor-not-allowed');
+    playBtn.disabled = true;
+    dropdownToggle?.classList.add('hidden');
+    dropdownToggle?.classList.remove('flex');
+    return;
+  }
+
+  // Reset disabled state when not in comparison mode
+  playBtn.disabled = false;
+  playBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
   // Determine button state based on context
   const hasSelections = selectedIndices.size > 0;
 
@@ -1313,6 +1740,7 @@ document.addEventListener('change', (e) => {
 let liveUpdateTimer = null;
 function scheduleLiveRefresh() {
   if (liveUpdateTimer) { clearTimeout(liveUpdateTimer); liveUpdateTimer = null; }
+  if (isComparisonMode()) return; // No live updates in comparison mode (read-only)
   if (!hasRunningResults(_currentData)) return;
   liveUpdateTimer = setTimeout(async () => {
     try {
@@ -1340,6 +1768,9 @@ function scheduleLiveRefresh() {
 }
 
 function updateStatsInPlace(data) {
+  // Skip updates in comparison mode - comparison is read-only
+  if (isComparisonMode()) return;
+
   const expandedPanel = document.getElementById('stats-expanded');
   const compactBar = document.getElementById('stats-compact');
   if (!expandedPanel || !compactBar) return;
@@ -1381,6 +1812,9 @@ function updateStatsInPlace(data) {
 }
 
 function updateStatsForFilters() {
+  // Skip updates in comparison mode - comparison is read-only
+  if (isComparisonMode()) return;
+
   const expandedPanel = document.getElementById('stats-expanded');
   const compactBar = document.getElementById('stats-compact');
   if (!expandedPanel || !compactBar || !_currentData) return;
