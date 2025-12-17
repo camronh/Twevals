@@ -480,13 +480,24 @@ tr[data-row="main"] {
 .stats-chart-value {
   flex: 1;
   max-width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
   text-align: center;
   opacity: 1;
   transition: opacity 0.15s ease-out;
+}
+.stats-pct {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.stats-ratio {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 .stats-chart-value.updating {
   opacity: 0.5;

@@ -184,16 +184,17 @@ function updateChartBars(expandedPanel, chips) {
       requestAnimationFrame(() => label.classList.remove('entering'));
     }
 
-    const valueWithPct = `${pct}% (${value})`;
+    const valueHtml = `<span class="stats-pct">${pct}%</span><span class="stats-ratio">${value}</span>`;
     if (existingValues[i]) {
-      if (existingValues[i].textContent !== valueWithPct) {
+      const currentPct = existingValues[i].querySelector('.stats-pct')?.textContent;
+      if (currentPct !== `${pct}%`) {
         existingValues[i].classList.add('updating');
-        setTimeout(() => { existingValues[i].textContent = valueWithPct; existingValues[i].classList.remove('updating'); }, 100);
+        setTimeout(() => { existingValues[i].innerHTML = valueHtml; existingValues[i].classList.remove('updating'); }, 100);
       }
     } else {
       const valSpan = document.createElement('span');
       valSpan.className = 'stats-chart-value entering';
-      valSpan.textContent = valueWithPct;
+      valSpan.innerHTML = valueHtml;
       valuesContainer.appendChild(valSpan);
       requestAnimationFrame(() => valSpan.classList.remove('entering'));
     }
@@ -310,7 +311,7 @@ function renderStatsExpanded(data) {
     // Start at 0 height, will animate to target via JS
     barsHtml += `<div class="stats-bar-col" style="opacity:0;transform:translateY(20px)"><div class="stats-chart-fill ${getBarColor(pct)}" data-target-height="${pct}" style="height: 0%"></div></div>`;
     labelsHtml += `<span class="stats-chart-label" style="opacity:0">${escapeHtml(chip.key)}</span>`;
-    valuesHtml += `<span class="stats-chart-value" style="opacity:0">${pct}% (${value})</span>`;
+    valuesHtml += `<span class="stats-chart-value" style="opacity:0"><span class="stats-pct">${pct}%</span><span class="stats-ratio">${value}</span></span>`;
   });
 
   const isCollapsed = localStorage.getItem(STATS_PREF_KEY) === 'false';
