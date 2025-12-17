@@ -565,6 +565,9 @@ def create_app(
         try:
             if body.run_name is not None:
                 new_name = store.rename_run(run_id, body.run_name)
+                # Sync app.state.run_name if this is the active run
+                if app.state.active_run_id == run_id:
+                    app.state.run_name = new_name
                 return {"ok": True, "run": {"run_id": run_id, "run_name": new_name}}
             return {"ok": True, "run": {"run_id": run_id}}
         except FileNotFoundError:
