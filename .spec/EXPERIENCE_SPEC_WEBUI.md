@@ -518,6 +518,115 @@ Results are stored in `.ezvals/sessions/` with hierarchical session directories:
 
 ---
 
+## Comparison Mode
+
+Comparison mode allows users to view and compare results from multiple runs side-by-side.
+
+### Entering Comparison Mode
+
+```gherkin
+Scenario: Start comparing runs
+  Given the user has multiple runs in the current session
+  And the user is viewing a run in the stats panel
+  When the user clicks the "+ Compare" button next to the run name
+  Then a dropdown appears showing other available runs in the session
+  And selecting a run enters comparison mode
+  And both runs are shown as color-coded chips
+```
+
+### Comparison Mode UI
+
+```gherkin
+Scenario: Left panel in comparison mode
+  Given comparison mode is active with 2+ runs
+  Then the left panel shows:
+    - Session name
+    - "comparing" label
+    - Color-coded chips for each run (max 4)
+    - Each chip shows: color dot, run name, test count in parentheses
+    - Non-primary chips have an "×" button to remove them
+    - A "+" button to add more runs (if < 4 runs)
+  And average latency is NOT shown (moved to chart)
+  And test count is NOT shown (embedded in chips)
+
+Scenario: Chart in comparison mode
+  Given comparison mode is active
+  Then the chart shows:
+    - Grouped bars (one per run) for each score metric
+    - Bars color-coded to match run chips
+    - "Latency" as an additional metric (normalized 0-5s = 0-100%)
+    - Per-run values displayed below each metric group
+```
+
+### Comparison Table
+
+```gherkin
+Scenario: Table structure in comparison mode
+  Given comparison mode is active
+  Then the table shows columns:
+    - Checkbox (disabled)
+    - Eval (function name + dataset + labels)
+    - Input
+    - Reference
+    - One column per run (named after run name, color-coded header)
+  And Output/Error/Scores/Time columns are replaced by per-run columns
+  And each run column contains: output text, error (if any), score badges, latency
+
+Scenario: Result alignment across runs
+  Given comparison mode is active
+  Then results are matched across runs by (function, dataset) tuple
+  And rows with matching results show data from all runs
+  And missing results show "—" in the respective run column
+```
+
+### Comparison Limits
+
+```gherkin
+Scenario: Maximum 4 runs
+  Given the user has 4 runs in comparison mode
+  Then the "+" button is hidden or disabled
+  And no more runs can be added
+
+Scenario: Run button disabled
+  Given comparison mode is active
+  Then the Run button shows "Compare Mode"
+  And the button is disabled (grayed out)
+  And no dropdown is shown
+```
+
+### Exiting Comparison Mode
+
+```gherkin
+Scenario: Remove runs to exit
+  Given comparison mode is active with 2 runs
+  When the user clicks "×" on the second run's chip
+  Then that run is removed from comparison
+  And the UI returns to normal (single-run) mode
+  And the first run remains as the active run
+```
+
+### Color Assignment
+
+Runs are assigned colors from a fixed palette in order:
+1. First run: Blue (#3b82f6)
+2. Second run: Orange (#f97316)
+3. Third run: Green (#22c55e)
+4. Fourth run: Purple (#a855f7)
+
+Colors are reassigned when runs are removed to maintain palette order.
+
+### API Endpoint
+
+```
+GET /api/runs/{run_id}/data
+```
+
+Returns full run data without changing the active run. Used for fetching comparison run data.
+
+Response format: Same as `/results` endpoint (includes `score_chips`).
+
+---
+
 ## Known Issues
 
 ### Limited Test Coverage
@@ -533,3 +642,4 @@ Results are stored in `.ezvals/sessions/` with hierarchical session directories:
 | Stats bar | Tested |
 | Three-state filtering | Not tested |
 | Filter persistence | Not tested |
+| Comparison mode | Partially tested |
