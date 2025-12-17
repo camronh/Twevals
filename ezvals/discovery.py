@@ -1,10 +1,32 @@
 import os
+import sys
+import importlib
 import importlib.util
 import inspect
 from pathlib import Path
 from typing import List, Optional, Set
 
 from ezvals.decorators import EvalFunction
+
+
+def _clear_project_modules(directory: Path) -> None:
+    """
+    Clear cached modules from sys.modules whose __file__ is under the given directory.
+
+    This enables hot-reloading: when a target module is edited and evals are rerun,
+    the updated code is picked up instead of serving stale cached imports.
+    """
+    dir_str = str(directory.absolute())
+    to_remove = []
+    for name, mod in sys.modules.items():
+        mod_file = getattr(mod, '__file__', None)
+        if mod_file and mod_file.startswith(dir_str):
+            to_remove.append(name)
+
+    for name in to_remove:
+        del sys.modules[name]
+
+    importlib.invalidate_caches()
 
 
 class EvalDiscovery:
@@ -61,13 +83,15 @@ class EvalDiscovery:
                     self._discover_in_file(file_path)
 
     def _discover_in_file(self, file_path: Path):
-        import sys
         parent_dir = str(file_path.parent.absolute())
         path_added = parent_dir not in sys.path
         if path_added:
             sys.path.insert(0, parent_dir)
 
         try:
+            # Clear cached modules under this directory to enable hot-reloading
+            _clear_project_modules(file_path.parent)
+
             spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
             if not spec or not spec.loader:
                 return
