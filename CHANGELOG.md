@@ -2,7 +2,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.2a17 - 2025-12-16
 
 - Added: Per-case `dataset` and `labels` support via `@parametrize` and `input_loader`. Dataset overrides function-level; labels merge (no duplicates).
 - Added: `input_loader` parameter on `@eval` decorator for dynamic data loading from external sources (databases, APIs like LangSmith). Loader is called lazily at eval time, each example becomes a separate eval run.
