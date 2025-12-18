@@ -32,6 +32,7 @@ const COMPARISON_COLORS = ['#3b82f6', '#f97316', '#22c55e', '#a855f7']; // blue,
 const COMPARISON_STORAGE_KEY = 'ezvals:comparisonRuns';
 let _comparisonRuns = [];  // Array of { runId, runName, color }
 let _comparisonData = {};  // Map: runId -> run data
+let _comparisonMatrix = null;  // Map: resultKey -> comparison row data
 
 function isComparisonMode() {
   return _comparisonRuns.length > 1;
@@ -57,6 +58,7 @@ function removeRunFromComparison(runId) {
 function clearComparison() {
   _comparisonRuns = [];
   _comparisonData = {};
+  _comparisonMatrix = null;
   sessionStorage.removeItem(COMPARISON_STORAGE_KEY);
 }
 
@@ -791,6 +793,7 @@ function renderInlineScoreBadges(scores, latency) {
 
 function renderResultsTableComparison() {
   const matrix = buildComparisonMatrix();
+  _comparisonMatrix = matrix;
   const keys = Object.keys(matrix).sort();
   const outputColWidth = Math.floor(50 / _comparisonRuns.length);
 
@@ -837,7 +840,7 @@ function renderResultsTableComparison() {
     }
 
     rowsHtml += `
-      <tr data-row="main" data-row-id="${index}" class="group hover:bg-theme-bg-elevated/50 transition-colors">
+      <tr data-row="main" data-row-id="${index}" data-compare-key="${escapeHtml(key)}" class="group hover:bg-theme-bg-elevated/50 transition-colors">
         <td class="px-2 py-3 text-center align-middle">
           <input type="checkbox" class="row-checkbox" data-row-id="${index}" disabled />
         </td>
@@ -894,6 +897,7 @@ function renderResultsTableComparison() {
 function renderResults(data) {
   _currentData = data;
   _currentRunId = data.run_id;
+  if (!isComparisonMode()) _comparisonMatrix = null;
 
   // Check if any results have been run (not "not_started")
   // Don't reset _hasRunBefore to false once it's true (avoids race conditions)
@@ -1376,6 +1380,25 @@ document.getElementById('clear-filters')?.addEventListener('click', () => { setF
 })();
 
 function computeScoreKeys() {
+  if (isComparisonMode()) {
+    const keys = new Set();
+    const meta = {};
+    for (const data of Object.values(_comparisonData)) {
+      for (const r of data.results || []) {
+        const scores = r.result?.scores || [];
+        scores.forEach(s => {
+          const k = s && s.key;
+          if (!k) return;
+          keys.add(k);
+          const m = meta[k] || (meta[k] = { hasNumeric: false, hasPassed: false });
+          if (!Number.isNaN(parseFloat(s.value))) m.hasNumeric = true;
+          if (s.passed === true || s.passed === false) m.hasPassed = true;
+        });
+      }
+    }
+    return { all: Array.from(keys).sort(), meta };
+  }
+
   const tbody = document.querySelector('#results-table tbody');
   if (!tbody) return { all: [], meta: {} };
   const keys = new Set();
@@ -1407,6 +1430,19 @@ function updateFilterSectionsVisibility() {
 document.getElementById('key-select')?.addEventListener('change', updateFilterSectionsVisibility);
 
 function computeDatasetLabels() {
+  if (isComparisonMode()) {
+    const datasets = new Set();
+    const labels = new Set();
+    for (const data of Object.values(_comparisonData)) {
+      for (const r of data.results || []) {
+        const ds = (r.dataset || '').trim();
+        if (ds) datasets.add(ds);
+        (r.labels || []).forEach(l => labels.add(l));
+      }
+    }
+    return { datasets: Array.from(datasets).sort(), labels: Array.from(labels).sort() };
+  }
+
   const tbody = document.querySelector('#results-table tbody');
   if (!tbody) return { datasets: [], labels: [] };
   const datasets = new Set();
@@ -1539,22 +1575,61 @@ function initResizableColumns(table) {
 const searchInput = document.getElementById('search-input');
 if (searchInput) { let timer; searchInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { sessionStorage.setItem('ezvals:search', searchInput.value); applyAllFilters(); }, 120); }); }
 function compare(op, a, b) { if (op === '>') return a > b; if (op === '>=') return a >= b; if (op === '<') return a < b; if (op === '<=') return a <= b; if (op === '==') return a === b; if (op === '!=') return a !== b; return false; }
-function rowMatchesFilters(mainTr) {
+function matchesFiltersForData(data) {
   const f = getFilters();
-  if (f.annotation && f.annotation !== 'any') { const ann = (mainTr?.getAttribute('data-annotation') || '').trim(); const has = !!ann; if (f.annotation === 'yes' && !has) return false; if (f.annotation === 'no' && has) return false; }
-  const ds = (mainTr?.getAttribute('data-dataset') || '').trim();
+  const annotation = (data.annotation || '').trim();
+  const ds = (data.dataset || '').trim();
+  const rowLabels = Array.isArray(data.labels) ? data.labels : [];
+  const scores = Array.isArray(data.scores) ? data.scores : [];
+  const hasError = !!data.hasError;
+  const hasUrl = !!data.hasUrl;
+  const hasMessages = !!data.hasMessages;
+
+  if (f.annotation && f.annotation !== 'any') { const has = !!annotation; if (f.annotation === 'yes' && !has) return false; if (f.annotation === 'no' && has) return false; }
   if (f.selectedDatasets?.include?.length > 0) { if (!f.selectedDatasets.include.includes(ds)) return false; }
   if (f.selectedDatasets?.exclude?.includes(ds)) return false;
-  let rowLabels = []; try { rowLabels = JSON.parse(mainTr?.getAttribute('data-labels') || '[]') || []; } catch {}
   if (f.selectedLabels?.include?.length > 0) { if (!f.selectedLabels.include.some(l => rowLabels.includes(l))) return false; }
   if (f.selectedLabels?.exclude?.length > 0) { if (f.selectedLabels.exclude.some(l => rowLabels.includes(l))) return false; }
-  if (f.hasError === true) { if (mainTr?.getAttribute('data-has-error') !== 'true') return false; } else if (f.hasError === false) { if (mainTr?.getAttribute('data-has-error') === 'true') return false; }
-  if (f.hasUrl === true) { if (mainTr?.getAttribute('data-has-url') !== 'true') return false; } else if (f.hasUrl === false) { if (mainTr?.getAttribute('data-has-url') === 'true') return false; }
-  if (f.hasMessages === true) { if (mainTr?.getAttribute('data-has-messages') !== 'true') return false; } else if (f.hasMessages === false) { if (mainTr?.getAttribute('data-has-messages') === 'true') return false; }
-  let scores = []; try { scores = JSON.parse(mainTr?.getAttribute('data-scores') || '[]') || []; } catch {}
+  if (f.hasError === true) { if (!hasError) return false; } else if (f.hasError === false) { if (hasError) return false; }
+  if (f.hasUrl === true) { if (!hasUrl) return false; } else if (f.hasUrl === false) { if (hasUrl) return false; }
+  if (f.hasMessages === true) { if (!hasMessages) return false; } else if (f.hasMessages === false) { if (hasMessages) return false; }
   for (const vr of (f.valueRules || [])) { const s = scores.find(x => x && x.key === vr.key); if (!s) return false; const val = parseFloat(s.value); if (Number.isNaN(val)) return false; if (!compare(vr.op, val, vr.value)) return false; }
   for (const pr of (f.passedRules || [])) { const s = scores.find(x => x && x.key === pr.key); if (!s) return false; if ((s.passed === true) !== (pr.value === true)) return false; }
   return true;
+}
+
+function rowMatchesFilters(mainTr) {
+  if (isComparisonMode()) {
+    const key = mainTr?.getAttribute('data-compare-key');
+    const entry = key ? _comparisonMatrix?.[key] : null;
+    if (!entry) return true;
+    return _comparisonRuns.some((run) => {
+      const row = entry[run.runId];
+      const result = row?.result;
+      if (!result) return false;
+      return matchesFiltersForData({
+        annotation: result.annotation,
+        dataset: row?.dataset ?? entry._meta?.dataset ?? '',
+        labels: row?.labels ?? entry._meta?.labels ?? [],
+        scores: result.scores || [],
+        hasError: !!result.error,
+        hasUrl: !!(result.trace_data?.trace_url),
+        hasMessages: !!(result.trace_data?.messages?.length)
+      });
+    });
+  }
+
+  let rowLabels = []; try { rowLabels = JSON.parse(mainTr?.getAttribute('data-labels') || '[]') || []; } catch {}
+  let scores = []; try { scores = JSON.parse(mainTr?.getAttribute('data-scores') || '[]') || []; } catch {}
+  return matchesFiltersForData({
+    annotation: mainTr?.getAttribute('data-annotation') || '',
+    dataset: mainTr?.getAttribute('data-dataset') || '',
+    labels: rowLabels,
+    scores,
+    hasError: mainTr?.getAttribute('data-has-error') === 'true',
+    hasUrl: mainTr?.getAttribute('data-has-url') === 'true',
+    hasMessages: mainTr?.getAttribute('data-has-messages') === 'true'
+  });
 }
 function applyAllFilters() {
   const q = (document.getElementById('search-input')?.value || '').toLowerCase().trim();

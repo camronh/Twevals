@@ -1,5 +1,6 @@
 """E2E tests for comparison mode functionality."""
 
+import json
 import threading
 import time
 
@@ -197,6 +198,53 @@ def test_enter_comparison_mode(tmp_path):
                 # Dropdown or option didn't appear - likely due to timing issues
                 # This is expected in some test environments
                 pass
+
+            browser.close()
+
+
+def test_comparison_filters_or_logic(tmp_path):
+    """Filters in comparison mode should use OR logic across runs."""
+    store = ResultsStore(tmp_path / "runs")
+
+    run1_id = store.save_run(make_run_summary("baseline", avg_score=0.5), session_name="test-session", run_name="baseline")
+    run2_id = store.save_run(make_run_summary("final", avg_score=0.95), session_name="test-session", run_name="final")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run1_id,
+        session_name="test-session",
+        run_name="baseline",
+    )
+
+    saved_runs = [
+        {"runId": run1_id, "runName": "baseline"},
+        {"runId": run2_id, "runName": "final"},
+    ]
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.add_init_script(
+                f"sessionStorage.setItem('ezvals:comparisonRuns', JSON.stringify({json.dumps(saved_runs)}));"
+            )
+            page.goto(url)
+            page.wait_for_selector("#results-table")
+            page.wait_for_selector(".comparison-chips")
+
+            page.click("#filters-toggle")
+            page.wait_for_selector("#filters-menu.active")
+            page.wait_for_selector("#key-select option[value='quality']", state="attached")
+            page.select_option("#key-select", value="quality")
+            page.select_option("#fv-op", value=">")
+            page.fill("#fv-val", "0.9")
+            page.click("#add-fv")
+
+            row_c = page.locator("tbody tr[data-row='main']").filter(has_text="test_func_c")
+            expect(row_c.first).to_be_visible()
+
+            row_a = page.locator("tbody tr[data-row='main']").filter(has_text="test_func_a")
+            assert "hidden" in row_a.first.get_attribute("class")
 
             browser.close()
 
