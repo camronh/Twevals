@@ -305,6 +305,184 @@ def test_comparison_detail_resize_handles(tmp_path):
             browser.close()
 
 
+def _open_comparison_detail(page, url, run_id, saved_runs, index=0):
+    page.add_init_script(
+        f"sessionStorage.setItem('ezvals:comparisonRuns', JSON.stringify({json.dumps(saved_runs)}));"
+    )
+    page.goto(f"{url}/runs/{run_id}/results/{index}")
+    page.wait_for_selector("#comparison-top")
+    page.wait_for_selector("#output-panel")
+
+
+def _make_run_summary_without_reference(run_name):
+    summary = make_run_summary(run_name)
+    summary["results"][0]["result"]["reference"] = None
+    return summary
+
+
+def test_comparison_detail_layout(tmp_path):
+    """Comparison detail view should show top/bottom panes and no sidebar."""
+    store = ResultsStore(tmp_path / "runs")
+
+    run1_id = store.save_run(make_run_summary("baseline"), session_name="test-session", run_name="baseline")
+    run2_id = store.save_run(make_run_summary("final"), session_name="test-session", run_name="final")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run1_id,
+        session_name="test-session",
+        run_name="baseline",
+    )
+
+    saved_runs = [
+        {"runId": run1_id, "runName": "baseline"},
+        {"runId": run2_id, "runName": "final"},
+    ]
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            _open_comparison_detail(page, url, run1_id, saved_runs)
+
+            expect(page.locator("#comparison-top")).to_be_visible()
+            expect(page.locator("#comparison-bottom")).to_be_visible()
+            expect(page.locator("#output-panel .grid")).to_have_count(1)
+            expect(page.locator("#sidebar-panel")).to_have_count(0)
+
+            browser.close()
+
+
+def test_comparison_detail_input_full_width_no_reference(tmp_path):
+    """Input panel should span full width when reference is missing."""
+    store = ResultsStore(tmp_path / "runs")
+
+    run1_id = store.save_run(_make_run_summary_without_reference("baseline"), session_name="test-session", run_name="baseline")
+    run2_id = store.save_run(_make_run_summary_without_reference("final"), session_name="test-session", run_name="final")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run1_id,
+        session_name="test-session",
+        run_name="baseline",
+    )
+
+    saved_runs = [
+        {"runId": run1_id, "runName": "baseline"},
+        {"runId": run2_id, "runName": "final"},
+    ]
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            _open_comparison_detail(page, url, run1_id, saved_runs)
+
+            expect(page.locator("#ref-panel")).to_have_count(0)
+            top_width = page.locator("#comparison-top").evaluate("el => el.getBoundingClientRect().width")
+            input_width = page.locator("#input-panel").evaluate("el => el.getBoundingClientRect().width")
+            assert input_width / top_width > 0.85
+
+            browser.close()
+
+
+def test_comparison_detail_open_detail_link(tmp_path):
+    """Open detail should leave comparison mode and show full detail view."""
+    store = ResultsStore(tmp_path / "runs")
+
+    run1_id = store.save_run(make_run_summary("baseline"), session_name="test-session", run_name="baseline")
+    run2_id = store.save_run(make_run_summary("final"), session_name="test-session", run_name="final")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run1_id,
+        session_name="test-session",
+        run_name="baseline",
+    )
+
+    saved_runs = [
+        {"runId": run1_id, "runName": "baseline"},
+        {"runId": run2_id, "runName": "final"},
+    ]
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            _open_comparison_detail(page, url, run1_id, saved_runs)
+
+            page.locator("a[title='Open detail']").first.click()
+            page.wait_for_selector("#sidebar-panel")
+            assert "compare=0" in page.url
+            expect(page.locator("#comparison-top")).to_have_count(0)
+
+            browser.close()
+
+
+def test_comparison_detail_scores_and_latency_badges(tmp_path):
+    """Scores and latency should show under outputs in comparison view."""
+    store = ResultsStore(tmp_path / "runs")
+
+    run1_id = store.save_run(make_run_summary("baseline"), session_name="test-session", run_name="baseline")
+    run2_id = store.save_run(make_run_summary("final"), session_name="test-session", run_name="final")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run1_id,
+        session_name="test-session",
+        run_name="baseline",
+    )
+
+    saved_runs = [
+        {"runId": run1_id, "runName": "baseline"},
+        {"runId": run2_id, "runName": "final"},
+    ]
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            _open_comparison_detail(page, url, run1_id, saved_runs)
+
+            expect(page.locator("#output-panel", has_text="correctness")).to_be_visible()
+            expect(page.locator("#output-panel", has_text="1.00s")).to_be_visible()
+
+            browser.close()
+
+
+def test_comparison_detail_no_metadata_or_trace(tmp_path):
+    """Comparison view should omit metadata and trace panels."""
+    store = ResultsStore(tmp_path / "runs")
+
+    run1_id = store.save_run(make_run_summary("baseline"), session_name="test-session", run_name="baseline")
+    run2_id = store.save_run(make_run_summary("final"), session_name="test-session", run_name="final")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run1_id,
+        session_name="test-session",
+        run_name="baseline",
+    )
+
+    saved_runs = [
+        {"runId": run1_id, "runName": "baseline"},
+        {"runId": run2_id, "runName": "final"},
+    ]
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            _open_comparison_detail(page, url, run1_id, saved_runs)
+
+            expect(page.locator("[id^='data-meta-']")).to_have_count(0)
+            expect(page.locator("[id^='data-trace-']")).to_have_count(0)
+            expect(page.locator("text=Metadata")).to_have_count(0)
+            expect(page.locator("text=Trace Data")).to_have_count(0)
+
+            browser.close()
+
+
 def test_run_button_disabled_in_comparison_mode(tmp_path):
     """Run button should be disabled in comparison mode.
 
