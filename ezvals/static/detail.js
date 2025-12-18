@@ -6,6 +6,15 @@ let dataPayloads = {};
 let total = 0;
 let evalPath = '';
 let functionName = '';
+const COMPARISON_STORAGE_KEY = 'ezvals:comparisonRuns';
+const COMPARISON_COLORS = ['#3b82f6', '#f97316', '#22c55e', '#a855f7'];
+const PILL_TONES = {
+  'pending': 'text-blue-600 bg-blue-500/10 border border-blue-500/30 dark:text-blue-400',
+  'running': 'text-cyan-600 bg-cyan-500/10 border border-cyan-500/30 dark:text-cyan-400 animate-pulse',
+  'completed': 'text-emerald-600 bg-emerald-500/10 border border-emerald-500/30 dark:text-emerald-400',
+  'error': 'text-rose-600 bg-rose-500/10 border border-rose-500/30 dark:text-rose-400',
+  'cancelled': 'text-amber-600 bg-amber-500/10 border border-amber-500/30 dark:text-amber-400'
+};
 
 function escapeHtml(str) {
   if (str == null) return '';
@@ -25,6 +34,148 @@ function highlightWithin(container) {
 function highlightJson(rawText) {
   if (typeof hljs !== 'undefined') { try { return hljs.highlight(rawText, { language: 'json' }).value; } catch {} }
   return escapeHtml(rawText);
+}
+
+function buildRunCommand(path, name) {
+  return path ? `ezvals run ${path}::${name}` : `ezvals run ${name || ''}`.trim();
+}
+
+function getLatencyColor(latency) {
+  if (latency == null) return '';
+  if (latency <= 1) return 'text-emerald-600 dark:text-emerald-400';
+  if (latency <= 5) return 'text-blue-600 dark:text-blue-400';
+  return 'text-amber-600 dark:text-amber-400';
+}
+
+function renderScoresHtml(scores) {
+  if (!scores || scores.length === 0) return '';
+  return scores.map(s => {
+    let cls = 'border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800/50';
+    let textCls = 'text-zinc-700 dark:text-zinc-300';
+    let valueCls = 'text-zinc-500';
+    if (s.passed === true) {
+      cls = 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10';
+      textCls = 'text-emerald-700 dark:text-emerald-300';
+      valueCls = 'text-emerald-600 dark:text-emerald-400';
+    } else if (s.passed === false) {
+      cls = 'border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10';
+      textCls = 'text-rose-700 dark:text-rose-300';
+      valueCls = 'text-rose-600 dark:text-rose-400';
+    }
+    let passedIcon = '';
+    if (s.passed === true) passedIcon = `<span class="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>`;
+    else if (s.passed === false) passedIcon = `<span class="flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg></span>`;
+
+    return `<div class="rounded border px-2.5 py-1.5 ${cls}">
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-mono text-xs font-medium ${textCls}">${escapeHtml(s.key)}</span>
+        <div class="flex items-center gap-1.5">
+          ${s.value != null ? `<span class="font-mono text-xs ${valueCls}">${s.value}</span>` : ''}
+          ${passedIcon}
+        </div>
+      </div>
+      ${s.notes ? `<div class="mt-1 text-[11px] ${valueCls}">${escapeHtml(s.notes)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderInlineScoreBadges(scores, latency) {
+  let html = '';
+  if (scores?.length) {
+    for (const s of scores) {
+      let badgeClass = 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-300';
+      if (s.passed === true) badgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+      else if (s.passed === false) badgeClass = 'bg-rose-500/10 text-rose-600 dark:text-rose-400';
+      const val = s.value != null ? `:${typeof s.value === 'number' ? s.value.toFixed(2) : s.value}` : '';
+      html += `<span class="rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}">${escapeHtml(s.key)}${val}</span>`;
+    }
+  }
+  if (latency != null) {
+    const latencyClass = getLatencyColor(latency) || 'text-zinc-500';
+    html += `<span class="font-mono text-[10px] ${latencyClass}">${latency.toFixed(2)}s</span>`;
+  }
+  return html;
+}
+
+function getResultKey(result) {
+  if (!result) return '';
+  return `${result.function}::${result.dataset || ''}`;
+}
+
+function filterTraceData(traceData) {
+  if (!traceData) return null;
+  const filtered = Object.fromEntries(
+    Object.entries(traceData).filter(([k]) => k !== 'messages' && k !== 'trace_url')
+  );
+  return Object.keys(filtered).length === 0 ? null : filtered;
+}
+
+function getComparisonRuns() {
+  try {
+    const saved = sessionStorage.getItem(COMPARISON_STORAGE_KEY);
+    if (!saved) return [];
+    const runs = JSON.parse(saved);
+    if (!Array.isArray(runs) || runs.length < 2) return [];
+    return runs
+      .filter(r => r && r.runId)
+      .slice(0, COMPARISON_COLORS.length)
+      .map((r, i) => ({ runId: r.runId, runName: r.runName, color: COMPARISON_COLORS[i] }));
+  } catch {
+    return [];
+  }
+}
+
+function safeId(value) {
+  return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+async function fetchRunData(runId) {
+  try {
+    const resp = await fetch(`/api/runs/${encodeURIComponent(runId)}/data`);
+    if (!resp.ok) throw new Error('Failed to fetch run');
+    return await resp.json();
+  } catch {
+    return null;
+  }
+}
+
+async function buildComparisonContext(currentData, comparisonRuns) {
+  const baseResult = currentData.result || null;
+  const key = baseResult ? getResultKey(baseResult) : '';
+  const runs = await Promise.all(comparisonRuns.map(async (run, i) => {
+    const color = COMPARISON_COLORS[i] || run.color || COMPARISON_COLORS[0];
+    if (run.runId === currentData.run_id) {
+      return {
+        runId: run.runId,
+        runName: currentData.run_name || run.runName || run.runId,
+        color,
+        evalPath: currentData.eval_path,
+        result: baseResult,
+        resultIndex: currentIndex
+      };
+    }
+    const data = await fetchRunData(run.runId);
+    let result = null;
+    let resultIndex = null;
+    if (key && data?.results) {
+      const idx = data.results.findIndex(r => getResultKey(r) === key);
+      if (idx >= 0) {
+        result = data.results[idx];
+        resultIndex = idx;
+      }
+    }
+    return {
+      runId: run.runId,
+      runName: data?.run_name || run.runName || run.runId,
+      color,
+      evalPath: data?.eval_path,
+      result,
+      resultIndex
+    };
+  }));
+
+  const fallbackBase = baseResult || runs.find(r => r.result)?.result || null;
+  return { runs, baseResult: fallbackBase };
 }
 
 function renderDataViewer(targetId, content, options = {}) {
@@ -61,7 +212,11 @@ function renderDataViewer(targetId, content, options = {}) {
 }
 
 function navigateTo(idx) {
-  if (idx >= 0 && idx < total) window.location.href = `/runs/${runId}/results/${idx}`;
+  if (idx >= 0 && idx < total) {
+    const params = new URLSearchParams(window.location.search);
+    const suffix = params.get('compare') === '0' ? '?compare=0' : '';
+    window.location.href = `/runs/${runId}/results/${idx}${suffix}`;
+  }
 }
 
 function toggleCollapse(id) {
@@ -78,8 +233,8 @@ function closeMessagesPane() {
   document.getElementById('messages-pane')?.classList.add('translate-x-full');
 }
 
-function renderMessages(messages) {
-  const container = document.getElementById('data-messages');
+function renderMessages(messages, targetId = 'data-messages') {
+  const container = document.getElementById(targetId);
   if (!container || !messages || !Array.isArray(messages)) return;
   container.dataset.raw = JSON.stringify(messages, null, 2);
 
@@ -196,6 +351,11 @@ function initResizable() {
         target2 = document.getElementById('output-panel');
         startX = e.clientX;
         startWidth = target1.offsetWidth;
+      } else if (resizeType === 'input-reference') {
+        target1 = document.getElementById('input-panel');
+        target2 = document.getElementById('ref-panel');
+        startX = e.clientX;
+        startWidth = target1.offsetWidth;
       } else if (resizeType === 'main-sidebar') {
         target1 = document.getElementById('main-panel');
         target2 = document.getElementById('sidebar-panel');
@@ -206,6 +366,11 @@ function initResizable() {
         target2 = document.getElementById('ref-panel');
         startY = e.clientY;
         startHeight = target2.offsetHeight;
+      } else if (resizeType === 'top-output') {
+        target1 = document.getElementById('comparison-top');
+        target2 = document.getElementById('comparison-bottom');
+        startY = e.clientY;
+        startHeight = target1.offsetHeight;
       }
 
       const onMouseMove = ev => {
@@ -214,6 +379,15 @@ function initResizable() {
           const parentWidth = target1.parentElement.offsetWidth - 5;
           const newWidth = Math.max(100, Math.min(parentWidth - 100, startWidth + delta));
           target1.style.width = newWidth + 'px';
+          target1.style.flex = '0 0 auto';
+          if (target2) target2.style.flex = '1 1 auto';
+        } else if (resizeType === 'input-reference') {
+          const delta = ev.clientX - startX;
+          const parentWidth = target1.parentElement.offsetWidth - 5;
+          const newWidth = Math.max(140, Math.min(parentWidth - 140, startWidth + delta));
+          target1.style.width = newWidth + 'px';
+          target1.style.flex = '0 0 auto';
+          if (target2) target2.style.flex = '1 1 auto';
         } else if (resizeType === 'main-sidebar') {
           const delta = startX - ev.clientX;
           const containerWidth = target1.parentElement.offsetWidth - 5;
@@ -225,6 +399,19 @@ function initResizable() {
           const containerHeight = target1.parentElement.offsetHeight - 5;
           const newHeight = Math.max(60, Math.min(containerHeight - 100, startHeight + delta));
           target2.style.height = newHeight + 'px';
+        } else if (resizeType === 'top-output') {
+          const handleSize = handle.offsetHeight || 5;
+          const delta = ev.clientY - startY;
+          const containerHeight = target1.parentElement.offsetHeight - handleSize;
+          const minHeight = 160;
+          const newHeight = Math.max(minHeight, Math.min(containerHeight - minHeight, startHeight + delta));
+          target1.style.height = newHeight + 'px';
+          target1.style.flex = '0 0 auto';
+          if (target2) {
+            const bottomHeight = Math.max(minHeight, containerHeight - newHeight);
+            target2.style.height = bottomHeight + 'px';
+            target2.style.flex = '0 0 auto';
+          }
         }
       };
 
@@ -282,9 +469,11 @@ function saveResizeSizes() {
   const inputPanel = document.getElementById('input-panel');
   const sidebarPanel = document.getElementById('sidebar-panel');
   const refPanel = document.getElementById('ref-panel');
+  const comparisonTop = document.getElementById('comparison-top');
   if (inputPanel) sizes.inputWidth = inputPanel.style.width;
   if (sidebarPanel) sizes.sidebarWidth = sidebarPanel.style.width;
   if (refPanel) sizes.refHeight = refPanel.style.height;
+  if (comparisonTop) sizes.compareTopHeight = comparisonTop.style.height;
   localStorage.setItem('ezvals:detailSizes', JSON.stringify(sizes));
 }
 
@@ -295,12 +484,18 @@ function restoreResizeSizes() {
     const mainPanel = document.getElementById('main-panel');
     const sidebarPanel = document.getElementById('sidebar-panel');
     const refPanel = document.getElementById('ref-panel');
-    if (sizes.inputWidth && inputPanel) inputPanel.style.width = sizes.inputWidth;
+    const comparisonTop = document.getElementById('comparison-top');
+    if (inputPanel?.dataset.resizeLock === 'full') {
+      inputPanel.style.width = '100%';
+    } else if (sizes.inputWidth && inputPanel) {
+      inputPanel.style.width = sizes.inputWidth;
+    }
     if (sizes.sidebarWidth && sidebarPanel && mainPanel) {
       sidebarPanel.style.width = sizes.sidebarWidth;
       mainPanel.style.width = `calc(100% - ${sizes.sidebarWidth})`;
     }
     if (sizes.refHeight && refPanel) refPanel.style.height = sizes.refHeight;
+    if (sizes.compareTopHeight && comparisonTop) comparisonTop.style.height = sizes.compareTopHeight;
   } catch {}
 }
 
@@ -320,7 +515,7 @@ function initCopyButtons() {
   });
 
   document.getElementById('copy-cmd-btn')?.addEventListener('click', async () => {
-    const cmd = evalPath ? `ezvals run ${evalPath}::${functionName}` : `ezvals run ${functionName || ''}`.trim();
+    const cmd = buildRunCommand(evalPath, functionName);
     try {
       await navigator.clipboard.writeText(cmd);
       const btn = document.getElementById('copy-cmd-btn');
@@ -355,61 +550,13 @@ function render(data) {
     messages: hasMessages ? result.trace_data.messages : null
   };
 
-  const pillTones = {
-    'pending': 'text-blue-600 bg-blue-500/10 border border-blue-500/30 dark:text-blue-400',
-    'running': 'text-cyan-600 bg-cyan-500/10 border border-cyan-500/30 dark:text-cyan-400 animate-pulse',
-    'completed': 'text-emerald-600 bg-emerald-500/10 border border-emerald-500/30 dark:text-emerald-400',
-    'error': 'text-rose-600 bg-rose-500/10 border border-rose-500/30 dark:text-rose-400',
-    'cancelled': 'text-amber-600 bg-amber-500/10 border border-amber-500/30 dark:text-amber-400'
-  };
-
   const copyBtnHtml = `
     <svg class="copy-icon h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
     <svg class="check-icon hidden h-3.5 w-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>`;
 
-  let scoresHtml = '';
-  if (hasScores) {
-    scoresHtml = result.scores.map(s => {
-      let cls = 'border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800/50';
-      let textCls = 'text-zinc-700 dark:text-zinc-300';
-      let valueCls = 'text-zinc-500';
-      if (s.passed === true) {
-        cls = 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10';
-        textCls = 'text-emerald-700 dark:text-emerald-300';
-        valueCls = 'text-emerald-600 dark:text-emerald-400';
-      } else if (s.passed === false) {
-        cls = 'border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10';
-        textCls = 'text-rose-700 dark:text-rose-300';
-        valueCls = 'text-rose-600 dark:text-rose-400';
-      }
-      let passedIcon = '';
-      if (s.passed === true) passedIcon = `<span class="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>`;
-      else if (s.passed === false) passedIcon = `<span class="flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg></span>`;
-
-      return `<div class="rounded border px-2.5 py-1.5 ${cls}">
-        <div class="flex items-center justify-between gap-2">
-          <span class="font-mono text-xs font-medium ${textCls}">${escapeHtml(s.key)}</span>
-          <div class="flex items-center gap-1.5">
-            ${s.value != null ? `<span class="font-mono text-xs ${valueCls}">${s.value}</span>` : ''}
-            ${passedIcon}
-          </div>
-        </div>
-        ${s.notes ? `<div class="mt-1 text-[11px] ${valueCls}">${escapeHtml(s.notes)}</div>` : ''}
-      </div>`;
-    }).join('');
-  }
-
-  let filteredTrace = null;
-  if (hasTraceData) {
-    filteredTrace = Object.fromEntries(
-      Object.entries(result.trace_data).filter(([k]) => k !== 'messages' && k !== 'trace_url')
-    );
-    if (Object.keys(filteredTrace).length === 0) filteredTrace = null;
-  }
-
-  const latencyColor = result.latency != null
-    ? (result.latency <= 1 ? 'text-emerald-600 dark:text-emerald-400' : result.latency <= 5 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400')
-    : '';
+  const scoresHtml = hasScores ? renderScoresHtml(result.scores) : '';
+  const filteredTrace = hasTraceData ? filterTraceData(result.trace_data) : null;
+  const latencyColor = getLatencyColor(result.latency);
 
   document.getElementById('app').innerHTML = `
     <header class="flex-shrink-0 flex items-center justify-between gap-4 border-b border-blue-200/60 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
@@ -493,7 +640,7 @@ function render(data) {
         <div class="border-b border-blue-200/60 dark:border-zinc-800 p-3 space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Status</span>
-            <span class="rounded px-1.5 py-0.5 text-[10px] font-medium ${pillTones[status] || pillTones['completed']}">${status}</span>
+            <span class="rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES[status] || PILL_TONES['completed']}">${status}</span>
           </div>
           ${result.latency != null ? `
           <div class="flex items-center justify-between">
@@ -610,6 +757,8 @@ function render(data) {
   initResizable();
   restoreResizeSizes();
   initMessagesPaneResize();
+  initResizable();
+  restoreResizeSizes();
   initCopyButtons();
 
   document.getElementById('prev-btn')?.addEventListener('click', () => navigateTo(currentIndex - 1));
@@ -651,12 +800,192 @@ function render(data) {
   });
 }
 
+function renderComparison(data, comparison) {
+  const baseEntry = comparison.baseResult || data.result;
+  const baseResult = baseEntry?.result || {};
+  functionName = baseEntry?.function || data.result?.function || '';
+  evalPath = data.eval_path || '';
+  total = data.total;
+
+  const hasReference = baseResult.reference != null && baseResult.reference !== '—';
+  const sharedDataset = baseEntry?.dataset;
+  const sharedLabels = baseEntry?.labels || [];
+  const sharedLabelsHtml = sharedLabels.length
+    ? sharedLabels.map(la => `<span class="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">${escapeHtml(la)}</span>`).join('')
+    : '';
+  const contextMetaHtml = (sharedDataset || sharedLabels.length) ? `
+    <div class="flex flex-wrap items-center gap-4 text-[10px] text-zinc-500">
+      ${sharedDataset ? `
+        <div class="flex items-center gap-2">
+          <span class="text-[9px] font-semibold uppercase tracking-wider text-zinc-400">Dataset</span>
+          <span class="text-zinc-600 dark:text-zinc-300">${escapeHtml(sharedDataset)}</span>
+        </div>` : ''}
+      ${sharedLabels.length ? `
+        <div class="flex items-center gap-2">
+          <span class="text-[9px] font-semibold uppercase tracking-wider text-zinc-400">Labels</span>
+          <div class="flex gap-1">${sharedLabelsHtml}</div>
+        </div>` : ''}
+    </div>
+  ` : '';
+
+  const runs = comparison.runs || [];
+
+  const copyBtnHtml = `
+    <svg class="copy-icon h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    <svg class="check-icon hidden h-3.5 w-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>`;
+
+  const comparisonChipsHtml = runs.map(run => `
+    <span class="flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium transition hover:brightness-110"
+      style="border-color: ${run.color}60; background: ${run.color}22; color: ${run.color};">
+      <span class="h-2 w-2 rounded-full" style="background: ${run.color};"></span>
+      <span class="truncate">${escapeHtml(run.runName)}</span>
+    </span>
+  `).join('');
+
+  const outputColsHtml = runs.map(run => {
+    const runKey = safeId(run.runId);
+    const resultEntry = run.result;
+    const result = resultEntry?.result || {};
+    const hasResult = Boolean(resultEntry);
+    const errorSnippet = result.error ? result.error.split('\n')[0] : '';
+    const detailHref = run.resultIndex != null ? `/runs/${run.runId}/results/${run.resultIndex}?compare=0` : '';
+    const detailButtonHtml = run.resultIndex != null
+      ? `<a href="${detailHref}" class="flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-blue-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-blue-400" title="Open detail">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>`
+      : `<span class="flex h-6 w-6 items-center justify-center rounded text-zinc-300 dark:text-zinc-700 cursor-not-allowed" title="No detail available">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        </span>`;
+    const scoreBadges = renderInlineScoreBadges(result.scores, result.latency);
+    return `
+      <div class="rounded border border-zinc-200/70 bg-white/70 p-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40"
+        style="border-top: 2px solid ${run.color};">
+        <div class="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="h-2 w-2 rounded-full shrink-0" style="background: ${run.color};"></span>
+            <span class="truncate">${escapeHtml(run.runName)}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            ${detailButtonHtml}
+            <button class="copy-btn text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" data-copy="data-output-${runKey}" title="Copy">
+              ${copyBtnHtml}
+            </button>
+          </div>
+        </div>
+        ${result.error ? `
+          <div class="mt-2 rounded border border-rose-200/80 bg-rose-50/80 px-2 py-1 text-[11px] text-rose-600 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-300" title="${escapeHtml(result.error)}">
+            Error: ${escapeHtml(errorSnippet)}
+          </div>` : ''}
+        <div class="mt-2">
+          <div id="data-output-${runKey}" class="data-viewer"></div>
+          ${!hasResult ? `<div class="mt-1 text-[11px] text-zinc-400">Missing in this run</div>` : ''}
+        </div>
+        ${scoreBadges ? `<div class="mt-2 flex flex-wrap items-center gap-1.5">${scoreBadges}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('app').innerHTML = `
+    <header class="flex-shrink-0 flex items-center justify-between gap-4 border-b border-blue-200/60 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="/" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600 dark:border-zinc-700 dark:hover:border-blue-500 dark:hover:text-blue-400" title="Back (Esc)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </a>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-2 text-sm min-w-0">
+            <span class="font-mono font-semibold text-zinc-900 dark:text-zinc-100 truncate">${escapeHtml(functionName)}</span>
+            <button id="copy-cmd-btn" class="copy-btn flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800" title="Copy run command">
+              ${copyBtnHtml}
+            </button>
+          </div>
+          <div class="mt-1 flex flex-wrap gap-2">${comparisonChipsHtml}</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        ${contextMetaHtml}
+        <span class="text-xs text-zinc-500">${currentIndex + 1}/${total}</span>
+        <button id="prev-btn" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 dark:border-zinc-700 dark:hover:border-blue-500" title="Up" ${currentIndex <= 0 ? 'disabled' : ''}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+        </button>
+        <button id="next-btn" class="flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 dark:border-zinc-700 dark:hover:border-blue-500" title="Down" ${currentIndex >= total - 1 ? 'disabled' : ''}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="flex-1 flex min-h-0 overflow-hidden">
+      <div id="main-panel" class="flex flex-col min-w-0 flex-1">
+        <div id="comparison-top" class="flex min-h-0 gap-3 p-3" style="height: 50%; min-height: 160px; flex: 0 0 auto;">
+          <div id="input-panel" class="flex flex-col min-w-0" style="width: ${hasReference ? '50%' : '100%'};" ${hasReference ? '' : 'data-resize-lock="full"'}>
+            <div class="data-panel-header flex items-center justify-between border-b border-blue-100 bg-blue-50/50 px-3 py-1.5 dark:border-zinc-800/60 dark:bg-zinc-900/50">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Input</span>
+              <button class="copy-btn text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" data-copy="data-input" title="Copy">${copyBtnHtml}</button>
+            </div>
+            <div class="data-panel-body p-3 bg-white dark:bg-zinc-900/30">
+              <div id="data-input" class="data-viewer"></div>
+            </div>
+          </div>
+
+          ${hasReference ? `
+          <div class="resize-handle-v" data-resize="input-reference"></div>
+          <div id="ref-panel" class="flex flex-col min-w-0 flex-1">
+            <div class="data-panel-header flex items-center justify-between border-b border-amber-200/40 bg-amber-50/50 px-3 py-1.5 dark:border-amber-500/10 dark:bg-amber-500/5">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Reference</span>
+              <button class="copy-btn text-amber-500 hover:text-amber-700 dark:hover:text-amber-300" data-copy="data-ref" title="Copy">${copyBtnHtml}</button>
+            </div>
+            <div class="data-panel-body p-3 overflow-auto bg-amber-50/30 dark:bg-amber-500/5">
+              <div id="data-ref" class="data-viewer"></div>
+            </div>
+          </div>` : ''}
+        </div>
+
+        <div class="resize-handle-h" data-resize="top-output"></div>
+        <div id="comparison-bottom" class="flex min-h-0 flex-1 border-t border-blue-200/60 dark:border-zinc-800">
+          <div id="output-panel" class="flex flex-col min-w-0 flex-1">
+            <div class="data-panel-header flex items-center justify-between border-b border-blue-100 bg-emerald-50/50 px-3 py-1.5 dark:border-zinc-800/60 dark:bg-zinc-900/50">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Outputs</span>
+            </div>
+            <div class="data-panel-body p-3 bg-white dark:bg-zinc-900/30">
+              <div class="grid gap-3" style="grid-template-columns: repeat(${Math.max(runs.length, 1)}, minmax(0, 1fr));">
+                ${outputColsHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
+  renderDataViewer('data-input', baseResult.input);
+  if (hasReference) renderDataViewer('data-ref', baseResult.reference);
+  runs.forEach(run => {
+    const runKey = safeId(run.runId);
+    const result = run.result?.result || {};
+    const outputPlaceholder = run.result ? '—' : 'Missing in run';
+    renderDataViewer(`data-output-${runKey}`, result.output, { placeholder: outputPlaceholder });
+  });
+
+  initCopyButtons();
+
+  document.getElementById('prev-btn')?.addEventListener('click', () => navigateTo(currentIndex - 1));
+  document.getElementById('next-btn')?.addEventListener('click', () => navigateTo(currentIndex + 1));
+}
+
 async function loadDetail() {
   try {
     const resp = await fetch(`/api${window.location.pathname}`);
     if (!resp.ok) throw new Error('Not found');
     const data = await resp.json();
-    render(data);
+    const forceSingle = new URLSearchParams(window.location.search).get('compare') === '0';
+    const comparisonRuns = getComparisonRuns();
+    const inComparison = comparisonRuns.length > 1 && comparisonRuns.some(r => r.runId === data.run_id);
+    if (!forceSingle && inComparison) {
+      const comparison = await buildComparisonContext(data, comparisonRuns);
+      renderComparison(data, comparison);
+    } else {
+      render(data);
+    }
   } catch (e) {
     document.getElementById('app').innerHTML = '<div class="flex-1 flex items-center justify-center text-rose-500">Failed to load result</div>';
   }

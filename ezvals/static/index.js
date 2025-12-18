@@ -102,11 +102,13 @@ function buildComparisonMatrix() {
   // Creates a map: resultKey -> { _meta: {function, dataset, labels}, runId1: result, runId2: result, ... }
   const matrix = {};
   for (const [runId, data] of Object.entries(_comparisonData)) {
-    for (const r of data.results || []) {
+    (data.results || []).forEach((r, idx) => {
       const key = getResultKey(r);
-      if (!matrix[key]) matrix[key] = { _meta: { function: r.function, dataset: r.dataset, labels: r.labels } };
+      if (!matrix[key]) matrix[key] = { _meta: { function: r.function, dataset: r.dataset, labels: r.labels }, _indices: {} };
+      if (!matrix[key]._indices) matrix[key]._indices = {};
       matrix[key][runId] = r;
-    }
+      matrix[key]._indices[runId] = idx;
+    });
   }
   return matrix;
 }
@@ -824,6 +826,21 @@ function renderResultsTableComparison() {
   keys.forEach((key, index) => {
     const entry = matrix[key];
     const meta = entry._meta;
+    const indices = entry._indices || {};
+    let linkRunId = _currentRunId;
+    let linkIndex = indices[_currentRunId];
+    if (linkIndex == null) {
+      for (const run of _comparisonRuns) {
+        if (indices[run.runId] != null) {
+          linkRunId = run.runId;
+          linkIndex = indices[run.runId];
+          break;
+        }
+      }
+    }
+    const evalLinkHtml = linkIndex != null
+      ? `<a href="/runs/${linkRunId}/results/${linkIndex}" class="font-mono text-[12px] font-medium text-accent-link hover:text-accent-link-hover">${escapeHtml(meta.function)}</a>`
+      : `<span class="font-mono text-[12px] font-medium text-theme-text">${escapeHtml(meta.function)}</span>`;
     // Find first result with data for input/reference display
     let firstResult = null;
     for (const run of _comparisonRuns) {
@@ -846,7 +863,7 @@ function renderResultsTableComparison() {
         </td>
         <td data-col="function" class="px-3 py-3 align-middle">
           <div class="flex flex-col gap-0.5">
-            <span class="font-mono text-[12px] font-medium text-theme-text">${escapeHtml(meta.function)}</span>
+            ${evalLinkHtml}
             <div class="flex items-center gap-1.5 text-[10px] text-zinc-500"><span>${escapeHtml(meta.dataset || '')}</span>${labelsHtml}</div>
           </div>
         </td>
@@ -1751,17 +1768,27 @@ function updateRunButtonState() {
   if (!playBtn) return;
 
   // Disable in comparison mode (read-only analysis)
+  const compareLabel = document.getElementById('compare-mode-label');
   if (isComparisonMode()) {
-    playBtnText.textContent = 'Compare Mode';
-    playBtn.classList.remove('rounded-l');
-    playBtn.classList.add('rounded', 'opacity-50', 'cursor-not-allowed');
-    playBtn.disabled = true;
+    playBtn.classList.add('hidden');
+    playBtn.classList.remove('flex');
+    if (compareLabel) {
+      compareLabel.classList.remove('hidden');
+      compareLabel.classList.add('flex');
+    }
     dropdownToggle?.classList.add('hidden');
     dropdownToggle?.classList.remove('flex');
     return;
   }
 
-  // Reset disabled state when not in comparison mode
+  // Reset state when not in comparison mode
+  if (compareLabel) {
+    compareLabel.classList.add('hidden');
+    compareLabel.classList.remove('flex');
+  }
+  playBtn.classList.remove('hidden');
+  playBtn.classList.add('flex');
+  
   playBtn.disabled = false;
   playBtn.classList.remove('opacity-50', 'cursor-not-allowed');
 

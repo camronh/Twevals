@@ -259,6 +259,52 @@ def test_comparison_table_structure(tmp_path):
     pytest.skip("Complex UI interaction test - verify manually")
 
 
+def test_comparison_detail_resize_handles(tmp_path):
+    """Comparison detail view should resize top/output panes."""
+    store = ResultsStore(tmp_path / "runs")
+
+    run1_id = store.save_run(make_run_summary("baseline"), session_name="test-session", run_name="baseline")
+    run2_id = store.save_run(make_run_summary("final"), session_name="test-session", run_name="final")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run1_id,
+        session_name="test-session",
+        run_name="baseline",
+    )
+
+    saved_runs = [
+        {"runId": run1_id, "runName": "baseline"},
+        {"runId": run2_id, "runName": "final"},
+    ]
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.add_init_script(
+                f"sessionStorage.setItem('ezvals:comparisonRuns', JSON.stringify({json.dumps(saved_runs)}));"
+            )
+            page.goto(f"{url}/runs/{run1_id}/results/0")
+            page.wait_for_selector("#comparison-top")
+            page.wait_for_selector("[data-resize='top-output']")
+
+            before_height = page.locator("#comparison-top").evaluate("el => el.getBoundingClientRect().height")
+
+            handle = page.locator("[data-resize='top-output']")
+            box = handle.bounding_box()
+            assert box is not None
+            page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+            page.mouse.down()
+            page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2 + 80)
+            page.mouse.up()
+
+            after_height = page.locator("#comparison-top").evaluate("el => el.getBoundingClientRect().height")
+            assert after_height > before_height + 10
+
+            browser.close()
+
+
 def test_run_button_disabled_in_comparison_mode(tmp_path):
     """Run button should be disabled in comparison mode.
 
