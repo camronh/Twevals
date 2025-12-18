@@ -367,10 +367,10 @@ function initResizable() {
         startY = e.clientY;
         startHeight = target2.offsetHeight;
       } else if (resizeType === 'top-output') {
-        target1 = document.getElementById('comparison-top');
-        target2 = document.getElementById('comparison-bottom');
+        target1 = document.getElementById('comparison-bottom');
+        target2 = document.getElementById('comparison-top');
         startY = e.clientY;
-        startHeight = target1.offsetHeight;
+        startHeight = target2?.offsetHeight || 0;
       }
 
       const onMouseMove = ev => {
@@ -405,12 +405,13 @@ function initResizable() {
           const containerHeight = target1.parentElement.offsetHeight - handleSize;
           const minHeight = 160;
           const newHeight = Math.max(minHeight, Math.min(containerHeight - minHeight, startHeight + delta));
-          target1.style.height = newHeight + 'px';
-          target1.style.flex = '0 0 auto';
           if (target2) {
-            const bottomHeight = Math.max(minHeight, containerHeight - newHeight);
-            target2.style.height = bottomHeight + 'px';
+            target2.style.height = newHeight + 'px';
             target2.style.flex = '0 0 auto';
+          }
+          if (target1) {
+            target1.style.flex = '1 1 auto';
+            target1.style.height = '';
           }
         }
       };
@@ -880,7 +881,7 @@ function renderComparison(data, comparison) {
           <div id="data-output-${runKey}" class="data-viewer"></div>
           ${!hasResult ? `<div class="mt-1 text-[11px] text-zinc-400">Missing in this run</div>` : ''}
         </div>
-        ${scoreBadges ? `<div class="mt-2 flex flex-wrap items-center gap-1.5">${scoreBadges}</div>` : ''}
+        ${scoreBadges ? `<div class="mt-4 flex flex-wrap items-center gap-1.5">${scoreBadges}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -966,6 +967,8 @@ function renderComparison(data, comparison) {
     renderDataViewer(`data-output-${runKey}`, result.output, { placeholder: outputPlaceholder });
   });
 
+  initResizable();
+  restoreResizeSizes();
   initCopyButtons();
 
   document.getElementById('prev-btn')?.addEventListener('click', () => navigateTo(currentIndex - 1));
