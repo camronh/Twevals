@@ -1695,7 +1695,10 @@ document.addEventListener('click', (e) => {
     originalText = span.textContent;
   } else if (dropdown) {
     // Extract run name from dropdown (format: "run-name (timestamp)")
-    const selectedText = dropdown.options[dropdown.selectedIndex]?.text || '';
+    // Handle both <select> elements and <button> dropdowns
+    const selectedText = dropdown.tagName === 'SELECT'
+      ? (dropdown.options[dropdown.selectedIndex]?.text || '')
+      : dropdown.textContent.replace(/\s*▾\s*$/, '');
     originalText = selectedText.replace(/\s*\([^)]+\)\s*$/, '').trim();
   } else {
     return;
@@ -1857,9 +1860,14 @@ async function executeRun(mode) {
     });
 
     if (!resp.ok) {
+      const text = await resp.text();
       let msg = '';
-      try { const data = await resp.json(); msg = data?.detail || data?.message || ''; }
-      catch { msg = await resp.text(); }
+      try {
+        const data = JSON.parse(text);
+        msg = data?.detail || data?.message || '';
+      } catch {
+        msg = text;
+      }
       throw new Error(msg || `HTTP ${resp.status}`);
     }
 

@@ -22,6 +22,10 @@ def _clear_project_modules(directory: Path) -> None:
     # Ensure trailing separator for proper path matching (avoid /tmp/foo matching /tmp/foobar)
     if not dir_str.endswith(os.sep):
         dir_str += os.sep
+
+    # Directories to exclude (virtual environments, installed packages)
+    exclude_patterns = ['.venv', 'venv', 'site-packages', '.tox', '.nox', '__pycache__']
+
     to_remove = []
     for name, mod in sys.modules.items():
         mod_file = getattr(mod, '__file__', None)
@@ -30,6 +34,9 @@ def _clear_project_modules(directory: Path) -> None:
                 mod_file_resolved = str(Path(mod_file).resolve())
                 # Check if module file is under the directory
                 if mod_file_resolved.startswith(dir_str):
+                    # Skip if path contains excluded directories (venv, site-packages, etc.)
+                    if any(pattern in mod_file_resolved for pattern in exclude_patterns):
+                        continue
                     to_remove.append(name)
             except (OSError, ValueError):
                 pass
@@ -155,7 +162,9 @@ class EvalDiscovery:
             self.discovered_functions.extend(f for _, f in functions_to_add)
 
         except Exception as e:
+            import traceback
             print(f"Warning: Could not import {file_path}: {e}")
+            traceback.print_exc()
         finally:
             if path_added and parent_dir in sys.path:
                 sys.path.remove(parent_dir)

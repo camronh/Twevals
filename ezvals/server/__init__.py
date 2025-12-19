@@ -436,6 +436,20 @@ def create_app(
                     },
                 } for f in all_functions]
 
+            # Validate indices are in bounds
+            if not current_results:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No results available to rerun. Check that your eval file imports correctly."
+                )
+            if request.indices:
+                invalid_indices = [i for i in request.indices if i < 0 or i >= len(current_results)]
+                if invalid_indices:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid indices: {invalid_indices}. Only {len(current_results)} results exist (indices 0-{len(current_results)-1})."
+                    )
+
             # Build map of (function_name, dataset) -> index, and reset selected results
             selected_keys = {}
             for i in request.indices:
