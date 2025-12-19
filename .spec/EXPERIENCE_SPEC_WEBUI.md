@@ -222,20 +222,6 @@ Scenario: Export as CSV
 
 ## Session & Run Navigation
 
-### Session Selector
-
-```gherkin
-Scenario: View sessions
-  Given multiple sessions exist in .ezvals/sessions/
-  When the user clicks the session dropdown
-  Then all sessions are listed
-  And the current session is highlighted
-
-Scenario: Switch session
-  When the user selects a different session
-  Then the run selector updates to show runs in that session
-  And the most recent run in the new session loads
-```
 
 ### Run Selector
 
