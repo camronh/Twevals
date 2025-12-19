@@ -1,5 +1,6 @@
-import json
 import asyncio
+import json
+import os
 import random
 import re
 import threading
@@ -14,6 +15,12 @@ from playwright.sync_api import expect, sync_playwright
 
 from ezvals.cli import serve_cmd
 from ezvals.discovery import EvalDiscovery
+
+UI_TIMEOUT_MS = int(os.getenv("E2E_UI_TIMEOUT_MS", "60000"))
+RUN_TIMEOUT_MS = int(os.getenv("E2E_RUN_TIMEOUT_MS", "120000"))
+SHORT_TIMEOUT_MS = int(os.getenv("E2E_SHORT_TIMEOUT_MS", "5000"))
+SLOW_MO_MS = int(os.getenv("E2E_SLOW_MO_MS", "0"))
+HEADLESS = os.getenv("E2E_HEADLESS", "1").lower() not in {"0", "false"}
 
 
 def wait_for_http(url: str, timeout: float = 10.0) -> None:
@@ -69,10 +76,12 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
     label_count = label_counts[filter_label]
 
     # Inject a deterministic error into one eval so error status is covered.
+    slow_target_name = None
     error_target = "test_assertion_failure"
     original_discover = EvalDiscovery.discover
 
     def discover_with_error(self, *args, **kwargs):
+        nonlocal slow_target_name
         funcs = original_discover(self, *args, **kwargs)
         slow_wrapped = False
         for func in funcs:
@@ -89,6 +98,7 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             if slow_wrapped:
                 break
             original = func.func
+            slow_target_name = original.__name__
             if func.is_async:
                 async def slow_async(*args, **kwargs):
                     await asyncio.sleep(1.0)
@@ -147,9 +157,11 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
         wait_for_open(open_calls, url)
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, slow_mo=1000)
+            browser = p.chromium.launch(headless=HEADLESS, slow_mo=SLOW_MO_MS)
             context = browser.new_context(permissions=["clipboard-write"])
             page = context.new_page()
+            page.set_default_timeout(UI_TIMEOUT_MS)
+            page.set_default_navigation_timeout(UI_TIMEOUT_MS)
             page.goto(url)
             page.wait_for_selector("#results-table")
 
@@ -199,17 +211,24 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
                 "window.__copiedObserver.observe(document.body, { childList: true, subtree: true });"
             )
             session_el.click()
-            page.wait_for_function("() => window.__copiedSeen === true", timeout=2000)
+            page.wait_for_function("() => window.__copiedSeen === true", timeout=SHORT_TIMEOUT_MS)
             page.evaluate("window.__copiedSeen = false")
             run_name_el.click()
-            page.wait_for_function("() => window.__copiedSeen === true", timeout=2000)
+            page.wait_for_function("() => window.__copiedSeen === true", timeout=SHORT_TIMEOUT_MS)
 
             scores_header = page.locator("th[data-col='scores']")
             expect(scores_header).to_have_attribute("aria-sort", "none")
             # Run all evals (fresh session) and validate live status transitions.
+            # MutationObserver keeps transient running/progress states from being missed with slow_mo.
             page.evaluate(
+                "window.__runSeen = { progress: false, running: false };"
                 "window.__skeletonSeen = { latency: false, output: false, scores: false };"
                 "window.__skeletonObserver = new MutationObserver(() => {"
+                "  if (!window.__runSeen.progress && document.querySelector('.stats-progress')) "
+                "window.__runSeen.progress = true;"
+                "  if (!window.__runSeen.running && document.querySelector("
+                "\"tr[data-row='main'][data-status='running'], tr[data-row='main'][data-status='pending']\")) "
+                "window.__runSeen.running = true;"
                 "  if (!window.__skeletonSeen.latency && document.querySelector('.latency-skeleton')) "
                 "window.__skeletonSeen.latency = true;"
                 "  if (!window.__skeletonSeen.output && document.querySelector('td[data-col=\"output\"] .animate-pulse')) "
@@ -217,22 +236,24 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
                 "  if (!window.__skeletonSeen.scores && document.querySelector('td[data-col=\"scores\"] .animate-pulse')) "
                 "window.__skeletonSeen.scores = true;"
                 "});"
-                "window.__skeletonObserver.observe(document.body, { childList: true, subtree: true });"
+                "window.__skeletonObserver.observe(document.body, { childList: true, subtree: true, attributes: true, "
+                "attributeFilter: ['data-status','class'] });"
             )
             page.locator("#play-btn").click()
             expect(page.locator("#play-btn-text")).to_have_text("Stop")
             expect(page.locator("#play-btn .stop-icon")).to_be_visible()
-            page.wait_for_selector(".stats-progress", timeout=15000)
+            page.wait_for_function(
+                "() => window.__runSeen && window.__runSeen.progress === true",
+                timeout=RUN_TIMEOUT_MS,
+            )
             page.wait_for_function(
                 "() => Array.from(document.querySelectorAll(\"tr[data-row='main']\"))"
                 ".some(tr => tr.dataset.status !== 'not_started')",
-                timeout=15000,
+                timeout=RUN_TIMEOUT_MS,
             )
             page.wait_for_function(
-                "() => document.querySelectorAll("
-                "\"tr[data-row='main'][data-status='running'], tr[data-row='main'][data-status='pending']\""
-                ").length > 0",
-                timeout=15000,
+                "() => window.__runSeen && window.__runSeen.running === true",
+                timeout=RUN_TIMEOUT_MS,
             )
             running_rows = page.locator("tr[data-row='main'][data-status='running']")
             if running_rows.count() > 0:
@@ -240,17 +261,17 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             page.wait_for_function(
                 "() => window.__skeletonSeen && window.__skeletonSeen.latency && "
                 "window.__skeletonSeen.output && window.__skeletonSeen.scores",
-                timeout=15000,
+                timeout=RUN_TIMEOUT_MS,
             )
 
             page.wait_for_function(
                 "() => document.querySelectorAll(\"tr[data-row='main'][data-status='completed']\").length > 0 && "
                 "document.querySelectorAll(\"tr[data-row='main'][data-status='running'], tr[data-row='main'][data-status='pending']\").length > 0",
-                timeout=20000,
+                timeout=RUN_TIMEOUT_MS,
             )
             page.wait_for_function(
                 "() => document.querySelectorAll(\"tr[data-row='main'][data-status='running'], tr[data-row='main'][data-status='pending']\").length === 0",
-                timeout=60000,
+                timeout=RUN_TIMEOUT_MS,
             )
             expect(page.locator("#play-btn-text")).to_have_text("Rerun")
             expect(page.locator("#run-dropdown-toggle")).to_be_visible()
@@ -261,7 +282,7 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             expect(error_rows.first.locator(".status-pill")).to_have_text("err")
 
             # Stats bar shows latency and score breakdown after run.
-            page.wait_for_selector("#stats-expanded .stats-metric-sm", timeout=10000)
+            page.wait_for_selector("#stats-expanded .stats-metric-sm", timeout=UI_TIMEOUT_MS)
             latency_text = page.locator("#stats-expanded .stats-metric-sm .stats-metric-value").text_content() or ""
             latency_match = re.search(r"\d+(?:\.\d+)?", latency_text)
             assert latency_match, "expected avg latency number"
@@ -364,7 +385,13 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
                     i for i, r in enumerate(results) if r.get("result", {}).get("latency") is not None
                 ]
             assert len(latency_indices) > 1, "need multiple latency rows for selective rerun check"
-            rerun_idx, control_idx = latency_indices[0], latency_indices[1]
+            # Prefer the slow-wrapped eval so the Stop state remains observable under slow_mo.
+            rerun_idx = None
+            if slow_target_name:
+                rerun_idx = find_index(lambda r: r.get("function") == slow_target_name)
+            if rerun_idx is None:
+                rerun_idx = latency_indices[0]
+            control_idx = next(idx for idx in latency_indices if idx != rerun_idx)
 
             control_row = page.locator(f"tr[data-row='main'][data-row-id='{control_idx}']")
             control_latency_before = control_row.locator("td[data-col='latency']").get_attribute("data-value")
@@ -380,12 +407,12 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             page.wait_for_function(
                 f"() => ['pending','running','completed','error'].includes("
                 f"document.querySelector(\"tr[data-row='main'][data-row-id='{rerun_idx}']\")?.dataset.status)",
-                timeout=15000,
+                timeout=RUN_TIMEOUT_MS,
             )
             page.wait_for_function(
                 f"() => ['completed','error'].includes("
                 f"document.querySelector(\"tr[data-row='main'][data-row-id='{rerun_idx}']\")?.dataset.status)",
-                timeout=30000,
+                timeout=RUN_TIMEOUT_MS,
             )
             expect(control_row).to_have_attribute("data-status", "completed")
             control_latency_after = control_row.locator("td[data-col='latency']").get_attribute("data-value")
@@ -431,11 +458,12 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             previous_run_file = run_file
 
             # Full rerun creates a new run_id but keeps the run name (overwrite).
+            page.evaluate("window.__runSeen = { progress: false, running: false };")
             page.locator("#play-btn").click()
             expect(page.locator("#play-btn-text")).to_have_text("Stop")
             page.wait_for_function(
                 f"() => document.querySelector('#results-table')?.getAttribute('data-run-id') !== '{previous_run_id}'",
-                timeout=15000,
+                timeout=RUN_TIMEOUT_MS,
             )
             run_id = page.get_attribute("#results-table", "data-run-id")
             assert run_id and run_id != previous_run_id, "full rerun should generate a new run_id"
@@ -447,15 +475,13 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             assert not previous_run_file.exists(), "overwrite rerun should delete old run file"
 
             page.wait_for_function(
-                "() => document.querySelectorAll("
-                "\"tr[data-row='main'][data-status='running'], tr[data-row='main'][data-status='pending']\""
-                ").length > 0",
-                timeout=15000,
+                "() => window.__runSeen && window.__runSeen.running === true",
+                timeout=RUN_TIMEOUT_MS,
             )
             page.locator("#play-btn").click()
             page.wait_for_function(
                 "() => document.querySelectorAll(\"tr[data-row='main'][data-status='running'], tr[data-row='main'][data-status='pending']\").length === 0",
-                timeout=30000,
+                timeout=RUN_TIMEOUT_MS,
             )
             expect(page.locator("#play-btn-text")).to_have_text("Rerun")
             assert page.locator("tr[data-row='main'][data-status='cancelled']").count() > 0, "stop should cancel rows"
@@ -467,12 +493,16 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             page.locator("#run-dropdown-toggle").click()
             page.locator("#run-new-option").click()
             expect(page.locator("#play-btn-text")).to_have_text("New Run")
+            page.evaluate("window.__runSeen = { progress: false, running: false };")
             page.locator("#play-btn").click()
             expect(page.locator("#play-btn-text")).to_have_text("Stop")
-            page.wait_for_selector(".stats-progress", timeout=15000)
             page.wait_for_function(
-                "() => document.querySelectorAll(\"tr[data-row='main'][data-status='running'], tr[data-row='main'][data-status='pending']\").length > 0",
-                timeout=15000,
+                "() => window.__runSeen && window.__runSeen.progress === true",
+                timeout=RUN_TIMEOUT_MS,
+            )
+            page.wait_for_function(
+                "() => window.__runSeen && window.__runSeen.running === true",
+                timeout=RUN_TIMEOUT_MS,
             )
             running_count = page.evaluate(
                 "() => document.querySelectorAll(\"tr[data-row='main'][data-status='running']\").length"
@@ -480,7 +510,7 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             assert running_count <= concurrency, "running count should not exceed configured concurrency"
             page.wait_for_function(
                 "() => document.querySelectorAll(\"tr[data-row='main'][data-status='running'], tr[data-row='main'][data-status='pending']\").length === 0",
-                timeout=60000,
+                timeout=RUN_TIMEOUT_MS,
             )
 
             run_id = page.get_attribute("#results-table", "data-run-id")
@@ -539,7 +569,7 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             dropdown_menu.locator(".compare-option", has_text=stop_run_name).first.click()
             page.wait_for_function(
                 f"() => document.querySelector('#results-table')?.getAttribute('data-run-id') === '{stop_run_id}'",
-                timeout=10000,
+                timeout=UI_TIMEOUT_MS,
             )
             expect(page.locator("#run-dropdown-expanded")).to_contain_text(stop_run_name)
 
@@ -549,7 +579,7 @@ def test_full_serve_flow_end_to_end(tmp_path, monkeypatch):
             dropdown_menu.locator(".compare-option", has_text=run_name).first.click()
             page.wait_for_function(
                 f"() => document.querySelector('#results-table')?.getAttribute('data-run-id') === '{run_id}'",
-                timeout=10000,
+                timeout=UI_TIMEOUT_MS,
             )
             expect(page.locator("#run-dropdown-expanded")).to_contain_text(run_name)
 
