@@ -186,7 +186,7 @@ def render_markdown(
             elif c == "reference":
                 val = _truncate(json.dumps(res.get("reference", ""), default=str), 50)
             elif c == "scores":
-                scores = res.get("scores", [])
+                scores = res.get("scores") or []
                 parts = []
                 for s in scores:
                     key = s.get("key", "?")
@@ -324,7 +324,7 @@ def render_html_for_pdf(
             elif c == "reference":
                 val = _escape_html(_truncate(json.dumps(res.get("reference", ""), default=str), 80))
             elif c == "scores":
-                scores = res.get("scores", [])
+                scores = res.get("scores") or []
                 badges = []
                 for s in scores:
                     key = s.get("key", "?")
@@ -537,13 +537,19 @@ def export_to_pdf(data: Dict[str, Any], output_path: str, columns: Optional[List
     """
     try:
         from weasyprint import HTML
-    except (ImportError, OSError) as e:
+    except ImportError:
         raise ImportError(
-            f"PDF export requires weasyprint and system libraries (Pango, Cairo, GLib).\n"
-            f"Install weasyprint with: pip install ezvals[pdf]\n"
-            f"See: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation\n"
-            f"Original error: {e}"
+            "PDF export requires weasyprint.\n"
+            "Install with: pip install ezvals[pdf]"
         )
+    except OSError as e:
+        raise OSError(
+            f"PDF export requires system libraries (Pango, Cairo, GLib).\n"
+            f"On macOS: brew install pango glib\n"
+            f"  If using Apple Silicon, you may need: export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib\n"
+            f"On Ubuntu: apt install libpango-1.0-0 libpangocairo-1.0-0\n"
+            f"See: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation"
+        ) from e
 
     html = render_html_for_pdf(data, columns, stats)
     HTML(string=html).write_pdf(output_path)

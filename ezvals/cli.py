@@ -378,8 +378,9 @@ def export_cmd(run_path: str, fmt: str, output: Optional[str]):
         try:
             export_to_pdf(data, output)
             console.print(f"Exported to {output}")
-        except ImportError as e:
-            console.print(f"[red]{e}[/red]")
+        except (ImportError, OSError) as e:
+            msg = str(e).replace('[', r'\[')
+            console.print(f"[red]{msg}[/red]")
             sys.exit(1)
     elif fmt == 'md':
         export_to_markdown(data, output)
