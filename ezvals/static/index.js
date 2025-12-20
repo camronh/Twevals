@@ -729,8 +729,8 @@ function renderRow(r, index, runId) {
       </td>
       <td data-col="function" class="px-3 py-3 align-middle">
         <div class="flex flex-col gap-0.5">
-          <div class="flex items-center gap-2">${functionCell}${statusPill}</div>
-          <div class="flex items-center gap-1.5 text-[10px] text-zinc-500"><span>${escapeHtml(r.dataset || '')}</span>${labelsHtml}</div>
+          <div class="flex items-center gap-2">${functionCell}</div>
+          <div class="flex items-center gap-1.5 text-[10px] text-zinc-500">${statusPill}<span>${escapeHtml(r.dataset || '')}</span>${labelsHtml}</div>
         </div>
       </td>
       <td data-col="input" title="${escapeHtml(formatValue(result.input))}" class="px-3 py-3 align-middle">
