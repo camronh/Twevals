@@ -725,3 +725,85 @@ def greet(ctx: EvalContext):
     result = data["results"][0]["result"]
     assert result["input"] in ["hello", "goodbye"]
     assert "Response to:" in result["output"]
+
+
+def test_new_run_with_indices(tmp_path: Path):
+    """Test new run with indices runs only selected evals, keeping all in results."""
+    # Create eval file with 3 test cases
+    eval_dir = tmp_path / "evals"
+    eval_dir.mkdir()
+    f = eval_dir / "test_selective_new.py"
+    f.write_text(
+        """
+from ezvals import eval, EvalResult
+
+@eval(dataset="selective_ds")
+def case1():
+    return EvalResult(input="input1", output="output1")
+
+@eval(dataset="selective_ds")
+def case2():
+    return EvalResult(input="input2", output="output2")
+
+@eval(dataset="selective_ds")
+def case3():
+    return EvalResult(input="input3", output="output3")
+"""
+    )
+
+    # Create initial run to have _hasRunBefore state
+    store = ResultsStore(tmp_path / "runs")
+    initial_summary = {
+        "total_evaluations": 3,
+        "results": [
+            {"function": "case1", "dataset": "selective_ds", "labels": [], "result": {"input": "input1", "output": "old1", "status": "completed"}},
+            {"function": "case2", "dataset": "selective_ds", "labels": [], "result": {"input": "input2", "output": "old2", "status": "completed"}},
+            {"function": "case3", "dataset": "selective_ds", "labels": [], "result": {"input": "input3", "output": "old3", "status": "completed"}},
+        ],
+    }
+    old_run_id = store.save_run(initial_summary, "2024-01-01T00-00-00Z")
+
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=old_run_id,
+        path=str(f),
+    )
+    client = TestClient(app)
+
+    # New run with only indices 0 and 2 (case1 and case3)
+    response = client.post("/api/runs/new", json={"indices": [0, 2]})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload.get("ok") is True
+
+    # A new run_id should be returned (different from old)
+    new_run_id = payload["run_id"]
+    assert new_run_id != old_run_id
+
+    # Wait for background execution
+    time.sleep(1)
+
+    # Load the new run and verify structure
+    data = store.load_run(new_run_id)
+
+    # All 3 results should be present in the new run
+    assert len(data["results"]) == 3
+
+    # case1 (index 0) and case3 (index 2) should be executed (completed with new output)
+    # case2 (index 1) should stay not_started
+    results = data["results"]
+
+    # Check index 0 - case1 - should be executed
+    assert results[0]["function"] == "case1"
+    assert results[0]["result"]["output"] == "output1"  # New output from execution
+    assert results[0]["result"]["status"] == "completed"
+
+    # Check index 1 - case2 - should NOT be executed (not_started)
+    assert results[1]["function"] == "case2"
+    assert results[1]["result"]["status"] == "not_started"
+    assert results[1]["result"]["output"] is None
+
+    # Check index 2 - case3 - should be executed
+    assert results[2]["function"] == "case3"
+    assert results[2]["result"]["output"] == "output3"  # New output from execution
+    assert results[2]["result"]["status"] == "completed"
