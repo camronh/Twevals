@@ -170,6 +170,7 @@ function summarizeStats(data) {
   const results = data.results || [];
   const chips = data.score_chips || [];
   const totalEvaluations = data.total_evaluations || 0;
+  const totalErrors = data.total_errors || 0;
   const selectedTotal = data.selected_total;  // For selective reruns
   const avgLatency = data.average_latency || 0;
   let completed = 0, pending = 0, running = 0, notStarted = 0;
@@ -191,6 +192,7 @@ function summarizeStats(data) {
     results,
     chips,
     total: totalEvaluations,
+    totalErrors,
     progressTotal,
     progressCompleted,
     avgLatency,
@@ -474,7 +476,7 @@ function renderComparisonBars() {
 }
 
 function renderStatsExpanded(data) {
-  const { total, avgLatency, chips, pctDone, isRunning, sessionName, runName, runId, progressCompleted, progressTotal } = summarizeStats(data);
+  const { total, totalErrors, avgLatency, chips, pctDone, isRunning, sessionName, runName, runId, progressCompleted, progressTotal } = summarizeStats(data);
   const inComparisonMode = isComparisonMode();
 
   let headerHtml = '';
@@ -519,9 +521,13 @@ function renderStatsExpanded(data) {
       progressHtml = `<div class="stats-progress"><div class="stats-progress-bar"><div class="stats-progress-fill" style="width: ${pctDone}%"></div></div><span class="stats-progress-text text-emerald-400">${pctDone}% (${progressCompleted}/${progressTotal})</span></div>`;
     }
 
+    const errorsHtml = totalErrors > 0
+      ? `<div class="stats-metric"><span class="stats-metric-value text-accent-error">${totalErrors}</span><span class="stats-metric-label">errors</span></div>`
+      : '';
     metricsHtml = `
       <div class="stats-metric-row-main">
         <div class="stats-metric"><span class="stats-metric-value">${total}</span><span class="stats-metric-label">tests</span></div>
+        ${errorsHtml}
         ${progressHtml}
       </div>
       ${latencyHtml}
