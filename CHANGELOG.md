@@ -2,6 +2,17 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Added: PDF and Markdown export formats with stats visualization and filtered data support.
+- Added: Export dropdown menu in header with 4 formats (JSON, CSV, PDF, Markdown).
+- Added: `ezvals export` CLI command for exporting runs to various formats.
+- Added: PDF export includes SVG bar chart of score metrics.
+- Added: Markdown export includes ASCII progress bars with color emoji indicators (🟢🟡🔴).
+- Added: Filtered exports (PDF/MD) respect current filters and column visibility.
+- Added: `weasyprint` as optional dependency for PDF export (`pip install ezvals[pdf]`).
+- Changed: Export moved from Settings modal to dedicated dropdown in header.
+
 ## 0.0.2a17 - 2025-12-16
 
 - Added: Per-case `dataset` and `labels` support via `@parametrize` and `input_loader`. Dataset overrides function-level; labels merge (no duplicates).
