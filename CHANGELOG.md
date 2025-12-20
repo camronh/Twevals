@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added: PDF and Markdown export formats with stats visualization and filtered data support.
+- Added: Export dropdown menu in header with 4 formats (JSON, CSV, PDF, Markdown).
+- Added: `ezvals export` CLI command for exporting runs to various formats.
+- Added: PDF export includes SVG bar chart of score metrics.
+- Added: Markdown export includes ASCII progress bars with color emoji indicators (🟢🟡🔴).
+- Added: Filtered exports (PDF/MD) respect current filters and column visibility.
+- Added: `weasyprint` as optional dependency for PDF export (`pip install ezvals[pdf]`).
 - Added: Comparison mode for viewing 2-4 runs side-by-side. Click "+ Compare" in stats bar to select runs, view grouped bar charts with color-coded metrics, and compare outputs across runs in a unified table with per-run columns.
 - Added: `GET /api/runs/{run_id}/data` endpoint for fetching run data without changing the active run.
 - Added: Run dropdown selector to switch between past runs in the same session. Dropdown appears when 2+ runs exist.
 - Added: Activate run endpoint `POST /api/runs/{run_id}/activate` to switch the active run being viewed.
 - Added: Run metadata on `EvalContext` for observability tagging. Access `ctx.run_id`, `ctx.session_name`, `ctx.run_name`, `ctx.eval_path` (run-level) and `ctx.function_name`, `ctx.dataset`, `ctx.labels` (per-eval) inside eval functions for LangSmith/observability integration.
+- Changed: Export moved from Settings modal to dedicated dropdown in header.
 - Changed: Stats bar chart values now show stacked format—percentage prominent on top, ratio smaller below (e.g., "87%" over "54/62").
 - Changed: Run selection persisted across page reloads within session.
 - Fixed: Hot reload now works when editing target modules. Previously, changes to imported modules weren't picked up on Rerun because Python's `sys.modules` cache wasn't cleared.

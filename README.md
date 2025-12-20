@@ -27,7 +27,7 @@ ezvals serve examples
 
 - Expand rows to see inputs, outputs, metadata, scores, and annotations.
 - Edit scores or annotations inline; changes persist to JSON.
-- Actions menu: refresh, rerun the suite, export JSON/CSV.
+- Export dropdown: JSON, CSV (raw data), PDF, Markdown (filtered view with charts).
 
 ## Authoring evals
 

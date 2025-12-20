@@ -165,6 +165,44 @@ Download run results as JSON file.
 
 Download run results as CSV file.
 
+### `POST /api/runs/{run_id}/export/pdf`
+
+Generate a PDF report with stats chart and filtered results table.
+
+**Request:**
+
+```json
+{
+  "visible_indices": [0, 2, 5],
+  "visible_columns": ["eval", "dataset", "input", "output", "scores"],
+  "stats": {
+    "total": 10,
+    "filtered": 3,
+    "avgLatency": 0.45,
+    "chips": [
+      {"key": "accuracy", "type": "ratio", "passed": 8, "total": 10},
+      {"key": "latency", "type": "avg", "avg": 0.95, "count": 10}
+    ]
+  },
+  "run_name": "baseline",
+  "session_name": "my-session"
+}
+```
+
+**Response:** PDF file download
+
+<Note>
+Requires `weasyprint` and system dependencies (Pango, Cairo). Install with `pip install ezvals[pdf]`.
+</Note>
+
+### `POST /api/runs/{run_id}/export/markdown`
+
+Generate a Markdown report with ASCII bar charts and filtered results table.
+
+**Request:** Same as PDF export.
+
+**Response:** Markdown file download
+
 ## Sessions
 
 ### GET /api/sessions
