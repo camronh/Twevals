@@ -74,10 +74,18 @@ def _chip_to_pct(chip: Dict) -> int:
         return min(100, round(chip["avg"] * 100))
 
 
-def _ascii_bar(pct: int, width: int = 10) -> str:
-    """Generate ASCII bar for percentage."""
+def _ascii_bar(pct: int, width: int = 20) -> str:
+    """Generate ASCII bar for percentage with color emoji."""
     filled = pct * width // 100
-    return "█" * filled + "░" * (width - filled)
+    bar = "█" * filled + "░" * (width - filled)
+    # Color indicator based on percentage
+    if pct >= 80:
+        indicator = "🟢"
+    elif pct >= 50:
+        indicator = "🟡"
+    else:
+        indicator = "🔴"
+    return f"{bar} {indicator}"
 
 
 def render_markdown(
@@ -105,25 +113,34 @@ def render_markdown(
         lines.append(f"**Session:** {session_name}")
     lines.append("")
 
-    # Stats summary
-    lines.append("## Summary")
-    lines.append(f"- **Tests:** {stats.get('filtered', stats['total'])}/{stats['total']}")
-    lines.append(f"- **Errors:** {stats['errors']}")
-    if stats["avg_latency"] > 0:
-        lines.append(f"- **Avg Latency:** {stats['avg_latency']:.2f}s")
+    # Stats summary - compact inline format
+    filtered = stats.get('filtered', stats['total'])
+    total = stats['total']
+    errors = stats['errors']
+    latency = stats['avg_latency']
+
+    summary_parts = [f"**{filtered}/{total}** tests"]
+    if errors > 0:
+        summary_parts.append(f"**{errors}** errors")
+    if latency > 0:
+        summary_parts.append(f"**{latency:.2f}s** avg latency")
+    lines.append(" · ".join(summary_parts))
     lines.append("")
 
-    # Score bars
+    # Score bars as table
     if stats["chips"]:
         lines.append("## Scores")
+        lines.append("")
+        lines.append("| Metric | Progress | Score |")
+        lines.append("|--------|----------|-------|")
         for chip in stats["chips"]:
             pct = _chip_to_pct(chip)
             bar = _ascii_bar(pct)
             if chip["type"] == "ratio":
-                detail = f"{chip['passed']}/{chip['total']}"
+                score = f"{pct}% ({chip['passed']}/{chip['total']})"
             else:
-                detail = f"avg: {chip['avg']:.2f}"
-            lines.append(f"- **{chip['key']}:** {bar} {pct}% ({detail})")
+                score = f"{pct}% (avg: {chip['avg']:.2f})"
+            lines.append(f"| **{chip['key']}** | {bar} | {score} |")
         lines.append("")
 
     # Results table
