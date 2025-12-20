@@ -49,21 +49,27 @@ Scenario: Fresh session (nothing run yet)
   Then the button shows only "Run" (no dropdown)
   And clicking Run starts all evaluations
 
-Scenario: Checkboxes selected (selective run)
-  Given some evaluations are checked
-  When the user views the Run button
-  Then the button shows only "Rerun"
-  And clicking Rerun runs only the selected evaluations
-
-Scenario: No checkboxes, has previous runs (split button)
+Scenario: Has previous runs (split button)
   Given evaluations have been run before
-  And no checkboxes are selected
   When the user views the Run button
   Then the button is a split button with dropdown arrow
   And the main button shows the last-used option ("Rerun" or "New Run")
   And the dropdown shows both options:
-    - "Rerun" (overwrites current run)
-    - "New Run" (creates new run, prompts for optional name)
+    - "Rerun" (updates current run in place)
+    - "New Run" (creates new run file)
+
+Scenario: Selective run with checkboxes
+  Given some evaluations are checked
+  When the user clicks "Rerun"
+  Then only the selected evaluations run
+  And results update in place for the current run
+
+Scenario: Selective new run with checkboxes
+  Given some evaluations are checked
+  When the user clicks "New Run"
+  Then a new run file is created
+  And only the selected evaluations are executed
+  And non-selected evaluations show as not_started
 
 Scenario: Rerun behavior
   When the user clicks "Rerun"
