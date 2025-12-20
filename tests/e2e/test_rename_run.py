@@ -255,3 +255,30 @@ def test_rename_run_expanded_view(tmp_path):
     assert len(json_files) == 1
     data = json.loads(json_files[0].read_text())
     assert data["run_name"] == "expanded-renamed"
+
+
+def test_set_pending_run_name_before_run(tmp_path):
+    """Can set run name before any run exists via pending-run-name endpoint."""
+    from starlette.testclient import TestClient
+
+    # Create app with no existing run (just discovered functions)
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id="",  # No active run
+        session_name="test-session",
+        run_name="auto-generated",
+    )
+
+    client = TestClient(app)
+
+    # Set pending run name via API
+    response = client.put(
+        "/api/pending-run-name",
+        json={"run_name": "my-custom-name"},
+    )
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert response.json()["run_name"] == "my-custom-name"
+
+    # Verify app.state was updated
+    assert app.state.run_name == "my-custom-name"
