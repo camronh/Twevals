@@ -342,19 +342,19 @@ def run_cmd(
 
 @cli.command('export')
 @click.argument('run_path', type=click.Path(exists=True))
-@click.option('--format', '-f', 'fmt', type=click.Choice(['json', 'csv', 'pdf', 'md']), default='json', help='Export format')
+@click.option('--format', '-f', 'fmt', type=click.Choice(['json', 'csv', 'md']), default='json', help='Export format')
 @click.option('--output', '-o', type=click.Path(), help='Output file path')
 def export_cmd(run_path: str, fmt: str, output: Optional[str]):
-    """Export a run to various formats (JSON, CSV, PDF, Markdown).
+    """Export a run to various formats (JSON, CSV, Markdown).
 
     RUN_PATH is the path to a run JSON file.
 
     Examples:
-        ezvals export .ezvals/sessions/default/run_123.json -f pdf
         ezvals export run.json -f md -o report.md
+        ezvals export run.json -f csv
     """
     import shutil
-    from ezvals.export import export_to_pdf, export_to_markdown, export_to_csv
+    from ezvals.export import export_to_markdown, export_to_csv
 
     # Load run data
     with open(run_path) as f:
@@ -363,8 +363,7 @@ def export_cmd(run_path: str, fmt: str, output: Optional[str]):
     # Generate output filename if not specified
     if not output:
         base = Path(run_path).stem
-        ext = fmt if fmt != 'md' else 'md'
-        output = f"{base}.{ext}"
+        output = f"{base}.{fmt}"
 
     # Export based on format
     if fmt == 'json':
@@ -374,14 +373,6 @@ def export_cmd(run_path: str, fmt: str, output: Optional[str]):
     elif fmt == 'csv':
         export_to_csv(data, output)
         console.print(f"Exported to {output}")
-    elif fmt == 'pdf':
-        try:
-            export_to_pdf(data, output)
-            console.print(f"Exported to {output}")
-        except (ImportError, OSError) as e:
-            msg = str(e).replace('[', r'\[')
-            console.print(f"[red]{msg}[/red]")
-            sys.exit(1)
     elif fmt == 'md':
         export_to_markdown(data, output)
         console.print(f"Exported to {output}")

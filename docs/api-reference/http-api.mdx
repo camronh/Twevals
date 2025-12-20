@@ -165,9 +165,9 @@ Download run results as JSON file.
 
 Download run results as CSV file.
 
-### `POST /api/runs/{run_id}/export/pdf`
+### `POST /api/runs/{run_id}/export/markdown`
 
-Generate a PDF report with stats chart and filtered results table.
+Generate a Markdown report with ASCII bar charts and filtered results table.
 
 **Request:**
 
@@ -188,18 +188,6 @@ Generate a PDF report with stats chart and filtered results table.
   "session_name": "my-session"
 }
 ```
-
-**Response:** PDF file download
-
-<Note>
-Requires `weasyprint` and system dependencies (Pango, Cairo). Install with `pip install ezvals[pdf]`.
-</Note>
-
-### `POST /api/runs/{run_id}/export/markdown`
-
-Generate a Markdown report with ASCII bar charts and filtered results table.
-
-**Request:** Same as PDF export.
 
 **Response:** Markdown file download
 

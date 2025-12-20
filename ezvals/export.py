@@ -1,4 +1,4 @@
-"""Shared export utilities for PDF, Markdown, and CSV generation."""
+"""Shared export utilities for Markdown and CSV generation."""
 
 import csv
 import io
@@ -86,6 +86,14 @@ def _ascii_bar(pct: int, width: int = 20) -> str:
     else:
         indicator = "🔴"
     return f"{bar} {indicator}"
+
+
+def _truncate(s: str, max_len: int) -> str:
+    """Truncate string to max length with ellipsis."""
+    s = str(s)
+    if len(s) > max_len:
+        return s[:max_len - 3] + "..."
+    return s
 
 
 def render_markdown(
@@ -211,14 +219,6 @@ def render_markdown(
     return "\n".join(lines)
 
 
-def _truncate(s: str, max_len: int) -> str:
-    """Truncate string to max length with ellipsis."""
-    s = str(s)
-    if len(s) > max_len:
-        return s[:max_len - 3] + "..."
-    return s
-
-
 def render_csv(
     data: Dict[str, Any],
     columns: Optional[List[str]] = None,
@@ -268,291 +268,6 @@ def render_csv(
         writer.writerow(row)
 
     return output.getvalue()
-
-
-def render_html_for_pdf(
-    data: Dict[str, Any],
-    columns: Optional[List[str]] = None,
-    stats: Optional[Dict[str, Any]] = None,
-) -> str:
-    """Render run data as HTML suitable for PDF conversion.
-
-    Args:
-        data: Run data dict with results, run_name, session_name
-        columns: List of columns to include (None = all)
-        stats: Pre-computed stats (if None, computed from data)
-    """
-    if stats is None:
-        stats = compute_stats(data)
-
-    run_name = data.get("run_name", "Untitled Run")
-    session_name = data.get("session_name", "")
-
-    # Default columns
-    all_cols = ["function", "dataset", "input", "output", "reference", "scores", "error", "latency"]
-    cols = columns if columns else all_cols
-
-    col_headers = {
-        "function": "Eval",
-        "dataset": "Dataset",
-        "input": "Input",
-        "output": "Output",
-        "reference": "Reference",
-        "scores": "Scores",
-        "error": "Error",
-        "latency": "Latency",
-    }
-
-    # Build SVG bar chart
-    chart_svg = _build_svg_chart(stats["chips"])
-
-    # Build table HTML
-    results = data.get("results", [])
-    table_rows = []
-    for r in results:
-        res = r.get("result", {})
-        cells = []
-        for c in cols:
-            if c == "function":
-                val = _escape_html(r.get("function", ""))
-            elif c == "dataset":
-                val = _escape_html(r.get("dataset", ""))
-            elif c == "input":
-                val = _escape_html(_truncate(json.dumps(res.get("input", ""), default=str), 80))
-            elif c == "output":
-                val = _escape_html(_truncate(json.dumps(res.get("output", ""), default=str), 80))
-            elif c == "reference":
-                val = _escape_html(_truncate(json.dumps(res.get("reference", ""), default=str), 80))
-            elif c == "scores":
-                scores = res.get("scores") or []
-                badges = []
-                for s in scores:
-                    key = s.get("key", "?")
-                    if s.get("passed") is True:
-                        badges.append(f'<span class="badge pass">{_escape_html(key)}</span>')
-                    elif s.get("passed") is False:
-                        badges.append(f'<span class="badge fail">{_escape_html(key)}</span>')
-                    elif s.get("value") is not None:
-                        badges.append(f'<span class="badge">{_escape_html(key)}: {s["value"]}</span>')
-                val = " ".join(badges)
-            elif c == "error":
-                err = res.get("error") or ""
-                val = f'<span class="error">{_escape_html(_truncate(err, 50))}</span>' if err else ""
-            elif c == "latency":
-                lat = res.get("latency")
-                val = f"{lat:.2f}s" if lat else ""
-            else:
-                val = ""
-            cells.append(f"<td>{val}</td>")
-        table_rows.append("<tr>" + "".join(cells) + "</tr>")
-
-    # Column headers
-    th_cells = "".join(f"<th>{col_headers.get(c, c.title())}</th>" for c in cols)
-
-    html = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>{_escape_html(run_name)}</title>
-<style>
-body {{
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 11px;
-    color: #1a1a1a;
-    margin: 20px;
-    line-height: 1.4;
-}}
-h1 {{
-    font-size: 18px;
-    margin: 0 0 4px 0;
-}}
-.session {{
-    color: #666;
-    font-size: 12px;
-    margin-bottom: 16px;
-}}
-.stats {{
-    display: flex;
-    gap: 24px;
-    margin-bottom: 16px;
-    font-size: 12px;
-}}
-.stat {{
-    display: flex;
-    flex-direction: column;
-}}
-.stat-value {{
-    font-size: 20px;
-    font-weight: 600;
-}}
-.stat-label {{
-    color: #666;
-    font-size: 10px;
-    text-transform: uppercase;
-}}
-.chart {{
-    margin: 16px 0;
-}}
-table {{
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 10px;
-}}
-th {{
-    background: #f5f5f5;
-    padding: 6px 8px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-    font-weight: 600;
-}}
-td {{
-    padding: 6px 8px;
-    border-bottom: 1px solid #eee;
-    vertical-align: top;
-    word-break: break-word;
-    max-width: 200px;
-}}
-tr:nth-child(even) {{
-    background: #fafafa;
-}}
-.badge {{
-    display: inline-block;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 9px;
-    background: #e0e0e0;
-    margin: 1px;
-}}
-.badge.pass {{
-    background: #d4edda;
-    color: #155724;
-}}
-.badge.fail {{
-    background: #f8d7da;
-    color: #721c24;
-}}
-.error {{
-    color: #dc3545;
-}}
-</style>
-</head>
-<body>
-<h1>{_escape_html(run_name)}</h1>
-<div class="session">{_escape_html(session_name)}</div>
-
-<div class="stats">
-    <div class="stat">
-        <span class="stat-value">{stats.get('filtered', stats['total'])}/{stats['total']}</span>
-        <span class="stat-label">Tests</span>
-    </div>
-    <div class="stat">
-        <span class="stat-value">{stats['errors']}</span>
-        <span class="stat-label">Errors</span>
-    </div>
-    <div class="stat">
-        <span class="stat-value">{stats['avg_latency']:.2f}s</span>
-        <span class="stat-label">Avg Latency</span>
-    </div>
-</div>
-
-<div class="chart">
-{chart_svg}
-</div>
-
-<table>
-<thead><tr>{th_cells}</tr></thead>
-<tbody>
-{"".join(table_rows)}
-</tbody>
-</table>
-</body>
-</html>"""
-
-    return html
-
-
-def _escape_html(s: str) -> str:
-    """Escape HTML special characters."""
-    return (str(s)
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;"))
-
-
-def _build_svg_chart(chips: List[Dict]) -> str:
-    """Build SVG bar chart from score chips."""
-    if not chips:
-        return ""
-
-    bar_width = 60
-    bar_gap = 20
-    chart_height = 120
-    bar_max_height = 80
-    label_height = 30
-
-    total_width = len(chips) * (bar_width + bar_gap)
-
-    bars = []
-    for i, chip in enumerate(chips):
-        pct = _chip_to_pct(chip)
-        bar_height = pct * bar_max_height // 100
-        x = i * (bar_width + bar_gap)
-        y = bar_max_height - bar_height
-
-        # Color based on percentage
-        if pct >= 80:
-            color = "#10b981"  # green
-        elif pct >= 50:
-            color = "#f59e0b"  # amber
-        else:
-            color = "#ef4444"  # red
-
-        # Bar
-        bars.append(f'<rect x="{x}" y="{y}" width="{bar_width}" height="{bar_height}" fill="{color}" rx="3"/>')
-
-        # Percentage label on bar
-        bars.append(f'<text x="{x + bar_width//2}" y="{y - 5}" text-anchor="middle" font-size="11" font-weight="600">{pct}%</text>')
-
-        # Key label below
-        key = chip["key"][:10]  # Truncate long keys
-        bars.append(f'<text x="{x + bar_width//2}" y="{bar_max_height + 15}" text-anchor="middle" font-size="10" fill="#666">{_escape_html(key)}</text>')
-
-        # Ratio/avg below key
-        if chip["type"] == "ratio":
-            detail = f"{chip['passed']}/{chip['total']}"
-        else:
-            detail = f"{chip['avg']:.2f}"
-        bars.append(f'<text x="{x + bar_width//2}" y="{bar_max_height + 27}" text-anchor="middle" font-size="9" fill="#999">{detail}</text>')
-
-    return f'''<svg width="{total_width}" height="{chart_height + label_height}" xmlns="http://www.w3.org/2000/svg">
-    {"".join(bars)}
-</svg>'''
-
-
-def export_to_pdf(data: Dict[str, Any], output_path: str, columns: Optional[List[str]] = None, stats: Optional[Dict[str, Any]] = None):
-    """Export run data to PDF file.
-
-    Requires weasyprint to be installed, plus system libraries (Pango, Cairo).
-    """
-    try:
-        from weasyprint import HTML
-    except ImportError:
-        raise ImportError(
-            "PDF export requires weasyprint.\n"
-            "Install with: pip install ezvals[pdf]"
-        )
-    except OSError as e:
-        raise OSError(
-            f"PDF export requires system libraries (Pango, Cairo, GLib).\n"
-            f"On macOS: brew install pango glib\n"
-            f"  If using Apple Silicon, you may need: export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib\n"
-            f"On Ubuntu: apt install libpango-1.0-0 libpangocairo-1.0-0\n"
-            f"See: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation"
-        ) from e
-
-    html = render_html_for_pdf(data, columns, stats)
-    HTML(string=html).write_pdf(output_path)
 
 
 def export_to_markdown(data: Dict[str, Any], output_path: str, columns: Optional[List[str]] = None, stats: Optional[Dict[str, Any]] = None):

@@ -218,16 +218,6 @@ Scenario: Export as CSV
 ### Filtered Exports (Respects Filters & Column Selection)
 
 ```gherkin
-Scenario: Export as PDF
-  Given evaluation results exist
-  And some filters are applied
-  When the user clicks Export > PDF
-  Then a PDF downloads with:
-    - Header with session and run name
-    - SVG bar chart visualization of score metrics
-    - Stats summary (tests shown/total, errors, avg latency)
-    - Table with only visible rows and visible columns
-
 Scenario: Export as Markdown
   Given evaluation results exist
   And some filters are applied
@@ -427,7 +417,6 @@ The UI is backed by these REST endpoints, also available programmatically.
 |----------|--------|-------------|
 | `/api/runs/{run_id}/export/json` | GET | Download JSON |
 | `/api/runs/{run_id}/export/csv` | GET | Download CSV |
-| `/api/runs/{run_id}/export/pdf` | POST | Download filtered PDF |
 | `/api/runs/{run_id}/export/markdown` | POST | Download filtered Markdown |
 
 ### Sessions & Runs

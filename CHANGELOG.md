@@ -4,13 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-- Added: PDF and Markdown export formats with stats visualization and filtered data support.
-- Added: Export dropdown menu in header with 4 formats (JSON, CSV, PDF, Markdown).
-- Added: `ezvals export` CLI command for exporting runs to various formats.
-- Added: PDF export includes SVG bar chart of score metrics.
+- Added: Markdown export with stats visualization and filtered data support.
+- Added: Export dropdown menu in header with JSON, CSV, and Markdown formats.
+- Added: `ezvals export` CLI command for exporting runs to JSON, CSV, or Markdown.
 - Added: Markdown export includes ASCII progress bars with color emoji indicators (🟢🟡🔴).
-- Added: Filtered exports (PDF/MD) respect current filters and column visibility.
-- Added: `weasyprint` as optional dependency for PDF export (`pip install ezvals[pdf]`).
+- Added: Filtered Markdown export respects current filters and column visibility.
 - Added: Comparison mode for viewing 2-4 runs side-by-side. Click "+ Compare" in stats bar to select runs, view grouped bar charts with color-coded metrics, and compare outputs across runs in a unified table with per-run columns.
 - Added: `GET /api/runs/{run_id}/data` endpoint for fetching run data without changing the active run.
 - Added: Run dropdown selector to switch between past runs in the same session. Dropdown appears when 2+ runs exist.

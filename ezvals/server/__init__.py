@@ -561,46 +561,6 @@ def create_app(
         run_name: str
         session_name: Optional[str] = None
 
-    @app.post("/api/runs/{run_id}/export/pdf")
-    def export_pdf(run_id: str, body: FilteredExportRequest):
-        """Export filtered results as PDF with stats chart."""
-        from ezvals.export import render_html_for_pdf
-
-        rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else None
-        if not rid:
-            raise HTTPException(status_code=400, detail="Only active or latest run can be exported")
-
-        try:
-            from weasyprint import HTML
-        except ImportError:
-            raise HTTPException(status_code=501, detail="PDF export requires weasyprint. Install with: pip install ezvals[pdf]")
-
-        data = store.load_run(app.state.active_run_id)
-
-        # Filter to visible indices
-        all_results = data.get("results", [])
-        filtered_results = [all_results[i] for i in body.visible_indices if i < len(all_results)]
-
-        export_data = {
-            "results": filtered_results,
-            "run_name": body.run_name,
-            "session_name": body.session_name,
-        }
-
-        stats = {
-            "total": body.stats.total,
-            "filtered": body.stats.filtered,
-            "errors": sum(1 for r in filtered_results if (r.get("result") or {}).get("error")),
-            "avg_latency": body.stats.avgLatency,
-            "chips": [c.model_dump() for c in body.stats.chips],
-        }
-
-        html = render_html_for_pdf(export_data, body.visible_columns, stats)
-        pdf_bytes = HTML(string=html).write_pdf()
-
-        headers = {"Content-Disposition": f"attachment; filename={app.state.active_run_id}.pdf"}
-        return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
-
     @app.post("/api/runs/{run_id}/export/markdown")
     def export_markdown(run_id: str, body: FilteredExportRequest):
         """Export filtered results as Markdown with ASCII bar chart."""

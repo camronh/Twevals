@@ -72,13 +72,12 @@ Changes are saved to the results file.
 
 ## Export
 
-Click the download icon in the header to open the export menu with four formats:
+Click the download icon in the header to open the export menu with three formats:
 
 | Format | Type | Description |
 |--------|------|-------------|
 | JSON | Raw | Full results file as-is |
 | CSV | Raw | All results in flat CSV format |
-| PDF | Filtered | Stats chart + table with current filters applied |
 | Markdown | Filtered | ASCII bar charts + table with current filters applied |
 
 **Filtered exports** respect:
@@ -86,7 +85,7 @@ Click the download icon in the header to open the export menu with four formats:
 - Column visibility (hidden columns are excluded)
 - Computed stats from filtered results
 
-The PDF includes an SVG bar chart showing pass rates for each score metric. Markdown uses ASCII progress bars with color indicators:
+Markdown uses ASCII progress bars with color indicators:
 
 ```
 | Metric | Progress | Score |

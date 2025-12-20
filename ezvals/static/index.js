@@ -1686,8 +1686,7 @@ function wireExportButtons() {
     window.location.href = `/api/runs/${runId}/export/csv`;
   });
 
-  // Filtered exports (PDF/MD)
-  document.getElementById('export-pdf-btn')?.addEventListener('click', () => exportFiltered('pdf'));
+  // Filtered export (Markdown)
   document.getElementById('export-md-btn')?.addEventListener('click', () => exportFiltered('markdown'));
 }
 
@@ -1740,7 +1739,7 @@ async function exportFiltered(format) {
     }
 
     const blob = await resp.blob();
-    const ext = format === 'pdf' ? 'pdf' : 'md';
+    const ext = 'md';
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

@@ -10,7 +10,7 @@ This document specifies the command-line interface experience for EZVals.
 |---------|---------|
 | `ezvals run` | Execute evaluations headlessly (for agents/CI) |
 | `ezvals serve` | Start web UI for interactive use |
-| `ezvals export` | Export a run to various formats (JSON, CSV, PDF, Markdown) |
+| `ezvals export` | Export a run to various formats (JSON, CSV, Markdown) |
 
 ---
 
@@ -239,16 +239,6 @@ Scenario: Export to CSV
   Then a CSV file is created with all results
   And filename defaults to {run_name}.csv
 
-Scenario: Export to PDF
-  When the user runs `ezvals export run.json -f pdf`
-  Then a PDF file is created with:
-    - Header with run name and session
-    - SVG bar chart of score metrics
-    - Stats summary (tests, errors, avg latency)
-    - Table of all results
-  And filename defaults to {run_name}.pdf
-  And requires weasyprint to be installed
-
 Scenario: Export to Markdown
   When the user runs `ezvals export run.json -f md`
   Then a markdown file is created with:
@@ -263,7 +253,7 @@ Scenario: Export to Markdown
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `-f, --format` | choice | json | Export format: json, csv, pdf, md |
+| `-f, --format` | choice | json | Export format: json, csv, md |
 | `-o, --output` | path | auto | Output file path |
 
 ---

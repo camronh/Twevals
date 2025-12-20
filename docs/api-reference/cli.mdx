@@ -9,7 +9,7 @@ EZVals has three main commands:
 
 - `ezvals serve` - Start the web UI to browse and run evaluations interactively
 - `ezvals run` - Run evaluations headlessly (for CI/CD pipelines)
-- `ezvals export` - Export a run to various formats (JSON, CSV, PDF, Markdown)
+- `ezvals export` - Export a run to various formats (JSON, CSV, Markdown)
 
 ## ezvals serve
 
@@ -217,12 +217,12 @@ Where `RUN_PATH` is the path to a run JSON file (e.g., `.ezvals/sessions/default
 ### Options
 
 <ParamField path="-f, --format" type="choice" default="json">
-  Export format: `json`, `csv`, `pdf`, or `md`.
+  Export format: `json`, `csv`, or `md`.
 </ParamField>
 
 ```bash
-ezvals export run.json -f pdf
 ezvals export run.json -f md
+ezvals export run.json -f csv
 ```
 
 <ParamField path="-o, --output" type="string">
@@ -230,7 +230,7 @@ ezvals export run.json -f md
 </ParamField>
 
 ```bash
-ezvals export run.json -f pdf -o report.pdf
+ezvals export run.json -f md -o report.md
 ```
 
 ### Export Formats
@@ -239,29 +239,13 @@ ezvals export run.json -f pdf -o report.pdf
 |--------|-------------|
 | `json` | Copy the raw JSON file |
 | `csv` | Flat CSV with all results |
-| `pdf` | PDF with stats chart and results table (requires `weasyprint`) |
 | `md` | Markdown with ASCII bar charts and results table |
-
-### PDF Export
-
-PDF export requires the `weasyprint` library and system dependencies (Pango, Cairo):
-
-```bash
-# Install weasyprint
-pip install ezvals[pdf]
-
-# On macOS, also install system libraries
-brew install pango
-```
 
 ### Examples
 
 ```bash
 # Export to Markdown
 ezvals export .ezvals/sessions/default/run_123.json -f md
-
-# Export to PDF with custom filename
-ezvals export run.json -f pdf -o weekly-report.pdf
 
 # Export to CSV
 ezvals export run.json -f csv -o results.csv
