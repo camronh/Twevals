@@ -808,7 +808,6 @@ function renderResultsTableComparison() {
   // Build header
   let headerHtml = `
     <tr class="border-b border-theme-border">
-      <th style="width:32px" class="bg-theme-bg px-2 py-2 text-center align-middle"><input type="checkbox" id="select-all-checkbox" class="accent-emerald-500" disabled /></th>
       <th data-col="function" style="width:15%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Eval</th>
       <th data-col="input" style="width:15%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Input</th>
       <th data-col="reference" style="width:15%" class="bg-theme-bg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-theme-text-muted">Reference</th>
@@ -864,9 +863,6 @@ function renderResultsTableComparison() {
 
     rowsHtml += `
       <tr data-row="main" data-row-id="${index}" data-compare-key="${escapeHtml(key)}" class="group hover:bg-theme-bg-elevated/50 transition-colors">
-        <td class="px-2 py-3 text-center align-middle">
-          <input type="checkbox" class="row-checkbox" data-row-id="${index}" disabled />
-        </td>
         <td data-col="function" class="px-3 py-3 align-middle">
           <div class="flex flex-col gap-0.5">
             ${evalLinkHtml}
