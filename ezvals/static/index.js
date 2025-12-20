@@ -1013,7 +1013,95 @@ function applyAllFilters() {
 }
 function initScrollRestoration() { const savedY = sessionStorage.getItem('ezvals:scrollY'); if (savedY !== null) { window.scrollTo(0, parseInt(savedY, 10)); sessionStorage.removeItem('ezvals:scrollY'); } const params = new URLSearchParams(window.location.search); if (params.has('scroll')) { history.replaceState(null, '', window.location.pathname); } }
 document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('ezvals:scrollY', window.scrollY.toString()); } });
-function wireExportButtons() { const table = document.getElementById('results-table'); const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest'; document.getElementById('export-json-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/json`; }); document.getElementById('export-csv-btn')?.addEventListener('click', () => { window.location.href = `/api/runs/${runId}/export/csv`; }); }
+function wireExportButtons() {
+  const table = document.getElementById('results-table');
+  const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest';
+
+  // Setup export dropdown toggle
+  const exportToggle = document.getElementById('export-toggle');
+  const exportMenu = document.getElementById('export-menu');
+  if (exportToggle && exportMenu) {
+    exportToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenu.classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => exportMenu.classList.add('hidden'));
+  }
+
+  // Raw exports (all data)
+  document.getElementById('export-json-btn')?.addEventListener('click', () => {
+    window.location.href = `/api/runs/${runId}/export/json`;
+  });
+  document.getElementById('export-csv-btn')?.addEventListener('click', () => {
+    window.location.href = `/api/runs/${runId}/export/csv`;
+  });
+
+  // Filtered exports (PDF/MD)
+  document.getElementById('export-pdf-btn')?.addEventListener('click', () => exportFiltered('pdf'));
+  document.getElementById('export-md-btn')?.addEventListener('click', () => exportFiltered('markdown'));
+}
+
+async function exportFiltered(format) {
+  const table = document.getElementById('results-table');
+  const runId = table?.getAttribute('data-run-id') || 'latest';
+
+  // Get visible row indices
+  const visibleRows = getVisibleMainRows();
+  const visibleIndices = visibleRows.map(tr => parseInt(tr.dataset.rowId, 10)).filter(n => !isNaN(n));
+
+  // Get visible columns (exclude hidden ones)
+  const hiddenCols = new Set(getHiddenCols());
+  const allCols = ['function', 'input', 'reference', 'output', 'error', 'scores', 'latency'];
+  const visibleColumns = allCols.filter(c => !hiddenCols.has(c));
+
+  // Get computed stats from filtered rows
+  const stats = computeFilteredStats() || {
+    total: _currentData?.total_evaluations || visibleRows.length,
+    filtered: visibleRows.length,
+    avgLatency: _currentData?.average_latency || 0,
+    chips: _currentData?.score_chips || []
+  };
+
+  const payload = {
+    visible_indices: visibleIndices,
+    visible_columns: visibleColumns,
+    stats: {
+      total: stats.total || _currentData?.total_evaluations || visibleRows.length,
+      filtered: stats.filtered || visibleRows.length,
+      avgLatency: stats.avgLatency || 0,
+      chips: stats.chips || []
+    },
+    run_name: _currentData?.run_name || 'export',
+    session_name: _currentData?.session_name || null
+  };
+
+  try {
+    const resp = await fetch(`/api/runs/${runId}/export/${format}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Export failed:', errText);
+      alert('Export failed: ' + errText);
+      return;
+    }
+
+    const blob = await resp.blob();
+    const ext = format === 'pdf' ? 'pdf' : 'md';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${runId}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Export error:', err);
+    alert('Export failed: ' + err.message);
+  }
+}
 
 // Click on .copyable elements to copy their text
 document.addEventListener('click', async (e) => {

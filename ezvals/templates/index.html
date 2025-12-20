@@ -168,6 +168,36 @@
                         </div>
                     </div>
                 </div>
+                <div class="dropdown relative">
+                    <button id="export-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-theme-btn-border bg-theme-btn-bg text-theme-text-secondary hover:bg-theme-btn-bg-hover hover:text-theme-text">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <use href="#icon-download"></use>
+                        </svg>
+                    </button>
+                    <div id="export-menu" class="absolute right-0 z-50 mt-1 w-44 rounded border border-zinc-700 bg-zinc-900 p-2 text-xs shadow-xl hidden">
+                        <div class="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-2">Export</div>
+                        <button id="export-json-btn" class="w-full flex items-center gap-2 py-1.5 px-2 rounded text-zinc-300 hover:bg-zinc-800">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-download"></use></svg>
+                            JSON
+                            <span class="ml-auto text-zinc-500 text-[9px]">raw</span>
+                        </button>
+                        <button id="export-csv-btn" class="w-full flex items-center gap-2 py-1.5 px-2 rounded text-zinc-300 hover:bg-zinc-800">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-download"></use></svg>
+                            CSV
+                            <span class="ml-auto text-zinc-500 text-[9px]">raw</span>
+                        </button>
+                        <div class="border-t border-zinc-800 my-1.5"></div>
+                        <div class="text-[9px] text-zinc-500 mb-1 px-2">Filtered view</div>
+                        <button id="export-pdf-btn" class="w-full flex items-center gap-2 py-1.5 px-2 rounded text-zinc-300 hover:bg-zinc-800">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-download"></use></svg>
+                            PDF
+                        </button>
+                        <button id="export-md-btn" class="w-full flex items-center gap-2 py-1.5 px-2 rounded text-zinc-300 hover:bg-zinc-800">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-download"></use></svg>
+                            Markdown
+                        </button>
+                    </div>
+                </div>
                 <button id="settings-toggle" class="flex h-7 w-7 items-center justify-center rounded border border-theme-btn-border bg-theme-btn-bg text-theme-text-secondary hover:bg-theme-btn-bg-hover hover:text-theme-text">
                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <use href="#icon-gear"></use>
@@ -273,23 +303,6 @@
                         </svg>
                         <span class="dark:hidden">Dark</span><span class="hidden dark:inline">Light</span>
                     </button>
-                </div>
-                <div class="border-t border-theme-border pt-3">
-                    <div class="mb-2 text-[9px] font-medium uppercase tracking-wider text-theme-text-muted">Export</div>
-                    <div class="flex gap-2">
-                        <button type="button" id="export-json-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-theme-border bg-theme-bg-secondary py-1.5 text-theme-text-secondary hover:bg-theme-bg-elevated">
-                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <use href="#icon-download"></use>
-                            </svg>
-                            JSON
-                        </button>
-                        <button type="button" id="export-csv-btn" class="flex-1 flex items-center justify-center gap-1.5 rounded border border-theme-border bg-theme-bg-secondary py-1.5 text-theme-text-secondary hover:bg-theme-bg-elevated">
-                            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <use href="#icon-download"></use>
-                            </svg>
-                            CSV
-                        </button>
-                    </div>
                 </div>
                 <div class="flex justify-end gap-2 border-t border-theme-border pt-3">
                     <button type="button" id="settings-cancel" class="rounded border border-theme-border bg-theme-bg-secondary px-3 py-1.5 text-theme-text-muted hover:bg-theme-bg-elevated">Cancel</button>
