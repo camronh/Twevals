@@ -637,6 +637,14 @@ def create_app(
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Run not found")
 
+    @app.put("/api/pending-run-name")
+    def set_pending_run_name(body: RunUpdateBody):
+        """Set the run name before any run exists. Used for pre-run naming."""
+        if body.run_name is not None:
+            app.state.run_name = body.run_name
+            return {"ok": True, "run_name": body.run_name}
+        return {"ok": True, "run_name": app.state.run_name}
+
     class NewRunRequest(BaseModel):
         run_name: Optional[str] = None
 

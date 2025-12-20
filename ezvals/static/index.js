@@ -1739,13 +1739,23 @@ document.addEventListener('click', (e) => {
     if (done) return;
     done = true;
     const newName = input.value.trim();
-    if (newName && newName !== originalText && _currentRunId) {
+    if (newName && newName !== originalText) {
       try {
-        await fetch(`/api/runs/${_currentRunId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ run_name: newName })
-        });
+        if (_currentRunId) {
+          // Run exists: update run file
+          await fetch(`/api/runs/${_currentRunId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ run_name: newName })
+          });
+        } else {
+          // No run yet: set pending name for next run
+          await fetch('/api/pending-run-name', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ run_name: newName })
+          });
+        }
       } catch (err) {
         console.error('Rename failed:', err);
       }
