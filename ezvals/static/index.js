@@ -1158,19 +1158,19 @@ function updateRowInPlace(index, newResult) {
       setTimeout(() => oldPill.remove(), 300);
     }
 
+    // Find the subtext row (second div in the flex-col container)
+    const subtextRow = functionCell.querySelector('div.flex.flex-col > div:nth-child(2)');
     if (newStatus === 'running') {
       const pill = document.createElement('span');
       pill.className = `status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.running} fade-out`;
       pill.textContent = 'running';
-      const fnLink = functionCell.querySelector('a, span');
-      if (fnLink) fnLink.parentElement.appendChild(pill);
+      if (subtextRow) subtextRow.insertBefore(pill, subtextRow.firstChild);
       requestAnimationFrame(() => pill.classList.remove('fade-out'));
     } else if (newStatus === 'error') {
       const pill = document.createElement('span');
       pill.className = `status-pill rounded px-1.5 py-0.5 text-[10px] font-medium ${PILL_TONES.error} fade-out`;
       pill.textContent = 'err';
-      const fnLink = functionCell.querySelector('a, span');
-      if (fnLink) fnLink.parentElement.appendChild(pill);
+      if (subtextRow) subtextRow.insertBefore(pill, subtextRow.firstChild);
       requestAnimationFrame(() => pill.classList.remove('fade-out'));
     }
 
