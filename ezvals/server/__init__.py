@@ -647,6 +647,7 @@ def create_app(
 
     class NewRunRequest(BaseModel):
         run_name: Optional[str] = None
+        indices: Optional[List[int]] = None
 
     @app.post("/api/runs/new")
     def new_run(request: NewRunRequest = NewRunRequest()):
@@ -679,7 +680,54 @@ def create_app(
         # Create new run with overwrite=False
         run_id = store.generate_run_id()
         app.state.active_run_id = run_id
-        start_run(all_functions, run_id, overwrite=False)
+
+        # Selective new run: run only selected indices (others stay not_started)
+        if request.indices is not None:
+            # Validate indices are in bounds
+            if not all_functions:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No results available to run. Check that your eval file imports correctly."
+                )
+            invalid_indices = [i for i in request.indices if i < 0 or i >= len(all_functions)]
+            if invalid_indices:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid indices: {invalid_indices}. Only {len(all_functions)} evals exist (indices 0-{len(all_functions)-1})."
+                )
+
+            # Build not_started results for all functions
+            all_results = [{
+                "function": f.func.__name__,
+                "dataset": f.dataset,
+                "labels": f.labels,
+                "result": {
+                    "input": _make_json_safe(f.context_kwargs.get("input")),
+                    "reference": _make_json_safe(f.context_kwargs.get("reference")),
+                    "metadata": _make_json_safe(f.context_kwargs.get("metadata")),
+                    "output": None, "error": None, "scores": None, "latency": None,
+                    "trace_data": None, "annotation": None, "annotations": None, "status": "not_started",
+                },
+            } for f in all_functions]
+
+            # Mark selected indices as pending and build index map
+            selected_keys = {}
+            for i in request.indices:
+                selected_keys[(all_functions[i].func.__name__, all_functions[i].dataset)] = i
+                all_results[i]["result"]["status"] = "pending"
+
+            # Filter to selected functions only
+            functions = [all_functions[i] for i in request.indices]
+            indices_map = {id(f): request.indices[idx] for idx, f in enumerate(functions)}
+
+            # Track selected count for progress bar
+            app.state.selected_total = len(functions)
+
+            start_run(functions, run_id, existing_results=all_results, indices_map=indices_map, overwrite=False)
+        else:
+            app.state.selected_total = None
+            start_run(all_functions, run_id, overwrite=False)
+
         return {"ok": True, "run_id": run_id, "run_name": app.state.run_name}
 
     @app.get("/api/config")

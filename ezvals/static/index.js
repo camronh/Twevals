@@ -1828,15 +1828,8 @@ function updateRunButtonState() {
     playBtn.classList.add('rounded');
     dropdownToggle?.classList.add('hidden');
     dropdownToggle?.classList.remove('flex');
-  } else if (hasSelections) {
-    // Checkboxes selected - just "Rerun", no dropdown
-    playBtnText.textContent = 'Rerun';
-    playBtn.classList.remove('rounded-l');
-    playBtn.classList.add('rounded');
-    dropdownToggle?.classList.add('hidden');
-    dropdownToggle?.classList.remove('flex');
   } else {
-    // Previous runs exist, no selection - split button
+    // Previous runs exist (with or without selection) - split button
     playBtnText.textContent = _runMode === 'new' ? 'New Run' : 'Rerun';
     playBtn.classList.remove('rounded');
     playBtn.classList.add('rounded-l');
@@ -1860,13 +1853,15 @@ async function executeRun(mode) {
     let endpoint = '/api/runs/rerun';
     let body = {};
 
-    if (selectedIndices.size > 0) {
-      // Selective rerun - always use rerun endpoint
-      body = { indices: Array.from(selectedIndices) };
-    } else if (mode === 'new') {
-      // New run - auto-generated name, no prompt
+    if (mode === 'new') {
+      // New run (with or without selection)
       endpoint = '/api/runs/new';
-      body = {};
+      if (selectedIndices.size > 0) {
+        body = { indices: Array.from(selectedIndices) };
+      }
+    } else if (selectedIndices.size > 0) {
+      // Selective rerun
+      body = { indices: Array.from(selectedIndices) };
     }
 
     const resp = await fetch(endpoint, {
@@ -1894,12 +1889,11 @@ async function executeRun(mode) {
 }
 
 document.getElementById('play-btn')?.addEventListener('click', async () => {
-  const hasSelections = selectedIndices.size > 0;
-  if (!_hasRunBefore || hasSelections) {
-    // Fresh session or selective rerun
+  if (!_hasRunBefore) {
+    // Fresh session - just run
     await executeRun('rerun');
   } else {
-    // Use current mode
+    // Use current mode (works with or without selections)
     await executeRun(_runMode);
   }
 });
