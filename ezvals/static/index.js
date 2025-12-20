@@ -522,8 +522,8 @@ function renderStatsExpanded(data) {
     }
 
     const errorsHtml = totalErrors > 0
-      ? `<div class="stats-metric"><span class="stats-metric-value text-accent-error">${totalErrors}</span><span class="stats-metric-label">errors</span></div>`
-      : '';
+      ? `<div id="stats-errors" class="stats-metric stats-metric-sm"><span class="stats-metric-value text-accent-error">${totalErrors}</span><span class="stats-metric-label">errors</span></div>`
+      : '<div id="stats-errors" class="stats-metric stats-metric-sm hidden"></div>';
     metricsHtml = `
       <div class="stats-metric-row-main">
         <div class="stats-metric"><span class="stats-metric-value">${total}</span><span class="stats-metric-label">tests</span></div>
@@ -1991,6 +1991,22 @@ function updateStatsInPlace(data) {
   const testMetric = expandedPanel.querySelector('.stats-metric-value');
   if (testMetric && testMetric.textContent !== String(total)) {
     testMetric.textContent = total;
+  }
+
+  // Update error count
+  const errorsDiv = expandedPanel.querySelector('#stats-errors');
+  if (errorsDiv) {
+    const errorValue = errorsDiv.querySelector('.stats-metric-value');
+    if (stats.totalErrors > 0) {
+      errorsDiv.classList.remove('hidden');
+      if (errorValue) {
+        errorValue.textContent = stats.totalErrors;
+      } else {
+        errorsDiv.innerHTML = `<span class="stats-metric-value text-accent-error">${stats.totalErrors}</span><span class="stats-metric-label">errors</span>`;
+      }
+    } else {
+      errorsDiv.classList.add('hidden');
+    }
   }
 
   // Update progress bar
