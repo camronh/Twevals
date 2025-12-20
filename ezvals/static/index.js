@@ -1741,7 +1741,9 @@ document.addEventListener('click', (e) => {
     const newName = input.value.trim();
     if (newName && newName !== originalText) {
       try {
-        if (_currentRunId) {
+        // Check if a run file actually exists (if all results are not_started, no run file yet)
+        const hasRunFile = _hasRunBefore || (_currentData?.results || []).some(r => r.result?.status && r.result.status !== 'not_started');
+        if (hasRunFile && _currentRunId) {
           // Run exists: update run file
           await fetch(`/api/runs/${_currentRunId}`, {
             method: 'PATCH',

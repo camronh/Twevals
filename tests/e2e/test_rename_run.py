@@ -282,3 +282,85 @@ def test_set_pending_run_name_before_run(tmp_path):
 
     # Verify app.state was updated
     assert app.state.run_name == "my-custom-name"
+
+
+def test_rename_run_before_running_via_ui(tmp_path):
+    """E2E test: Edit run name in UI before any run, then run and verify the name is used."""
+    from pathlib import Path
+    from ezvals.discovery import EvalDiscovery
+    from ezvals.storage import ResultsStore
+
+    # Create a simple eval file
+    eval_dir = tmp_path / "evals"
+    eval_dir.mkdir()
+    eval_file = eval_dir / "test_eval.py"
+    eval_file.write_text('''
+from ezvals import eval, EvalResult
+
+@eval(dataset="test_ds")
+def simple_eval():
+    return EvalResult(input="test", output="result")
+''')
+
+    # Discover functions
+    discovery = EvalDiscovery()
+    functions = discovery.discover(path=str(eval_file))
+
+    # Create store and generate run_id
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.generate_run_id()
+
+    # Create app with discovered functions but no run on disk yet
+    app = create_app(
+        results_dir=str(tmp_path / "runs"),
+        active_run_id=run_id,
+        path=str(eval_file),
+        session_name="test-session",
+        run_name="auto-generated",
+        discovered_functions=functions,
+    )
+
+    with run_server(app, port=8773) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
+            page.wait_for_selector("#results-table")
+
+            # Verify initial run name in expanded view
+            run_text = page.locator("#run-name-expanded")
+            expect(run_text).to_contain_text("auto-generated")
+
+            # Edit the run name before running
+            run_row = run_text.locator("..")
+            run_row.hover()
+            edit_btn = page.locator(".edit-run-btn-expanded")
+            edit_btn.click()
+
+            # Type new name and save
+            input_field = page.locator("#run-name-expanded input")
+            expect(input_field).to_be_visible()
+            input_field.fill("my-custom-name")
+            input_field.press("Enter")
+
+            # Wait for UI to refresh and verify new name is shown
+            page.wait_for_timeout(500)
+            run_text = page.locator("#run-name-expanded")
+            expect(run_text).to_contain_text("my-custom-name")
+
+            # Now click Run to trigger the first run
+            play_btn = page.locator("#play-btn")
+            play_btn.click()
+
+            # Wait for run to complete
+            page.wait_for_timeout(2000)
+
+            browser.close()
+
+    # Verify the run file was created with the custom name
+    session_dir = tmp_path / "runs" / "test-session"
+    json_files = list(session_dir.glob("*.json"))
+    assert len(json_files) == 1
+    data = json.loads(json_files[0].read_text())
+    assert data["run_name"] == "my-custom-name"
+    assert "my-custom-name" in json_files[0].name
