@@ -211,3 +211,53 @@ def test_score_chip_numeric(tmp_path):
             assert "0.8" in page_content or "0.85" in page_content
 
             browser.close()
+
+
+def test_stats_bar_error_count(tmp_path):
+    """Stats bar shows error count when there are errors."""
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(make_summary_with_scores(), "2024-01-01T00-00-00Z")
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
+            page.wait_for_selector("#results-table")
+
+            # Error count should be visible (make_summary_with_scores has 1 error)
+            stats_expanded = page.locator("#stats-expanded")
+            expect(stats_expanded).to_contain_text("1")
+            expect(stats_expanded).to_contain_text("errors")
+
+            browser.close()
+
+
+def test_stats_bar_no_errors_hidden(tmp_path):
+    """Stats bar hides error count when there are no errors."""
+    summary = make_summary_with_scores()
+    summary["total_errors"] = 0
+    # Also clear the error from results
+    for r in summary["results"]:
+        r["result"]["error"] = None
+        if r["result"]["status"] == "error":
+            r["result"]["status"] = "completed"
+
+    store = ResultsStore(tmp_path / "runs")
+    run_id = store.save_run(summary, "2024-01-01T00-00-00Z")
+    app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+    with run_server(app) as url:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
+            page.wait_for_selector("#results-table")
+
+            # Error count label should not be visible
+            stats_expanded = page.locator("#stats-expanded")
+            stats_text = stats_expanded.text_content()
+            assert "errors" not in stats_text.lower()
+
+            browser.close()

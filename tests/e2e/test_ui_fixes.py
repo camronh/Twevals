@@ -640,3 +640,83 @@ class TestRunDropdown:
                 assert dropdown.count() == 0, "Run dropdown should not appear with single run"
 
                 browser.close()
+
+
+class TestStatusChipPosition:
+    """Status chips (running/error) should appear in subtext row, not next to function name."""
+
+    def make_summary_with_error_status(self):
+        """Summary with an error status to show error chip."""
+        return {
+            "total_evaluations": 2,
+            "total_functions": 2,
+            "total_errors": 1,
+            "total_passed": 1,
+            "total_with_scores": 1,
+            "average_latency": 0.5,
+            "results": [
+                {
+                    "function": "test_pass",
+                    "dataset": "my_dataset",
+                    "labels": ["label1"],
+                    "result": {
+                        "input": "input1",
+                        "output": "output1",
+                        "reference": None,
+                        "scores": [{"key": "accuracy", "passed": True}],
+                        "error": None,
+                        "latency": 0.3,
+                        "metadata": None,
+                        "status": "completed",
+                    },
+                },
+                {
+                    "function": "test_error_func",
+                    "dataset": "error_dataset",
+                    "labels": [],
+                    "result": {
+                        "input": "input2",
+                        "output": None,
+                        "reference": None,
+                        "scores": [],
+                        "error": "RuntimeError: Failed",
+                        "latency": None,
+                        "metadata": None,
+                        "status": "error",
+                    },
+                },
+            ],
+        }
+
+    def test_error_chip_in_subtext_row(self, tmp_path):
+        """Error chip should be in the subtext row with dataset, not next to function name."""
+        store = ResultsStore(tmp_path / "runs")
+        run_id = store.save_run(self.make_summary_with_error_status(), "2024-01-01T00-00-00Z")
+        app = create_app(results_dir=str(tmp_path / "runs"), active_run_id=run_id)
+
+        with run_server(app) as url:
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page()
+                page.goto(url)
+                page.wait_for_selector("#results-table")
+
+                # Find the error row
+                error_row = page.locator("tr[data-row='main']").filter(
+                    has=page.locator("td[data-col='function']", has_text="test_error_func")
+                )
+                func_cell = error_row.locator("td[data-col='function']")
+
+                # The status pill should be in the second div (subtext row), not the first
+                # Structure: <td><div class="flex flex-col"><div>function</div><div>pill + dataset + labels</div></div></td>
+                subtext_row = func_cell.locator("div.flex.flex-col > div").nth(1)
+
+                # Subtext row should contain both the status pill and the dataset
+                expect(subtext_row.locator(".status-pill")).to_have_count(1)
+                expect(subtext_row).to_contain_text("error_dataset")
+
+                # First row (function name row) should NOT contain the status pill
+                func_name_row = func_cell.locator("div.flex.flex-col > div").nth(0)
+                expect(func_name_row.locator(".status-pill")).to_have_count(0)
+
+                browser.close()
