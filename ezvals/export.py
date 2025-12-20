@@ -88,12 +88,9 @@ def _ascii_bar(pct: int, width: int = 20) -> str:
     return f"{bar} {indicator}"
 
 
-def _truncate(s: str, max_len: int) -> str:
-    """Truncate string to max length with ellipsis."""
-    s = str(s)
-    if len(s) > max_len:
-        return s[:max_len - 3] + "..."
-    return s
+def _progress_bar(pct: int) -> str:
+    """Generate geps.dev progress bar image markdown."""
+    return f"![](https://geps.dev/progress/{pct})"
 
 
 def render_markdown(
@@ -188,25 +185,25 @@ def render_markdown(
             elif c == "dataset":
                 val = r.get("dataset", "")
             elif c == "input":
-                val = _truncate(json.dumps(res.get("input", ""), default=str), 50)
+                val = json.dumps(res.get("input", ""), default=str)
             elif c == "output":
-                val = _truncate(json.dumps(res.get("output", ""), default=str), 50)
+                val = json.dumps(res.get("output", ""), default=str)
             elif c == "reference":
-                val = _truncate(json.dumps(res.get("reference", ""), default=str), 50)
+                val = json.dumps(res.get("reference", ""), default=str)
             elif c == "scores":
                 scores = res.get("scores") or []
                 parts = []
                 for s in scores:
                     key = s.get("key", "?")
                     if s.get("passed") is True:
-                        parts.append(f"✓{key}")
+                        parts.append(f"✅ {key}")
                     elif s.get("passed") is False:
-                        parts.append(f"✗{key}")
+                        parts.append(f"❌ {key}")
                     elif s.get("value") is not None:
                         parts.append(f"{key}:{s['value']}")
                 val = " ".join(parts)
             elif c == "error":
-                val = _truncate(res.get("error") or "", 30)
+                val = res.get("error") or ""
             elif c == "latency":
                 lat = res.get("latency")
                 val = f"{lat:.2f}s" if lat else ""
@@ -214,6 +211,154 @@ def render_markdown(
                 val = ""
             # Escape pipes for markdown
             row_vals.append(val.replace("|", "\\|").replace("\n", " "))
+        lines.append("| " + " | ".join(row_vals) + " |")
+
+    return "\n".join(lines)
+
+
+def render_markdown_comparison(
+    comparison_runs: List[Dict[str, Any]],
+    columns: Optional[List[str]] = None,
+    session_name: Optional[str] = None,
+) -> str:
+    """Render comparison mode data as Markdown with stacked bars per metric.
+
+    Args:
+        comparison_runs: List of run data dicts with run_name, chips, avg_latency, results
+        columns: List of columns to include (None = all)
+        session_name: Optional session name
+    """
+    lines = []
+
+    # Header with all run names
+    run_names = [r.get("run_name", "Run") for r in comparison_runs]
+    lines.append(f"# Comparison: {' vs '.join(run_names)}")
+    if session_name:
+        lines.append(f"**Session:** {session_name}")
+    lines.append("")
+
+    # Collect all unique score keys across runs
+    all_keys = set()
+    for run in comparison_runs:
+        for chip in run.get("chips", []):
+            all_keys.add(chip.get("key"))
+    all_keys.discard(None)
+
+    # Find max latency for normalization
+    max_latency = max((r.get("avg_latency", 0) for r in comparison_runs), default=0)
+
+    lines.append("## Scores")
+    lines.append("")
+
+    # Render each metric as a stacked table
+    for key in sorted(all_keys):
+        lines.append(f"### {key}")
+        lines.append("")
+        lines.append("| Run | Progress | Score |")
+        lines.append("|-----|----------|-------|")
+
+        for run in comparison_runs:
+            run_name = run.get("run_name", "Run")
+            chip = next((c for c in run.get("chips", []) if c.get("key") == key), None)
+            if chip:
+                pct = _chip_to_pct(chip)
+                bar = _progress_bar(pct)
+                if chip["type"] == "ratio":
+                    score = f"{pct}% ({chip['passed']}/{chip['total']})"
+                else:
+                    score = f"{pct}% (avg: {chip['avg']:.2f})"
+            else:
+                bar = "—"
+                score = "—"
+            lines.append(f"| {run_name} | {bar} | {score} |")
+
+        lines.append("")
+
+    # Latency as a metric
+    if max_latency > 0:
+        lines.append("### latency")
+        lines.append("")
+        lines.append("| Run | Progress | Value |")
+        lines.append("|-----|----------|-------|")
+
+        for run in comparison_runs:
+            run_name = run.get("run_name", "Run")
+            lat = run.get("avg_latency", 0)
+            pct = int(lat / max_latency * 100) if max_latency > 0 else 0
+            bar = _progress_bar(pct)
+            lines.append(f"| {run_name} | {bar} | {lat:.2f}s |")
+
+        lines.append("")
+
+    # Results table with per-run output columns
+    lines.append("## Results")
+    lines.append("")
+
+    # Build comparison matrix: key -> {meta, run_id: result}
+    matrix = {}
+    for run in comparison_runs:
+        run_id = run.get("run_id", run.get("run_name", ""))
+        for r in run.get("results", []):
+            key = f"{r.get('function', '')}::{r.get('dataset', '')}"
+            if key not in matrix:
+                matrix[key] = {"_meta": {"function": r.get("function"), "dataset": r.get("dataset")}}
+            matrix[key][run_id] = r
+
+    if not matrix:
+        lines.append("*No results*")
+        return "\n".join(lines)
+
+    # Build header: Eval | Input | run1 | run2 | ...
+    all_cols = ["function", "input"] + [f"output:{r.get('run_id', r.get('run_name', ''))}" for r in comparison_runs]
+    cols = columns if columns else all_cols
+
+    header_parts = ["Eval", "Input"]
+    for run in comparison_runs:
+        header_parts.append(run.get("run_name", "Run"))
+    lines.append("| " + " | ".join(header_parts) + " |")
+    lines.append("|" + "|".join("---" for _ in header_parts) + "|")
+
+    # Table rows
+    for key in sorted(matrix.keys()):
+        entry = matrix[key]
+        meta = entry["_meta"]
+
+        # Get input from first available result
+        first_result = None
+        for run in comparison_runs:
+            run_id = run.get("run_id", run.get("run_name", ""))
+            if run_id in entry and entry[run_id].get("result"):
+                first_result = entry[run_id].get("result", {})
+                break
+
+        row_vals = [
+            meta.get("function", ""),
+            json.dumps(first_result.get("input", "") if first_result else "", default=str),
+        ]
+
+        # Output for each run
+        for run in comparison_runs:
+            run_id = run.get("run_id", run.get("run_name", ""))
+            r = entry.get(run_id)
+            if not r or not r.get("result"):
+                row_vals.append("—")
+            else:
+                result = r.get("result", {})
+                output = json.dumps(result.get("output", ""), default=str)
+                # Add score indicators on new line
+                scores = result.get("scores") or []
+                score_parts = []
+                for s in scores:
+                    if s.get("passed") is True:
+                        score_parts.append(f"✅ {s.get('key', '')}")
+                    elif s.get("passed") is False:
+                        score_parts.append(f"❌ {s.get('key', '')}")
+                if score_parts:
+                    output += "<br>" + " ".join(score_parts)
+                row_vals.append(output)
+
+        # Escape pipes for markdown, preserve <br> for line breaks
+        row_vals = [v.replace("|", "\\|").replace("\n", " ") for v in row_vals]
         lines.append("| " + " | ".join(row_vals) + " |")
 
     return "\n".join(lines)

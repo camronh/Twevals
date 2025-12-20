@@ -554,17 +554,46 @@ def create_app(
         avgLatency: float
         chips: List[ExportChip]
 
+    class ComparisonRunExport(BaseModel):
+        run_id: str
+        run_name: str
+        chips: List[ExportChip]
+        avg_latency: float
+        results: List[Dict[str, Any]]
+
     class FilteredExportRequest(BaseModel):
         visible_indices: List[int]
         visible_columns: List[str]
         stats: ExportStats
         run_name: str
         session_name: Optional[str] = None
+        comparison_mode: bool = False
+        comparison_runs: Optional[List[ComparisonRunExport]] = None
 
     @app.post("/api/runs/{run_id}/export/markdown")
     def export_markdown(run_id: str, body: FilteredExportRequest):
         """Export filtered results as Markdown with ASCII bar chart."""
-        from ezvals.export import render_markdown
+        from ezvals.export import render_markdown, render_markdown_comparison
+
+        # Handle comparison mode
+        if body.comparison_mode and body.comparison_runs:
+            comparison_data = [
+                {
+                    "run_id": r.run_id,
+                    "run_name": r.run_name,
+                    "chips": [c.model_dump() for c in r.chips],
+                    "avg_latency": r.avg_latency,
+                    "results": r.results,
+                }
+                for r in body.comparison_runs
+            ]
+            md_content = render_markdown_comparison(
+                comparison_data,
+                body.visible_columns,
+                body.session_name,
+            )
+            headers = {"Content-Disposition": f"attachment; filename=comparison.md"}
+            return Response(content=md_content, media_type="text/markdown", headers=headers)
 
         rid = app.state.active_run_id if run_id in ("latest", app.state.active_run_id) else None
         if not rid:

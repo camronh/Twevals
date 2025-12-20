@@ -1659,9 +1659,10 @@ function applyAllFilters() {
 }
 function initScrollRestoration() { const savedY = sessionStorage.getItem('ezvals:scrollY'); if (savedY !== null) { window.scrollTo(0, parseInt(savedY, 10)); sessionStorage.removeItem('ezvals:scrollY'); } const params = new URLSearchParams(window.location.search); if (params.has('scroll')) { history.replaceState(null, '', window.location.pathname); } }
 document.addEventListener('click', (e) => { const link = e.target.closest('a[href*="/runs/"][href*="/results/"]'); if (link) { sessionStorage.setItem('ezvals:scrollY', window.scrollY.toString()); } });
+let _exportButtonsWired = false;
 function wireExportButtons() {
-  const table = document.getElementById('results-table');
-  const runId = table ? (table.getAttribute('data-run-id') || 'latest') : 'latest';
+  if (_exportButtonsWired) return;
+  _exportButtonsWired = true;
 
   // Setup export dropdown toggle
   const exportToggle = document.getElementById('export-toggle');
@@ -1674,11 +1675,15 @@ function wireExportButtons() {
     document.addEventListener('click', () => exportMenu.classList.add('hidden'));
   }
 
-  // Raw exports (all data)
+  // Raw exports (all data) - use onclick to get current runId
   document.getElementById('export-json-btn')?.addEventListener('click', () => {
+    const table = document.getElementById('results-table');
+    const runId = table?.getAttribute('data-run-id') || 'latest';
     window.location.href = `/api/runs/${runId}/export/json`;
   });
   document.getElementById('export-csv-btn')?.addEventListener('click', () => {
+    const table = document.getElementById('results-table');
+    const runId = table?.getAttribute('data-run-id') || 'latest';
     window.location.href = `/api/runs/${runId}/export/csv`;
   });
 
@@ -1720,6 +1725,33 @@ async function exportFiltered(format) {
     session_name: _currentData?.session_name || null
   };
 
+  // Add comparison data if in comparison mode
+  if (isComparisonMode()) {
+    // Get visible result keys from visible rows (comparison mode uses data-compare-key)
+    const visibleKeys = new Set();
+    visibleRows.forEach(tr => {
+      const key = tr.dataset.compareKey;
+      if (key) visibleKeys.add(key);
+    });
+
+    payload.comparison_mode = true;
+    payload.comparison_runs = _comparisonRuns.map(run => {
+      const data = _comparisonData[run.runId];
+      // Filter results to only those visible in the comparison matrix
+      const filteredResults = (data?.results || []).filter(r => {
+        const key = getResultKey(r);
+        return visibleKeys.has(key);
+      });
+      return {
+        run_id: run.runId,
+        run_name: run.runName,
+        chips: data?.score_chips || [],
+        avg_latency: data?.average_latency || 0,
+        results: filteredResults
+      };
+    });
+  }
+
   try {
     const resp = await fetch(`/api/runs/${runId}/export/${format}`, {
       method: 'POST',
@@ -1739,7 +1771,8 @@ async function exportFiltered(format) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${runId}.${ext}`;
+    const filename = isComparisonMode() ? 'comparison' : runId;
+    a.download = `${filename}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   } catch (err) {
